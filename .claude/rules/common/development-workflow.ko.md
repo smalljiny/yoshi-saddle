@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 ---
 # 개발 워크플로우
 
@@ -8,20 +8,24 @@ version: 1
 ## 전체 흐름
 
 ```
-/dev:topic → /dev:plan → /dev:impl (반복) → /dev:review → /dev:verify → PR
+/dev:spec → /dev:plan → /dev:impl (반복) → /dev:review → /dev:verify → PR
 ```
 
 ## 단계별 규칙
 
-### 1. 주제 시작 (`/dev:topic`)
+### 1. 스펙 작성 (`/dev:spec`)
 
-- 작업 주제를 명확히 정의하고 `docs/_local/dev-context.json`에 기록
-- `docs/_local/<topic>/` 디렉토리 생성 (spec.md, implementation-plan.md 저장)
+- `/dev:spec <topic>`으로 새 주제 시작 — 별도로 `/dev:topic`을 실행할 필요 없음
+- brainstorming 스킬을 로드하여 대화형으로 스펙 초안 작성
+- 초안을 `docs/_local/tmp/<topic>/spec.md`에 저장
+- READY가 될 때까지 Codex 리뷰 루프 실행: `codex "spec-review 스킬로 spec.md를 리뷰해줘"`
+- 진행 전 스펙 확정 (`dev-context.json`에 `specConfirmed: true` 설정)
 
 ### 2. 계획 수립 (`/dev:plan`)
 
-- **planner** 에이전트 자동 활성화
-- 결과물: `spec.md` (요구사항 + 설계), `implementation-plan.md` (Task 목록)
+- `specConfirmed: true` 필수 — 확정된 스펙 없이 실행 불가
+- **planner** 에이전트가 확정된 스펙을 입력으로 자동 활성화
+- 결과물: `implementation-plan.md` (Task 목록만 — 스펙은 이미 확정됨)
 - 계획 승인 전 구현 금지
 
 ### 3. Task 구현 (`/dev:impl`)
@@ -47,10 +51,22 @@ PR 전 반드시 통과:
 - `test` — 테스트 통과 (80%+ 커버리지)
 - `security` — 보안 스캔 통과
 
+## 주제 관리
+
+```
+/dev:topic                   현재 주제와 단계 확인
+/dev:topic switch <name>     다른 주제로 전환
+```
+
+주제 등록은 `/dev:spec <topic>`이 처리한다. `/dev:topic <name>`을 직접 실행하는 방식은 더 이상 사용하지 않는다.
+
 ## 문서 생명주기
 
 ```
-작업 중  →  docs/_local/<topic>/     (git-ignored)
-완료 후  →  docs/specs/<topic>.md    (영구 참조 문서)
-         →  docs/_local/<topic>/ 삭제
+스펙 초안  →  docs/_local/tmp/<topic>/spec.md    (git-ignored, 이 위치에 유지)
+스펙 확정  →  dev-context.json에 specConfirmed: true
+           →  spec.md는 tmp/에 그대로 유지 — /dev:plan이 dev-context.json에서 경로를 읽음
+계획       →  docs/_local/<topic>/implementation-plan.md  (git-ignored)
+완료 후    →  docs/specs/<topic>.md    (영구 참조 문서)
+           →  docs/_local/<topic>/ 삭제
 ```

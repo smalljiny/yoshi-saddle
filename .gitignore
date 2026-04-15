@@ -6,8 +6,9 @@
 docs/_local/
 
 # 참조 자료 (외부 프로젝트, read-only)
-references/
+/references/
 
 # 의존성
 node_modules/
 dist/
+.DS_Store

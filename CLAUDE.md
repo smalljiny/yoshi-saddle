@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 ---
 
 # CLAUDE.md
@@ -15,7 +15,7 @@ This repository is a **harness for Claude Code-based development**. It functions
 ```
 .claude/
 ├── agents/          Specialized subagents (planner, tdd-specialist, code-reviewer, etc.)
-├── commands/        Slash commands (/dev:topic, /dev:plan, /dev:impl, /dev:review, /dev:verify, /harness:audit, /harness:learn)
+├── commands/        Slash commands (/dev:spec, /dev:topic, /dev:plan, /dev:impl, /dev:review, /dev:verify, /harness:audit, /harness:learn)
 │   ├── dev/         Development workflow commands
 │   └── harness/     Harness management commands
 ├── hooks/           Hook configuration (hooks.json)
@@ -26,6 +26,7 @@ This repository is a **harness for Claude Code-based development**. It functions
 │   └── hooks/
 ├── sessions/        Session logs (git-ignored, .jsonl format)
 ├── skills/          Workflow skills
+│   ├── brainstorming/   Loaded by /dev:spec during spec draft writing
 │   ├── tdd-workflow/
 │   ├── verification-loop/
 │   └── learned/     Patterns auto-saved by /harness:learn command
@@ -35,16 +36,17 @@ This repository is a **harness for Claude Code-based development**. It functions
 ## Development Workflow
 
 ```
-/dev:topic → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → PR
+/dev:spec → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → PR
 ```
 
 | Command | Role |
 |---------|------|
-| `/dev:topic <name>` | Start a work topic, record in dev-context.json |
-| `/dev:plan` | planner agent → generate spec.md + implementation-plan.md |
+| `/dev:spec <name>` | Start a topic, write spec draft (brainstorming skill), run Codex review loop, confirm spec |
+| `/dev:plan` | planner agent → generate implementation-plan.md (requires confirmed spec) |
 | `/dev:impl` | Execute one Task (auto-invokes tdd-specialist + code-reviewer) |
 | `/dev:review` | Final full review (code-reviewer + security-reviewer in parallel) |
 | `/dev:verify` | Verification gates (build → type-check → lint → test → security) |
+| `/dev:topic` | Check current topic/phase or switch topics (`/dev:topic switch <name>`) |
 | `/harness:learn` | Extract session patterns → save to skills/learned/ |
 
 ## Agents

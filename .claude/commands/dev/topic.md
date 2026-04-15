@@ -1,19 +1,21 @@
 ---
-version: 2
-description: Start a new work topic or manage the current topic. Reads and writes dev-context.json.
+version: 3
+description: Check the current topic and phase, or switch to another topic. Topic registration is handled by /dev:spec.
 category: dev-workflow
 ---
 
 # /dev:topic
 
-Start a work topic and record it in `docs/_local/dev-context.json`.
+Check the current work topic and phase, or switch between topics.
+
+Topic registration is no longer a separate step — use `/dev:spec <topic>` to start a new topic and write its spec.
 
 ## Usage
 
 ```
-/dev:topic <name>         Start a new topic
-/dev:topic                Check the current topic
-/dev:topic switch <name>  Switch to another topic
+/dev:topic                   Check the current topic and phase
+/dev:topic switch <name>     Switch to another topic
+/dev:topic <name>            ⚠ Deprecated — use /dev:spec <name> instead
 ```
 
 ## Execution Flow
@@ -21,42 +23,35 @@ Start a work topic and record it in `docs/_local/dev-context.json`.
 ### No arguments — Check current topic
 
 1. Read `docs/_local/dev-context.json`
-2. Print the current topic and phase
-3. If no topic exists, show guidance: "Start one with /dev:topic <name>"
-
-### `/dev:topic <name>` — Start a new topic
-
-1. Read `docs/_local/dev-context.json` (initialize with empty structure if not found)
-2. Create `docs/_local/<name>/` directory
-3. Update `dev-context.json`:
-
-```json
-{
-  "current_topic": "<name>",
-  "topics": {
-    "<name>": {
-      "phase": "topic",
-      "spec": null,
-      "plan": null,
-      "currentTask": null,
-      "createdAt": "<ISO 8601>",
-      "updatedAt": "<ISO 8601>"
-    }
-  }
-}
-```
-
-4. Show next steps:
-```
-Topic '<name>' started.
-Next: Run /dev:plan to create an implementation plan.
-```
+2. Print the current topic and phase:
+   ```
+   현재 주제: <topic>
+   단계: <phase>
+   스펙 확정: <specConfirmed>
+   ```
+3. If no topic exists:
+   ```
+   진행 중인 주제가 없습니다.
+   새 주제를 시작하려면: /dev:spec <topic>
+   ```
 
 ### `/dev:topic switch <name>` — Switch topic
 
 1. Verify `<name>` topic exists in `dev-context.json`
-2. Update `current_topic` and save
+   - If not found: show available topics and stop
+2. Update `current_topic` to `<name>` and save
+
+### `/dev:topic <name>` — Deprecated
+
+Show a redirect message and stop:
+
+```
+⚠ /dev:topic <name>으로 주제를 등록하는 방식은 더 이상 사용하지 않습니다.
+스펙 작성과 주제 등록을 함께 시작하려면:
+  /dev:spec <name>
+```
 
 ## Next Steps
 
-After starting a topic: create a plan with `/dev:plan`
+- Start a new topic: `/dev:spec <topic>`
+- Continue planning: `/dev:plan` (requires confirmed spec)
