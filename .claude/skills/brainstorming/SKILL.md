@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 4
 name: brainstorming
 description: Use when writing a spec draft — refines rough ideas into fully-formed specs through collaborative questioning, alternative exploration, and incremental validation. Loaded by /dev:spec during draft writing.
 origin: sample-claude-env
@@ -23,7 +23,8 @@ Start by understanding the current project context, then ask questions one at a 
 - Focus on understanding: purpose, constraints, success criteria
 
 **Exploring approaches:**
-- Propose 2-3 different approaches with trade-offs
+- Propose 2-3 different approaches with trade-offs when the direction is not already clear
+- If the user has already indicated a direction, validate it rather than forcing alternatives
 - Present options conversationally with your recommendation and reasoning
 - Lead with your recommended option and explain why
 
@@ -36,7 +37,12 @@ Start by understanding the current project context, then ask questions one at a 
 
 ## Output Format
 
-Write the completed spec to `docs/_local/backlog/<topic>/spec.md` using this structure:
+Present the completed spec inline in the conversation using this structure.
+After presenting, announce completion so `/dev:spec` can save the file:
+
+> 스펙 초안이 완성되었습니다. /dev:spec이 파일로 저장합니다.
+
+### Required sections (all topic types)
 
 ```markdown
 # <기능명> 스펙
@@ -53,10 +59,6 @@ Write the completed spec to `docs/_local/backlog/<topic>/spec.md` using this str
 
 ## 2. 목표
 
-## 3. 아키텍처
-### 3.1 전체 구조
-### 3.2 주요 컴포넌트
-
 ## 4. 의사결정
 
 | 항목 | 결정 | 근거 |
@@ -69,12 +71,21 @@ Write the completed spec to `docs/_local/backlog/<topic>/spec.md` using this str
 ## 7. 관련 문서
 ```
 
+### Optional sections (include based on topic type)
+
+| Section | Code / Feature | Workflow / Policy | Role / Structure |
+|---------|---------------|-------------------|-----------------|
+| `## 3. 아키텍처` (전체 구조, 주요 컴포넌트) | ✅ Include | ⬜ Omit if not applicable | ⬜ Omit if not applicable |
+| `## 3. 역할 정의` (역할 경계, 책임 분리) | ⬜ Omit if not applicable | ✅ Include | ✅ Include |
+
+Use section number `## 3.` for whichever optional section applies. If the topic does not clearly fit any category, use the `역할 정의` structure to describe boundaries and responsibilities — section 3 is always required in some form.
+
 ## Key Principles
 
 - **One question at a time** — Don't overwhelm with multiple questions
 - **Multiple choice preferred** — Easier to answer than open-ended when possible
 - **YAGNI ruthlessly** — Remove unnecessary features from all designs
-- **Explore alternatives** — Always propose 2-3 approaches before settling
+- **Explore alternatives** — Propose 2-3 approaches when the direction is not already clear. If the user has indicated a direction, validate it rather than forcing alternatives.
 - **Incremental validation** — Present spec in sections, validate each
 - **Be flexible** — Go back and clarify when something doesn't make sense
 - **Mark unknowns** — Put unresolved decisions in Open Questions, never invent answers

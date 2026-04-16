@@ -17,9 +17,12 @@ Use all items. Final decision rules:
   Vague or empty Non-goals → FAIL.)
 
 - [ ] 3. 아키텍처 충분성 (Architecture Sufficient for Planning)
-  Evidence: (verify Architecture section provides enough detail for a planner to decompose into tasks.
-  Must include: overall structure, main components, and interfaces or data model where applicable.
-  Missing key component descriptions → FAIL.)
+  Evidence: (verify the spec contains a planning structure section with enough detail to decompose into tasks.
+  Accepted forms: `## 3. 아키텍처` (code/feature topics) or `## 3. 역할 정의` or equivalent (workflow/policy/role topics).
+  For code topics: must include overall structure, main components, and interfaces or data model where applicable.
+  For non-code topics: must describe role boundaries, responsibility separation, or workflow structure in enough detail for planning.
+  Missing any planning structure section → FAIL.
+  Present but too vague to decompose into tasks → FAIL.)
 
 - [ ] 4. 의사결정 근거 (Decision Rationale Documented)
   Evidence: (verify Design Decisions table exists and each row has a non-empty Rationale.

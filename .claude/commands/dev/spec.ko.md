@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 4
 description: 새 주제의 스펙을 작성한다. brainstorming 스킬로 스펙 초안을 작성하고, Codex 리뷰 루프를 실행하고, 계획 수립 전 스펙을 확정한다.
 category: dev-workflow
 ---
@@ -49,12 +49,8 @@ category: dev-workflow
 
 ### 3. 스펙 초안 작성
 
-`.claude/skills/brainstorming/SKILL.md`를 로드하고 프로세스에 따라 스펙 초안을 작성한다.
-
-- 한 번에 하나씩 질문하며 주제 파악
-- 필요한 경우 2~3가지 접근방식 제안
-- 200~300단어 섹션 단위로 스펙 제시, 각 섹션마다 검증
-- 완성된 초안을 `docs/_local/backlog/<topic>/spec.md`에 저장
+`.claude/skills/brainstorming/SKILL.md`를 로드하고 프로세스에 따른다.
+brainstorming이 완료를 선언하면, 제시된 스펙을 `docs/_local/backlog/<topic>/spec.md`에 저장한다.
 
 ### 4. Codex 리뷰 요청
 
@@ -81,7 +77,7 @@ Codex 리뷰를 실행하세요:
     - Required Fixes를 `spec.md`에 전부 반영
     - 4단계로 돌아가 Codex 재리뷰 요청
   - `READY` 또는 `READY WITH NOTE`인 경우:
-    - Notes가 있으면 적절히 반영
+    - 사실 오류, 누락된 컨텍스트, 또는 리뷰에서 식별된 누락 Open Questions를 수정하는 Notes를 반영한다. 문체 선호나 범위 확장에 해당하는 Notes는 반영하지 않는다.
     - 6단계로 진행
 
 ### 6. 스펙 확정
@@ -108,12 +104,15 @@ Codex 리뷰를 실행하세요:
   ```
   다음: /dev:plan 또는 /dev:plan <topic> 으로 구현 계획을 수립하세요.
   ```
-- 분할인 경우: 서브 주제 정의를 도운 뒤 각각 `/dev:spec <sub-topic>` 실행
+- 분할인 경우: 서브 주제 정의를 도운 뒤 각각 `/dev:spec <sub-topic>` 실행.
+  부모 디렉토리를 `docs/_local/backlog-split/<topic>/`으로 이동한다 — 요약 참조 문서로 보존되며, `/dev:plan` 토픽 탐색(`backlog/`만 스캔)에서 자동 제외된다.
+  서브 토픽 스펙은 `/dev:spec <sub-topic>`으로 `docs/_local/backlog/<sub-topic>/`에 새로 작성한다.
 
 ## 핵심 원칙
 
 - **주제 등록 미포함** — `/dev:spec`은 `dev-context.json`에 주제를 등록하지 않는다. 등록은 `/dev:plan`에서 처리한다.
 - **스펙은 backlog/에 저장** — 스펙은 `docs/_local/backlog/<topic>/`에 생성되고, `/dev:plan`이 `active/`로 이동하기 전까지 이 위치를 유지한다.
+- **brainstorming은 내용, /dev:spec은 저장** — brainstorming 스킬은 스펙을 인라인으로 제시하고 완료를 선언한다. `/dev:spec`이 파일 저장을 담당한다.
 - **리뷰 루프는 통과 시까지 반복** — NOT READY 결과로는 스펙 확정 불가
 - **Codex 핸드오프는 수동** — Claude가 Codex를 직접 호출할 수 없으므로 사용자가 `codex` 명령 실행
 - **dev-context.json 접근 없음** — `/dev:spec`은 `dev-context.json`을 읽거나 쓰지 않는다

@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 4
 description: Write a spec for a new topic. Writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 category: dev-workflow
 ---
@@ -49,12 +49,8 @@ If no argument:
 
 ### 3. Write spec draft
 
-Load `.claude/skills/brainstorming/SKILL.md` and follow its process to write the spec draft.
-
-- Ask questions one at a time to understand the topic
-- Propose 2-3 approaches where relevant
-- Present the spec in sections (200-300 words each), validating after each section
-- Write the completed draft to `docs/_local/backlog/<topic>/spec.md`
+Load `.claude/skills/brainstorming/SKILL.md` and follow its process.
+When brainstorming announces completion, save the presented spec to `docs/_local/backlog/<topic>/spec.md`.
 
 ### 4. Request Codex review
 
@@ -81,7 +77,7 @@ When the user returns after Codex review:
   - Apply all Required Fixes to `spec.md`
   - Go back to step 4 (request another Codex review)
 - If decision is `READY` or `READY WITH NOTE`:
-  - Apply any Notes if appropriate
+  - Apply Notes that correct factual inaccuracies, missing context, or add missing Open Questions identified by the review. Do NOT apply Notes that are stylistic preferences or scope expansions.
   - Proceed to step 6
 
 ### 6. Confirm spec
@@ -108,12 +104,15 @@ Ask the user whether the spec should be split:
   ```
   다음: /dev:plan 또는 /dev:plan <topic> 으로 구현 계획을 수립하세요.
   ```
-- If split: help the user define sub-topics, then run `/dev:spec <sub-topic>` for each
+- If split: help the user define sub-topics, then run `/dev:spec <sub-topic>` for each.
+  Move the parent directory to `docs/_local/backlog-split/<topic>/` — this preserves it as a summary reference while excluding it from `/dev:plan` topic discovery (which scans `backlog/` only).
+  Sub-topic specs are created fresh via `/dev:spec <sub-topic>` in `docs/_local/backlog/<sub-topic>/`.
 
 ## Key Principles
 
 - **Topic initialization is NOT included** — `/dev:spec` does not register the topic in `dev-context.json`. Registration happens at `/dev:plan`.
 - **Spec lives in backlog/** — spec is created and stays in `docs/_local/backlog/<topic>/` until `/dev:plan` moves it to `active/`
+- **Brainstorming owns content, /dev:spec owns persistence** — the brainstorming skill presents the spec inline and announces completion; `/dev:spec` is responsible for saving to file.
 - **Review loop runs until READY** — do not confirm the spec on a NOT READY result
 - **Codex handoff is manual** — Claude cannot invoke Codex directly; the user runs the `codex` command
 - **No dev-context.json access** — `/dev:spec` never reads from or writes to `dev-context.json`
