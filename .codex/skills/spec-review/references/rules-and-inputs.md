@@ -11,16 +11,16 @@ Load and apply where relevant:
 
 ### Backlog topics
 
-Specs in `docs/_local/backlog/` are **not registered** in `dev-context.json`. They are created by `/dev:spec` and remain in backlog until `/dev:plan` moves them to `active/`.
+Specs in `docs/_local/backlog/` are created by `/dev:spec` and remain in backlog until `/dev:plan` moves them to `active/`. They are not registered in `dev-context.json` topics, but `/dev:spec` writes a temporary `current_spec` field to `dev-context.json` after saving the draft.
 
-For backlog reviews, the spec path **must be provided explicitly**:
+Resolve spec path using priority order:
 
-```
-codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
-```
+1. **Explicit argument** (preferred) — user provides the path directly
+2. **`current_spec` only** — if no explicit path and `current_topic` is NOT set, read `current_spec` from `dev-context.json`
+3. **Ambiguous (both `current_spec` and `current_topic` exist)** — ask the user which spec to review; do not silently resolve to the active topic
+4. **User prompt** — if none of the above apply, ask for the spec path
 
-Do NOT attempt to read spec path from `dev-context.json` for backlog topics.
-Do NOT write to `dev-context.json` for backlog topics — there is no entry to update.
+Do NOT write to `dev-context.json` for backlog topics — there is no `topics` entry to update.
 
 Report path: `docs/_local/backlog/<topic>/spec-review-<yymmddhhmmss>.md`
 
@@ -58,13 +58,13 @@ Resolve:
 After review of an active topic:
 - Write the report to `<dirname(spec)>/spec-review-<yymmddhhmmss>.md`
 - Update `topics[current_topic].specReview` with that report path
-- Do NOT set `specConfirmed` — that field is set by `/dev:plan` when registering the topic (not by `/dev:spec`, which does not write to `dev-context.json`)
+- Do NOT set `specConfirmed` — that field is set by `/dev:plan` when registering the topic (not by `/dev:spec` — `/dev:spec` writes only the temporary `current_spec` field, not topic registration)
 
 ## Fallback required inputs
 
-If the spec path cannot be determined:
-- For backlog topics: always ask for the explicit spec path before proceeding
-- For active topics: if `dev-context.json` is missing or `current_topic`/`spec` is absent, ask for the spec path
+If the spec path cannot be determined after exhausting all sources:
+- For backlog topics: explicit path → `current_spec` field → ask the user
+- For active topics: explicit path → `topics[current_topic].spec` → ask the user
 
 ## Suggested evidence sources
 

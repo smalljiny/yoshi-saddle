@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, registers in dev-context.json, and generates implementation-plan.md.
 category: dev-workflow
 ---
@@ -119,7 +119,9 @@ Register the topic in `dev-context.json` (set `current_topic` only if user confi
 }
 ```
 
-Note: `specConfirmed` is stored as a convenience field reflecting the review result. It is set here by `/dev:plan` (not by `/dev:spec` — `/dev:spec` does not write to `dev-context.json`). It is not used as a gate — the gate is the `spec-review-*.md` Decision check in Step 2.
+Also remove the `current_spec` key from `dev-context.json` if it exists (it was written by `/dev:spec` during the backlog phase and is no longer needed once the topic is registered here).
+
+Note: `specConfirmed` is stored as a convenience field reflecting the review result. It is set here by `/dev:plan`. `/dev:spec` does not register topics, but it does write a temporary `current_spec` field (removed here during plan registration). `specConfirmed` is not used as a gate — the gate is the `spec-review-*.md` Decision check in Step 2.
 
 ## Plan Document Format
 

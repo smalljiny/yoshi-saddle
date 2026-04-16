@@ -1,7 +1,12 @@
 ---
-version: 1
+version: 3
 name: spec-review
-description: Review a spec document against an 8-point quality gate. For backlog topics, requires an explicit spec path. For active topics, resolves from dev-context.json. Returns READY only when all 8 checks pass; READY WITH NOTE when non-blocking observations exist; otherwise NOT READY with concrete fixes required.
+description: >-
+  Review a spec document against an 8-point quality gate. Resolves spec path from:
+  (1) explicit argument, (2) active topic in dev-context.json, (3) current_spec
+  field in dev-context.json (backlog fallback), or (4) user prompt. Returns READY
+  only when all 8 checks pass; READY WITH NOTE when non-blocking observations
+  exist; otherwise NOT READY with concrete fixes required.
 ---
 
 # Spec Review
@@ -13,24 +18,32 @@ Evaluate all 8 mandatory checks and produce a review report.
 
 ## Required Inputs
 
-### Backlog topics (not registered in dev-context.json)
+### Spec path resolution (priority order)
 
-Specs in `docs/_local/backlog/` are created by `/dev:spec` but are **not registered** in `dev-context.json` until `/dev:plan` moves them to `active/`. The spec path must be provided explicitly:
+Resolve the spec path using the first matching source:
 
-```
-codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
-```
+1. **Explicit argument** — user provides the path directly:
+   ```
+   codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
+   ```
 
-If no path is provided and the topic is not in `dev-context.json`, ask for the spec path before proceeding.
+2. **Unambiguous auto-resolution** — exactly one of the following exists in `dev-context.json`:
+   - `current_spec` field (backlog draft saved by `/dev:spec`) → use it
+   - `current_topic` in topics (active topic) → use `topics[current_topic].spec`
 
-### Active topics (registered in dev-context.json)
+3. **Ambiguous — both exist** — `current_spec` AND `current_topic` are both set:
+   - Do not silently choose. Ask the user:
+     ```
+     dev-context.json에 backlog 스펙(current_spec)과 active 토픽이 모두 있습니다.
+     어떤 스펙을 리뷰할까요?
+       1. Backlog 스펙: <current_spec 경로>
+       2. Active 토픽 스펙: <topics[current_topic].spec 경로>
+     ```
+   - Use the user's selection.
 
-Topics in `docs/_local/active/` are registered in `dev-context.json`. The spec path can be resolved automatically:
+4. **User prompt** — none of the above apply; ask the user for the spec path before proceeding
 
-- Read `docs/_local/dev-context.json`
-- Resolve `current_topic`, then load `spec` path from `topics[current_topic].spec`
-
-If the user explicitly provides a spec path, always prefer the user-provided value over dev-context.json resolution.
+If the user explicitly provides a spec path, always use it regardless of `dev-context.json` content.
 
 ### Derived values (both cases)
 

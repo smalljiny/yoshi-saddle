@@ -22,19 +22,23 @@ Unlike ECC-style harnesses, skills here are **explicitly referenced** (not auto-
 
 ### How to invoke a skill
 
-Always provide the spec path explicitly — backlog topics are not registered in `dev-context.json`:
+For backlog topics, providing the path explicitly is preferred but not required. After `/dev:spec` saves a draft, the path is available in `dev-context.json` as `current_spec`:
 
 ```
 codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
 ```
 
-For active topics (already registered in `dev-context.json`), the path can be resolved automatically:
+Or without a path — Codex will read `current_spec` from `dev-context.json` automatically:
 
 ```
 codex "spec-review 스킬을 실행해줘"
 ```
 
-> **Note**: `/dev:spec` creates specs in `docs/_local/backlog/<topic>/`. Backlog topics are **not** registered in `dev-context.json` — always pass the spec path explicitly when reviewing a backlog spec.
+For active topics (already registered in `dev-context.json`), the path is resolved from `topics[current_topic].spec` automatically.
+
+> **Note**: Explicit path always takes priority. If no path is provided and `current_spec` is not set (e.g., spec was confirmed or a new session started without running `/dev:spec`), Codex will ask for the path.
+>
+> **Warning**: If both `current_spec` (backlog draft) and `current_topic` (active topic) exist in `dev-context.json`, Codex will ask which spec to review rather than silently choosing the active topic. Use an explicit path to avoid the prompt.
 
 ## spec-review Skill
 
@@ -58,9 +62,17 @@ Reviews a spec document against an 8-point quality gate and produces a review re
 
 ## Context
 
-### Backlog topics (not in dev-context.json)
+### Backlog topics
 
-Specs in `docs/_local/backlog/` are created by `/dev:spec` but are **not registered** in `dev-context.json` until `/dev:plan` moves them to `active/`. Always pass the spec path explicitly:
+Specs in `docs/_local/backlog/` are created by `/dev:spec`. They are not registered in `dev-context.json` topics, but `/dev:spec` writes a temporary `current_spec` field to `dev-context.json` after saving the draft.
+
+Spec path resolution (mirrors SKILL.md):
+1. **Explicit path** — always wins
+2. **Exactly one of the following exists** — auto-resolve:
+   - Only `current_spec` set → use it (backlog draft)
+   - Only `current_topic` set → use `topics[current_topic].spec` (active topic)
+3. **Both `current_spec` and `current_topic` exist** — ask the user which spec to review; do not silently choose
+4. **Neither exists** — ask the user for the spec path
 
 ```
 codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
@@ -90,7 +102,7 @@ Once `/dev:plan` moves a topic to `active/` and registers it, Codex can resolve 
 Full schema definition: `.codex/skills/spec-review/references/rules-and-inputs.md`
 
 After review of an active topic, Codex writes the report path to `topics[<topic>].specReview`.
-`specConfirmed` is set by the Claude Code `/dev:plan` command (not `/dev:spec` — `/dev:spec` does not write to `dev-context.json`) — Codex does not set it.
+`specConfirmed` is set by the Claude Code `/dev:plan` command — Codex does not set it. `/dev:spec` does not register topics, but it writes a temporary `current_spec` field (removed by `/dev:spec` itself after spec confirmation in Step 6; `/dev:plan` also removes it as cleanup when registering the topic).
 
 ## File Access Scope (spec-review)
 
@@ -98,7 +110,7 @@ The spec-review skill accesses only the following paths:
 
 | Access | Paths |
 |--------|-------|
-| Read | `docs/_local/dev-context.json` (active topics only), `docs/_local/backlog/<topic>/spec.md` or `docs/_local/active/<topic>/spec.md`, `.claude/rules/` |
+| Read | `docs/_local/dev-context.json` (active topics: `topics[current_topic].spec`; backlog topics: `current_spec` field), `docs/_local/backlog/<topic>/spec.md` or `docs/_local/active/<topic>/spec.md`, `.claude/rules/` |
 | Write | `<dirname(spec)>/spec-review-<yymmddhhmmss>.md` (new file), `docs/_local/dev-context.json` (`specReview` field only, active topics only) |
 | Never modify | `specConfirmed` field, `.claude/settings.json`, any file outside `docs/_local/` |
 
