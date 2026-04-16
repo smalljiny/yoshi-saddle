@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 ---
 # Development Workflow
 
@@ -60,8 +60,8 @@ Must pass before completing:
 ### 6. Done (`/dev:done`)
 
 After verify passes:
-- Copies `docs/_local/active/<topic>/spec.md` → `docs/specs/<topic>.md` (permanent)
-- Moves `docs/_local/active/<topic>/` → `docs/_local/done/<topic>/`
+- Reads implemented harness files via `git diff` against the base branch (default: `develop`) and generates a reference document → `docs/specs/<confirmed-name>.md` (permanent)
+- Archives `implementation-plan.md` to `docs/_local/done/<topic>/`; deletes `spec.md` and `spec-review-*.md` (planning artifacts)
 - Removes topic from `dev-context.json`
 - Switches `current_topic` to next active topic (or null if none remain)
 
@@ -86,7 +86,7 @@ Topic registration is handled by `/dev:plan`. Running `/dev:topic <name>` direct
 
 구현 중    →  docs/_local/active/<topic>/              (git-ignored)
 
-완료       →  docs/specs/<topic>.md                    (git-tracked, 영구 참조)
-              docs/_local/done/<topic>/                (git-ignored, 로컬 아카이브)
+완료       →  docs/specs/<confirmed-name>.md            (git-tracked, 참조 문서 자동 생성)
+              docs/_local/done/<topic>/                (git-ignored, implementation-plan.md만 보존)
               dev-context.json에서 토픽 제거
 ```

@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 ---
 
 # CLAUDE.md
@@ -46,7 +46,7 @@ This repository is a **harness for Claude Code-based development**. It functions
 | `/dev:impl` | Execute one Task (auto-invokes tdd-specialist + code-reviewer) |
 | `/dev:review` | Final full review (code-reviewer + security-reviewer in parallel) |
 | `/dev:verify` | Verification gates (build → type-check → lint → test → security) |
-| `/dev:done` | Complete current topic → preserve spec to `docs/specs/`, move to `done/`, clean up dev-context.json |
+| `/dev:done` | Complete current topic → generate reference doc to `docs/specs/`, archive to `done/`, clean up dev-context.json |
 | `/dev:topic` | Check active topics + backlog list, or switch active topics (`/dev:topic switch <name>`) |
 | `/harness:learn` | Extract session patterns → save to skills/learned/ |
 

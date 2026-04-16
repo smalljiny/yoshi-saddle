@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 ---
 # 개발 워크플로우
 
@@ -60,8 +60,8 @@ Task 1개씩 순서대로 진행:
 ### 6. 완료 (`/dev:done`)
 
 검증 통과 후:
-- `docs/_local/active/<topic>/spec.md` → `docs/specs/<topic>.md` 복사 (영구 보존)
-- `docs/_local/active/<topic>/` → `docs/_local/done/<topic>/` 이동
+- `git diff` 베이스 브랜치 기준 (기본값: `develop`)으로 구현된 하네스 파일을 읽고 참조 문서를 생성 → `docs/specs/<confirmed-name>.md` (영구 보존)
+- `implementation-plan.md`를 `docs/_local/done/<topic>/`에 아카이브; `spec.md`와 `spec-review-*.md`는 삭제 (계획 아티팩트)
 - `dev-context.json`에서 토픽 제거
 - `current_topic`을 다음 active 토픽으로 전환 (없으면 null)
 
@@ -86,7 +86,7 @@ Task 1개씩 순서대로 진행:
 
 구현 중    →  docs/_local/active/<topic>/              (git-ignored)
 
-완료       →  docs/specs/<topic>.md                    (git-tracked, 영구 참조)
-              docs/_local/done/<topic>/                (git-ignored, 로컬 아카이브)
+완료       →  docs/specs/<confirmed-name>.md            (git-tracked, 참조 문서 자동 생성)
+              docs/_local/done/<topic>/                (git-ignored, implementation-plan.md만 보존)
               dev-context.json에서 토픽 제거
 ```
