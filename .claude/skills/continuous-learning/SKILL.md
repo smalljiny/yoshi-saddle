@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: continuous-learning
 description: Use after long sessions or when you notice a recurring pattern. Guides how to extract high-quality reusable patterns from sessions and save them to skills/learned/.
 origin: harness
@@ -100,6 +100,10 @@ For each candidate, answer:
 Keep it short — a good learned skill is under 30 lines. If it needs more, it belongs in `skills/` as a full skill, not `learned/`.
 
 ### 5. Curate `skills/learned/`
+
+**Only run this step when explicitly requested by the user.**
+
+Before removing any entry, confirm with the user.
 
 After saving, scan existing entries and remove any that are:
 - Superseded by a rule added since

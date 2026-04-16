@@ -1,73 +1,42 @@
 ---
-version: 1
+version: 3
 description: Analyze patterns used repeatedly in the current session and save them as reusable skills.
 category: harness-management
 ---
 
 # /harness:learn
 
-Extract reusable patterns from session logs and save them to `.claude/skills/learned/`.
+Extract reusable patterns from the current session and save them to `.claude/skills/learned/`.
 
 ## Execution Flow
 
-### 1. Analyze Session Logs
+1. Verify `.claude/sessions/` exists and contains log files for the current session.
+2. Load `.claude/skills/continuous-learning/SKILL.md` and follow **Steps 1–4 only** (scan, identify, filter, write). Do **not** execute Step 5 (Curate — deleting existing entries).
+3. On completion, show a summary:
 
-Read recent log files from the `.claude/sessions/` directory.
+   ```
+   학습 완료
 
-Pattern detection:
-- Code structures used repeatedly
-- Debugging approaches that were effective
-- Usage patterns for specific libraries/frameworks
-- Effective sequences for solving problems
+   새로 저장된 스킬:
+   - [pattern-name]: [description]
 
-### 2. Evaluate Patterns
+   저장 위치: .claude/skills/learned/
+   ```
 
-Evaluate each candidate pattern:
-- **Reusability**: Is it useful in other projects or situations?
-- **Generalizability**: Is it not tied to a specific codebase?
-- **Value**: Would recording it save time in the future?
+   If no patterns met the quality bar, say so explicitly.
 
-Do not save patterns with no value.
+## Curation (Opt-in)
 
-### 3. Create Skill Files
-
-Save each pattern as `.claude/skills/learned/<pattern-name>/SKILL.md`:
-
-```yaml
----
-name: <pattern-name>
-description: <When this skill should be used>
-origin: learned
-learned_at: <ISO 8601>
----
-
-## When to Activate
-
-[Situations where this pattern is useful]
-
-## Pattern
-
-[Specific code or approach]
-
-## Examples
-
-[Real usage examples]
-```
-
-### 4. Output Learning Summary
+Step 5 of the skill (removing stale or superseded entries) is **not run by default**.
+To curate existing learned skills, ask explicitly:
 
 ```
-Learning complete
-
-Newly saved skills:
-- [pattern-name]: [description]
-- [pattern-name]: [description]
-
-Saved to: .claude/skills/learned/
+.claude/skills/learned/ 의 기존 스킬을 정리해줘
 ```
+
+Before removing any entry, confirm with the user.
 
 ## Notes
 
-- Do not save if the content duplicates something already in `.claude/skills/`
-- Do not save project-specific code (domain logic)
-- Only save generalizable approaches and patterns
+- Default run is **non-destructive**: only adds new skill files, never deletes existing ones.
+- Curation requires explicit intent because deletion of learned skills is hard to reverse without git.
