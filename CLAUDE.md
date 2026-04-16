@@ -1,5 +1,5 @@
 ---
-version: 6
+version: 7
 ---
 
 # CLAUDE.md
@@ -83,82 +83,13 @@ version: 1          # integer, starts at 1, increments by 1 on each edit
 ---
 ```
 
-### File Pairing
-
-Every component exists as a pair:
-
-| File | Language | Role |
-|------|----------|------|
-| `<name>.md` | English | **Authoritative.** Claude Code reads and executes this file. |
-| `<name>.ko.md` | Korean | **Translation.** For human readers. Never executed by Claude Code. |
-
-### Edit Order (MANDATORY)
-
-**Always modify `.md` first. Never modify `.ko.md` before its paired `.md`.**
-
-```
-CORRECT:  edit .md  →  increment version  →  (later) sync .ko.md
-WRONG:    edit .ko.md  →  then edit .md
-```
-
-If a change is needed, write it in English first. The Korean translation follows.
-
-### Version Rules
-
-1. **New file** — both `.md` and `.ko.md` start at `version: 1`.
-2. **Editing `.md`** — increment `version` by 1. The `.ko.md` becomes stale.
-3. **Syncing `.ko.md`** — translate the changes, then set `version` to match the `.md`.
-4. **Never edit `.ko.md` version independently** — it only moves when syncing to the `.md`.
-
-### Stale Detection
-
-A `.ko.md` is **stale** when its `version` is less than the paired `.md`.
-
-```
-planner.md      version: 3   ← authoritative (modified twice since last sync)
-planner.ko.md   version: 1   ← stale by 2 versions
-```
-
-To check all stale pairs:
-
-```bash
-python3 .claude/scripts/check-versions.py
-```
-
-### What Claude Code Must Do
-
-When modifying any `.md` component file:
-1. Increment `version` in the frontmatter before saving.
-2. Do **not** touch the `.ko.md` — leave it stale.
-3. Note the stale file in the commit message or work summary if relevant.
-
-When asked to sync a `.ko.md`:
-1. Read the current `.md` and its `version`.
-2. Translate all changed content into Korean.
-3. Set `version` in the `.ko.md` to match the `.md`.
-4. Do **not** change anything else in the `.ko.md` frontmatter.
-
-### Example Lifecycle
-
-```
-── Initial creation ──────────────────────────────────
-planner.md      version: 1
-planner.ko.md   version: 1   (in sync)
-
-── English edited (added a new section) ──────────────
-planner.md      version: 2   ← incremented
-planner.ko.md   version: 1   ← stale
-
-── Korean synced ─────────────────────────────────────
-planner.md      version: 2
-planner.ko.md   version: 2   (in sync again)
-```
+When modifying any component file, increment `version` by 1 before saving.
 
 ## Language Rules
 
 - Documentation, comments, commit messages: **Korean**
 - Code identifiers (variables, functions, file names, directory names): **English**
-- Component files (agents, skills, commands, rules): **`.md` in English, `.ko.md` in Korean**
+- Component files (agents, skills, commands, rules): **English**
 
 ## Git Rules
 
@@ -182,4 +113,4 @@ planner.ko.md   version: 2   (in sync again)
 - **Command**: `.claude/commands/<name>.md` — YAML frontmatter (version, description) + execution flow
 - **Rule**: `.claude/rules/common/<name>.md` or `.claude/rules/typescript/<name>.md` — YAML frontmatter (version) + rules
 
-Always create both `.md` (English) and `.ko.md` (Korean) versions with matching `version: 1`.
+Always start with `version: 1` in the frontmatter.
