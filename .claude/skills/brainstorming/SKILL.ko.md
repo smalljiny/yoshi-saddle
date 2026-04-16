@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: brainstorming
 description: 스펙 초안 작성 시 사용 — 대화형 질문과 점진적 검증으로 거친 아이디어를 완성된 스펙으로 다듬는다. /dev:spec이 초안 작성 중 로드한다.
 origin: sample-claude-env
@@ -36,7 +36,7 @@ origin: sample-claude-env
 
 ## 출력 형식
 
-완성된 스펙을 `docs/_local/tmp/<topic>/spec.md`에 다음 구조로 작성한다:
+완성된 스펙을 `docs/_local/backlog/<topic>/spec.md`에 다음 구조로 작성한다:
 
 ```markdown
 # <기능명> 스펙

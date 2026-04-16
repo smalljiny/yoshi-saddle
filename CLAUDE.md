@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 ---
 
 # CLAUDE.md
@@ -15,7 +15,7 @@ This repository is a **harness for Claude Code-based development**. It functions
 ```
 .claude/
 ├── agents/          Specialized subagents (planner, tdd-specialist, code-reviewer, etc.)
-├── commands/        Slash commands (/dev:spec, /dev:topic, /dev:plan, /dev:impl, /dev:review, /dev:verify, /harness:audit, /harness:learn)
+├── commands/        Slash commands (/dev:spec, /dev:topic, /dev:plan, /dev:impl, /dev:review, /dev:verify, /dev:done, /harness:audit, /harness:learn)
 │   ├── dev/         Development workflow commands
 │   └── harness/     Harness management commands
 ├── hooks/           Hook configuration (hooks.json)
@@ -36,17 +36,18 @@ This repository is a **harness for Claude Code-based development**. It functions
 ## Development Workflow
 
 ```
-/dev:spec → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → PR
+/dev:spec → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → /dev:done → PR
 ```
 
 | Command | Role |
 |---------|------|
-| `/dev:spec <name>` | Start a topic, write spec draft (brainstorming skill), run Codex review loop, confirm spec |
-| `/dev:plan` | planner agent → generate implementation-plan.md (requires confirmed spec) |
+| `/dev:spec <name>` | Write spec draft (brainstorming skill) → save to `backlog/`, run Codex review loop |
+| `/dev:plan [<name>]` | Select from backlog or specify topic → move to `active/`, register in dev-context.json, planner agent → generate implementation-plan.md |
 | `/dev:impl` | Execute one Task (auto-invokes tdd-specialist + code-reviewer) |
 | `/dev:review` | Final full review (code-reviewer + security-reviewer in parallel) |
 | `/dev:verify` | Verification gates (build → type-check → lint → test → security) |
-| `/dev:topic` | Check current topic/phase or switch topics (`/dev:topic switch <name>`) |
+| `/dev:done` | Complete current topic → preserve spec to `docs/specs/`, move to `done/`, clean up dev-context.json |
+| `/dev:topic` | Check active topics + backlog list, or switch active topics (`/dev:topic switch <name>`) |
 | `/harness:learn` | Extract session patterns → save to skills/learned/ |
 
 ## Agents

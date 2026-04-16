@@ -1,7 +1,7 @@
 ---
 version: 1
 name: spec-review
-description: Review a spec document against an 8-point quality gate. Resolves spec path from docs/_local/dev-context.json. Returns READY only when all 8 checks pass; READY WITH NOTE when non-blocking observations exist; otherwise NOT READY with concrete fixes required.
+description: Review a spec document against an 8-point quality gate. For backlog topics, requires an explicit spec path. For active topics, resolves from dev-context.json. Returns READY only when all 8 checks pass; READY WITH NOTE when non-blocking observations exist; otherwise NOT READY with concrete fixes required.
 ---
 
 # Spec Review
@@ -9,34 +9,41 @@ description: Review a spec document against an 8-point quality gate. Resolves sp
 ## Overview
 
 Run a strict pre-planning verification pass for one spec document.
-Resolve review context from `docs/_local/dev-context.json`, then evaluate all 8 mandatory checks.
+Evaluate all 8 mandatory checks and produce a review report.
 
 ## Required Inputs
 
-Default input source:
-- `docs/_local/dev-context.json`
+### Backlog topics (not registered in dev-context.json)
 
-Resolve these values from the current topic in `dev-context.json`:
-- `spec` → spec document path to review
+Specs in `docs/_local/backlog/` are created by `/dev:spec` but are **not registered** in `dev-context.json` until `/dev:plan` moves them to `active/`. The spec path must be provided explicitly:
 
-Derived values:
-- Review report path → `<dirname(spec)>/review-<yymmddhhmmss>.md`
-  where `<yymmddhhmmss>` is the current local datetime at review time (e.g. `review-260415143022.md`)
-- `topics[<current_topic>].specReview` → written report path
+```
+codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
+```
 
-Fallback:
-- If the user explicitly provides a spec path for this turn, prefer the user-provided value.
-- If `dev-context.json` is missing, malformed, or does not contain `current_topic` or `spec`,
-  request the missing input(s) before review.
+If no path is provided and the topic is not in `dev-context.json`, ask for the spec path before proceeding.
+
+### Active topics (registered in dev-context.json)
+
+Topics in `docs/_local/active/` are registered in `dev-context.json`. The spec path can be resolved automatically:
+
+- Read `docs/_local/dev-context.json`
+- Resolve `current_topic`, then load `spec` path from `topics[current_topic].spec`
+
+If the user explicitly provides a spec path, always prefer the user-provided value over dev-context.json resolution.
+
+### Derived values (both cases)
+
+- Review report path → `<dirname(spec)>/spec-review-<yymmddhhmmss>.md`
+  where `<yymmddhhmmss>` is the current local datetime at review time (e.g. `spec-review-260415143022.md`)
 
 ## Review Workflow
 
 ### 1. Load context
 
-- Read `docs/_local/dev-context.json` unless the user explicitly overrides the spec path.
-- Resolve `current_topic`, then load `spec` path.
-- Read the spec document in full.
-- Read project rules from `.claude/rules/` where relevant.
+- Determine spec path (see Required Inputs above)
+- Read the spec document in full
+- Read project rules from `.claude/rules/` where relevant
 
 ### 2. Evaluate the 8 mandatory checks
 
@@ -53,12 +60,13 @@ See `references/rules-and-inputs.md` for context loading rules and field definit
 
 ### 4. Persist review artifacts
 
-- Determine the report filename as `review-<yymmddhhmmss>.md` using the current local datetime.
-- Write the final review report to `<dirname(spec)>/review-<yymmddhhmmss>.md`.
-- Update `docs/_local/dev-context.json`:
+- Determine the report filename as `spec-review-<yymmddhhmmss>.md` using the current local datetime.
+- Write the final review report to `<dirname(spec)>/spec-review-<yymmddhhmmss>.md`.
+- **Active topics only**: Update `docs/_local/dev-context.json`:
   - Keep the existing topic selection unchanged.
   - Set `topics[<current_topic>].specReview` to the review report path.
-- If the report cannot be written or the context file cannot be updated, state that clearly.
+- **Backlog topics**: Do NOT write to `dev-context.json` — the topic is not registered there.
+- If the report cannot be written, state that clearly.
 
 ## Output Format
 
@@ -93,4 +101,4 @@ Use `[NOTE]` for non-blocking observations.
 
 - `references/checklist-template.md`: 8-check template with per-check evaluation instructions.
 - `references/rules-and-inputs.md`: Context loading rules, field definitions, fallback inputs.
-- `docs/_local/dev-context.json`: Default review context source.
+- `docs/_local/dev-context.json`: Context source for active topics only.

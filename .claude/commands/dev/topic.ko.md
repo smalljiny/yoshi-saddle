@@ -1,6 +1,6 @@
 ---
-version: 3
-description: 현재 주제와 단계를 확인하거나 다른 주제로 전환한다. 주제 등록은 /dev:spec이 처리한다.
+version: 4
+description: 현재 주제와 단계를 확인하거나 다른 active 주제로 전환한다. 주제 등록은 /dev:spec이 처리한다.
 category: dev-workflow
 ---
 
@@ -14,7 +14,7 @@ category: dev-workflow
 
 ```
 /dev:topic                   현재 주제와 단계 확인
-/dev:topic switch <name>     다른 주제로 전환
+/dev:topic switch <name>     다른 active 주제로 전환
 /dev:topic <name>            ⚠ 더 이상 사용하지 않음 — /dev:spec <name> 사용
 ```
 
@@ -22,24 +22,53 @@ category: dev-workflow
 
 ### 인자 없음 — 현재 주제 확인
 
-1. `docs/_local/dev-context.json` 읽기
-2. 현재 주제와 단계 출력:
+1. `docs/_local/dev-context.json` 읽기 — active 토픽 및 phase의 source of truth
+2. `docs/_local/backlog/` 디렉토리에서 backlog 토픽 스캔
+3. 상태 출력 (active 토픽은 `dev-context.json`, backlog 토픽은 디렉토리 스캔에서):
+
    ```
    현재 주제: <topic>
    단계: <phase>
-   스펙 확정: <specConfirmed>
+
+   Active 토픽:
+     * <current_topic> (현재) — <phase>
+       <other_active_topic> — <phase>
+
+   Backlog 토픽:
+     - <backlog_topic_a>
+     - <backlog_topic_b>
    ```
-3. 주제가 없으면:
+
+4. active 토픽이 없으면:
    ```
    진행 중인 주제가 없습니다.
    새 주제를 시작하려면: /dev:spec <topic>
+   백로그에서 구현을 시작하려면: /dev:plan <topic>
    ```
+
+5. backlog 토픽이 없으면 "Backlog 토픽" 섹션을 생략한다.
 
 ### `/dev:topic switch <name>` — 주제 전환
 
-1. `dev-context.json`에서 `<name>` 주제가 존재하는지 확인
-   - 없으면: 사용 가능한 주제 목록을 표시하고 중단
-2. `current_topic`을 `<name>`으로 변경하고 저장
+1. `dev-context.json` topics에서 `<name>` 확인 (active 토픽만)
+   - 찾으면: `current_topic`을 `<name>`으로 변경하고 저장
+   - active에 없으면: `docs/_local/backlog/<name>/` 확인
+     - backlog에 있으면: 안내 메시지 표시 후 중단:
+       ```
+       '<name>'은 backlog 토픽입니다.
+       플래닝을 시작하려면: /dev:plan <name>
+       ```
+     - 어디에도 없으면: 안내 메시지 표시 후 중단:
+       ```
+       '<name>' 토픽을 찾을 수 없습니다.
+       스펙을 작성하려면: /dev:spec <name>
+       ```
+
+2. 전환 확인:
+   ```
+   현재 주제가 '<name>'으로 전환되었습니다.
+   단계: <phase>
+   ```
 
 ### `/dev:topic <name>` — 더 이상 사용하지 않음
 
@@ -54,4 +83,5 @@ category: dev-workflow
 ## 다음 단계
 
 - 새 주제 시작: `/dev:spec <topic>`
-- 계획 수립으로 계속: `/dev:plan` (확정된 스펙 필요)
+- Backlog 토픽 계획 수립: `/dev:plan <topic>`
+- 구현 계속: `/dev:impl`

@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: brainstorming
 description: Use when writing a spec draft — refines rough ideas into fully-formed specs through collaborative questioning, alternative exploration, and incremental validation. Loaded by /dev:spec during draft writing.
 origin: sample-claude-env
@@ -36,7 +36,7 @@ Start by understanding the current project context, then ask questions one at a 
 
 ## Output Format
 
-Write the completed spec to `docs/_local/tmp/<topic>/spec.md` using this structure:
+Write the completed spec to `docs/_local/backlog/<topic>/spec.md` using this structure:
 
 ```markdown
 # <기능명> 스펙

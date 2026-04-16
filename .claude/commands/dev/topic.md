@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 description: Check the current topic and phase, or switch to another topic. Topic registration is handled by /dev:spec.
 category: dev-workflow
 ---
@@ -14,7 +14,7 @@ Topic registration is no longer a separate step — use `/dev:spec <topic>` to s
 
 ```
 /dev:topic                   Check the current topic and phase
-/dev:topic switch <name>     Switch to another topic
+/dev:topic switch <name>     Switch to another active topic
 /dev:topic <name>            ⚠ Deprecated — use /dev:spec <name> instead
 ```
 
@@ -22,24 +22,53 @@ Topic registration is no longer a separate step — use `/dev:spec <topic>` to s
 
 ### No arguments — Check current topic
 
-1. Read `docs/_local/dev-context.json`
-2. Print the current topic and phase:
+1. Read `docs/_local/dev-context.json` — source of truth for active topics and their phase
+2. Scan `docs/_local/backlog/` for backlog topics
+3. Print status (active topics from `dev-context.json`, backlog topics from directory scan):
+
    ```
    현재 주제: <topic>
    단계: <phase>
-   스펙 확정: <specConfirmed>
+
+   Active 토픽:
+     * <current_topic> (현재) — <phase>
+       <other_active_topic> — <phase>
+
+   Backlog 토픽:
+     - <backlog_topic_a>
+     - <backlog_topic_b>
    ```
-3. If no topic exists:
+
+4. If no active topic exists:
    ```
    진행 중인 주제가 없습니다.
    새 주제를 시작하려면: /dev:spec <topic>
+   백로그에서 구현을 시작하려면: /dev:plan <topic>
    ```
+
+5. If no backlog topics exist, omit the "Backlog 토픽" section.
 
 ### `/dev:topic switch <name>` — Switch topic
 
-1. Verify `<name>` topic exists in `dev-context.json`
-   - If not found: show available topics and stop
-2. Update `current_topic` to `<name>` and save
+1. Check if `<name>` exists in `dev-context.json` topics (active topics only)
+   - If found: update `current_topic` to `<name>` and save
+   - If not found in active topics: check if `<name>` exists in `docs/_local/backlog/`
+     - If in backlog: stop with guidance:
+       ```
+       '<name>'은 backlog 토픽입니다.
+       플래닝을 시작하려면: /dev:plan <name>
+       ```
+     - If not found anywhere: stop with guidance:
+       ```
+       '<name>' 토픽을 찾을 수 없습니다.
+       스펙을 작성하려면: /dev:spec <name>
+       ```
+
+2. Confirm switch:
+   ```
+   현재 주제가 '<name>'으로 전환되었습니다.
+   단계: <phase>
+   ```
 
 ### `/dev:topic <name>` — Deprecated
 
@@ -54,4 +83,5 @@ Show a redirect message and stop:
 ## Next Steps
 
 - Start a new topic: `/dev:spec <topic>`
-- Continue planning: `/dev:plan` (requires confirmed spec)
+- Plan a backlog topic: `/dev:plan <topic>`
+- Continue implementation: `/dev:impl`

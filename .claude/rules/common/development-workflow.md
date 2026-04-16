@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 ---
 # Development Workflow
 
@@ -8,7 +8,7 @@ This rule extends the feature implementation workflow from git-workflow.md.
 ## Overall Flow
 
 ```
-/dev:spec → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → PR
+/dev:spec → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → /dev:done → PR
 ```
 
 ## Step-by-Step Rules
@@ -17,15 +17,21 @@ This rule extends the feature implementation workflow from git-workflow.md.
 
 - Start a new topic with `/dev:spec <topic>` — no need to run `/dev:topic` first
 - Load the brainstorming skill to write a spec draft collaboratively
-- Save draft to `docs/_local/tmp/<topic>/spec.md`
-- Run Codex review loop until READY: `codex "spec-review 스킬로 spec.md를 리뷰해줘"`
-- Confirm spec (`specConfirmed: true` in `dev-context.json`) before proceeding
+- Save draft to `docs/_local/backlog/<topic>/spec.md`
+- Run Codex review loop until READY: `codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"`
+- Spec is confirmed when the latest `spec-review-*.md` has decision `READY` or `READY WITH NOTE`
+- `/dev:spec` does **not** write to `dev-context.json` — registration happens at `/dev:plan`
 
 ### 2. Plan (`/dev:plan`)
 
-- Requires `specConfirmed: true` — will not run without a confirmed spec
-- **planner** agent auto-activates with the confirmed spec as input
-- Deliverable: `implementation-plan.md` (task list only — spec is already confirmed)
+- Run with a topic argument or select from backlog list:
+  - `/dev:plan <topic>` — plan a specific backlog topic
+  - `/dev:plan` — show backlog list and select
+- Moves `backlog/<topic>/` → `active/<topic>/`
+- Registers topic in `dev-context.json` and sets `current_topic`
+- If `current_topic` is already set to another topic, prompts for confirmation before switching
+- **planner** agent auto-activates with `docs/_local/active/<topic>/spec.md` as input
+- Deliverable: `docs/_local/active/<topic>/implementation-plan.md`
 - No implementation before plan is approved
 
 ### 3. Implement Tasks (`/dev:impl`)
@@ -44,29 +50,43 @@ After all tasks are complete:
 
 ### 5. Verify (`/dev:verify`)
 
-Must pass before PR:
+Must pass before completing:
 - `build` — build succeeds
 - `type-check` — no type errors
 - `lint` — lint passes
 - `test` — tests pass (80%+ coverage)
 - `security` — security scan passes
 
+### 6. Done (`/dev:done`)
+
+After verify passes:
+- Copies `docs/_local/active/<topic>/spec.md` → `docs/specs/<topic>.md` (permanent)
+- Moves `docs/_local/active/<topic>/` → `docs/_local/done/<topic>/`
+- Removes topic from `dev-context.json`
+- Switches `current_topic` to next active topic (or null if none remain)
+
 ## Topic Management
 
 ```
-/dev:topic                   현재 주제와 phase 확인
-/dev:topic switch <name>     다른 주제로 전환
+/dev:topic                   현재 active 토픽과 backlog 목록 확인
+/dev:topic switch <name>     다른 active 토픽으로 전환 (backlog 토픽은 /dev:plan 필요)
 ```
 
-Topic registration is handled by `/dev:spec <topic>`. Running `/dev:topic <name>` directly is deprecated.
+Topic registration is handled by `/dev:plan`. Running `/dev:topic <name>` directly is deprecated.
 
 ## Document Lifecycle
 
 ```
-Spec draft   →  docs/_local/tmp/<topic>/spec.md    (git-ignored, stays here throughout)
-After spec   →  specConfirmed: true in dev-context.json
-             →  spec.md stays in tmp/ — /dev:plan reads its path from dev-context.json
-Plan         →  docs/_local/<topic>/implementation-plan.md  (git-ignored)
-After done   →  docs/specs/<topic>.md    (permanent reference doc)
-             →  docs/_local/<topic>/ deleted
+스펙 초안  →  docs/_local/backlog/<topic>/spec.md      (git-ignored)
+              spec-review-*.md 리뷰 파일도 이 위치에 저장
+
+플랜 수립  →  docs/_local/active/<topic>/              (backlog/에서 이동)
+              implementation-plan.md 생성
+              dev-context.json에 토픽 등록
+
+구현 중    →  docs/_local/active/<topic>/              (git-ignored)
+
+완료       →  docs/specs/<topic>.md                    (git-tracked, 영구 참조)
+              docs/_local/done/<topic>/                (git-ignored, 로컬 아카이브)
+              dev-context.json에서 토픽 제거
 ```
