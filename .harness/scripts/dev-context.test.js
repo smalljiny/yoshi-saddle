@@ -293,6 +293,221 @@ describe('dev-context.js', () => {
     })
   })
 
+  describe('config path (dot notation)', () => {
+    // 1. read --field=config.dev_impl.auto_start (no --topic) — returns stored value on a line; empty line when unset.
+    test('read config 점 경로: 설정된 값이 한 줄로 출력', () => {
+      run('set-field', '--field=config.dev_impl.auto_start', '--value=true')
+      const out = run('read', '--field=config.dev_impl.auto_start')
+      assert.equal(out, 'true')
+    })
+
+    test('read config 점 경로: 미설정 시 빈 출력 (exit 0)', () => {
+      // 파일도 없는 상태에서 read → 빈 줄 출력 (exit 0)
+      const out = run('read', '--field=config.dev_impl.auto_start')
+      assert.equal(out, '')
+    })
+
+    // 2. read --topic=<X> --field=config.dev_impl.auto_start — non-zero exit (config.* is global).
+    test('read config 점 경로 + --topic → non-zero exit', async () => {
+      run('register-topic', '--topic=cp-test', '--spec=some/spec.md')
+      const err = await runExpectFail('read', '--topic=cp-test', '--field=config.dev_impl.auto_start')
+      assert.notEqual(err.code, 0)
+    })
+
+    // 3. read with missing segment (config, config.dev_impl, or leaf) — empty output, exit 0.
+    test('read config: config 키 자체 없으면 빈 줄 (exit 0)', () => {
+      // 파일에 config 키가 없는 상태
+      writeFileSync(CTX_PATH, JSON.stringify({
+        current_topic: null,
+        topics: {},
+        updatedAt: new Date().toISOString(),
+      }), 'utf8')
+      const out = run('read', '--field=config.dev_impl.auto_start')
+      assert.equal(out, '')
+    })
+
+    test('read config: 네임스페이스 없으면 빈 줄', () => {
+      writeFileSync(CTX_PATH, JSON.stringify({
+        current_topic: null,
+        topics: {},
+        config: {},
+        updatedAt: new Date().toISOString(),
+      }), 'utf8')
+      const out = run('read', '--field=config.dev_impl.auto_start')
+      assert.equal(out, '')
+    })
+
+    test('read config: leaf 키 없으면 빈 줄', () => {
+      writeFileSync(CTX_PATH, JSON.stringify({
+        current_topic: null,
+        topics: {},
+        config: { dev_impl: {} },
+        updatedAt: new Date().toISOString(),
+      }), 'utf8')
+      const out = run('read', '--field=config.dev_impl.auto_start')
+      assert.equal(out, '')
+    })
+
+    // 4. set-field config.dev_impl.auto_start = true → JSON boolean true
+    test('set-field config: --value=true → JSON boolean true 저장', () => {
+      run('set-field', '--field=config.dev_impl.auto_start', '--value=true')
+      const ctx = readCtx()
+      assert.equal(ctx.config.dev_impl.auto_start, true)
+      assert.equal(typeof ctx.config.dev_impl.auto_start, 'boolean')
+    })
+
+    // 5. set-field config.dev_impl.auto_start = false → JSON boolean false
+    test('set-field config: --value=false → JSON boolean false 저장', () => {
+      run('set-field', '--field=config.dev_impl.auto_start', '--value=false')
+      const ctx = readCtx()
+      assert.equal(ctx.config.dev_impl.auto_start, false)
+      assert.equal(typeof ctx.config.dev_impl.auto_start, 'boolean')
+    })
+
+    // 6. set-field config.some.count = 42 → JSON number 42
+    test('set-field config: 정수 리터럴 → JSON number 저장', () => {
+      run('set-field', '--field=config.some.count', '--value=42')
+      const ctx = readCtx()
+      assert.equal(ctx.config.some.count, 42)
+      assert.equal(typeof ctx.config.some.count, 'number')
+    })
+
+    test('set-field config: 음의 정수 리터럴 → JSON number 저장', () => {
+      run('set-field', '--field=config.some.count', '--value=-7')
+      const ctx = readCtx()
+      assert.equal(ctx.config.some.count, -7)
+      assert.equal(typeof ctx.config.some.count, 'number')
+    })
+
+    // 7. set-field config.some.label = foo → JSON string "foo"
+    test('set-field config: 일반 문자열 → JSON string 저장', () => {
+      run('set-field', '--field=config.some.label', '--value=foo')
+      const ctx = readCtx()
+      assert.equal(ctx.config.some.label, 'foo')
+      assert.equal(typeof ctx.config.some.label, 'string')
+    })
+
+    // 8. set-field auto-creates missing intermediate objects
+    test('set-field config: 누락된 중간 객체 auto-create', () => {
+      // 파일 없음 상태에서 바로 set-field
+      removeCtx()
+      run('set-field', '--field=config.dev_impl.auto_start', '--value=true')
+      const ctx = readCtx()
+      assert.equal(typeof ctx.config, 'object')
+      assert.equal(typeof ctx.config.dev_impl, 'object')
+      assert.equal(ctx.config.dev_impl.auto_start, true)
+    })
+
+    // 9. Schema initialization: after any set-field on config-less file, top-level `config` key persists as at least {}
+    test('set-field: config 없는 기존 파일에 대해 임의 set-field 실행 후 최상위 config 키가 영속화됨', () => {
+      // config 없는 토픽을 만들고 토픽 필드 set-field → config 키가 파일에 생겨야 함
+      run('register-topic', '--topic=sch-test', '--spec=some/spec.md')
+      run('set-field', '--topic=sch-test', '--field=plan', '--value=docs/_local/active/sch-test/plan.md')
+      const ctx = readCtx()
+      assert.ok(Object.hasOwn(ctx, 'config'), 'top-level config 키가 존재해야 함')
+      assert.equal(typeof ctx.config, 'object')
+      assert.ok(ctx.config !== null)
+    })
+
+    test('read config: config 없는 파일에서 read --field=config.X.Y → 빈 줄 (예외 아님)', () => {
+      writeFileSync(CTX_PATH, JSON.stringify({
+        current_topic: null,
+        topics: {},
+        updatedAt: new Date().toISOString(),
+      }), 'utf8')
+      const out = run('read', '--field=config.dev_impl.auto_start')
+      assert.equal(out, '')
+    })
+
+    // 10. read depth > 2 rejected (non-zero exit)
+    test('read config: 깊이 3 이상 → non-zero exit', async () => {
+      const err = await runExpectFail('read', '--field=config.dev_impl.auto_start.extra')
+      assert.notEqual(err.code, 0)
+    })
+
+    // 11. set-field depth 1 and depth 3+ rejected (with explicit --value=true)
+    test('set-field config: 깊이 1 (config.X만) → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.dev_impl', '--value=true')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('set-field config: 깊이 3 이상 (config.a.b.c) → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.a.b.c', '--value=true')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('set-field config: 최상위 config 단독 → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config', '--value=true')
+      assert.notEqual(err.code, 0)
+    })
+
+    // 12. set-field --topic=X --field=config.* → non-zero exit
+    test('set-field config 점 경로 + --topic → non-zero exit', async () => {
+      run('register-topic', '--topic=cp-topic-test', '--spec=some/spec.md')
+      const err = await runExpectFail('set-field', '--topic=cp-topic-test', '--field=config.dev_impl.auto_start', '--value=true')
+      assert.notEqual(err.code, 0)
+    })
+
+    // 13. Regression: set-field --topic=X --field=plan --value=true stores literal string "true"
+    test('회귀: 토픽 필드 set-field는 문자열 보존 (타입 추론 config-only)', () => {
+      run('register-topic', '--topic=reg-test', '--spec=some/spec.md')
+      run('set-field', '--topic=reg-test', '--field=plan', '--value=true')
+      const ctx = readCtx()
+      assert.equal(ctx.topics['reg-test'].plan, 'true')
+      assert.equal(typeof ctx.topics['reg-test'].plan, 'string')
+    })
+
+    // 보안: 프로토타입 오염 방지 — __proto__, constructor, prototype 세그먼트 거부
+    test('set-field config.__proto__.polluted → non-zero exit (프로토타입 오염 방어)', async () => {
+      const err = await runExpectFail('set-field', '--field=config.__proto__.polluted', '--value=yes')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('예약된 키'))
+      // Object.prototype이 오염되지 않았는지 간접 확인: 새 객체에 polluted 속성 부재
+      assert.equal(({}).polluted, undefined)
+    })
+
+    test('set-field config.constructor.X → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.constructor.x', '--value=y')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('set-field config.ns.prototype → non-zero exit (key 자리의 예약어도 거부)', async () => {
+      const err = await runExpectFail('set-field', '--field=config.dev_impl.prototype', '--value=y')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('read config.__proto__.toString → non-zero exit (정보 노출 방어)', async () => {
+      const err = await runExpectFail('read', '--field=config.__proto__.toString')
+      assert.notEqual(err.code, 0)
+    })
+
+    // 보안: Object.prototype 상속 속성이 own property로 읽히지 않음 (hasOwn 가드)
+    test('read config.toString.name → 빈 줄 (상속 속성 반환 방지)', () => {
+      // 파일이 없거나 config가 비었을 때 Object.prototype.toString이 상속 경로로 보이면 안 됨
+      writeFileSync(CTX_PATH, JSON.stringify({ current_topic: null, topics: {}, updatedAt: new Date().toISOString() }), 'utf8')
+      const out = run('read', '--field=config.toString.name')
+      assert.equal(out, '')
+    })
+
+    test('read config.hasOwnProperty.name → 빈 줄 (상속 속성 반환 방지)', () => {
+      writeFileSync(CTX_PATH, JSON.stringify({ current_topic: null, topics: {}, updatedAt: new Date().toISOString() }), 'utf8')
+      const out = run('read', '--field=config.hasOwnProperty.name')
+      assert.equal(out, '')
+    })
+
+    test('read config.valueOf.name → 빈 줄 (상속 속성 반환 방지)', () => {
+      writeFileSync(CTX_PATH, JSON.stringify({ current_topic: null, topics: {}, updatedAt: new Date().toISOString() }), 'utf8')
+      const out = run('read', '--field=config.valueOf.name')
+      assert.equal(out, '')
+    })
+
+    test('set-field 로 저장된 own property는 정상적으로 읽힘 (hasOwn 가드 회귀 방어)', () => {
+      run('set-field', '--field=config.dev_impl.auto_start', '--value=true')
+      const out = run('read', '--field=config.dev_impl.auto_start')
+      assert.equal(out, 'true')
+    })
+  })
+
   describe('remove-topic', () => {
     test('토픽 제거 후 topics에서 삭제됨', () => {
       run('register-topic', '--topic=rm-test', '--spec=some/spec.md')

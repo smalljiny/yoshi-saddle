@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 description: Execute a single Task from the implementation plan. Automatically invokes tdd-specialist and code-reviewer. Stops after completing one Task.
 category: dev-workflow
 ---
@@ -81,7 +81,18 @@ Before starting implementation, present the work plan to the user:
 ---
 ```
 
-Do not start implementation without approval.
+After the briefing block is printed (closing `---`), read the auto_start config:
+
+```bash
+node .harness/scripts/dev-context.js read --field=config.dev_impl.auto_start
+```
+
+Branch on the result:
+- If the output equals the string `"true"`: print the following line **verbatim** immediately after the briefing block (not merged into it), then proceed to Step 4 without waiting for approval.
+  ```
+  auto_start 모드: 승인 없이 바로 구현을 시작합니다. (config.dev_impl.auto_start=true)
+  ```
+- Otherwise (empty string, `"false"`, or any other value): preserve current behavior — do not start implementation without approval.
 
 ### 4. Transition to `impl:in-progress` (first Task only)
 
@@ -159,7 +170,7 @@ node .harness/scripts/dev-context.js set-field \
 ## Key Principles
 
 - **One Task at a time** — only one Task per invocation
-- **Prior approval required** — do not start implementation without approving the work plan
+- **Prior approval required** (unless `config.dev_impl.auto_start=true`) — do not start implementation without approving the work plan
 - **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
 - **TDD enforced** — `tdd` type must write tests first
 - **Immediate review** — automatically invoke code-reviewer immediately after implementation

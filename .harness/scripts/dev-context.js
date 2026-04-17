@@ -25,9 +25,33 @@ const VALID_TRANSITIONS = {
 // phase/status 설정 금지 필드
 const PROTECTED_FIELDS = new Set(['phase', 'status'])
 
+// 프로토타입 오염 방지: config 경로 세그먼트에 예약 키 금지
+const FORBIDDEN_CONFIG_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype'])
+
+// config 점 경로 파싱: 'config.<ns>.<key>' (깊이 2 고정)
+// 반환: { ok: true, ns, key } | { ok: false, reason }
+function parseConfigPath(field) {
+  const segments = field.split('.')
+  if (segments.length !== 3 || segments[0] !== 'config' || !segments[1] || !segments[2]) {
+    return { ok: false, reason: `config 경로는 정확히 'config.<namespace>.<key>' 형태여야 합니다 (입력: ${field})` }
+  }
+  if (FORBIDDEN_CONFIG_SEGMENTS.has(segments[1]) || FORBIDDEN_CONFIG_SEGMENTS.has(segments[2])) {
+    return { ok: false, reason: `config 경로에 예약된 키를 사용할 수 없습니다 (입력: ${field})` }
+  }
+  return { ok: true, ns: segments[1], key: segments[2] }
+}
+
+// config 경로 전용 값 타입 추론: 'true'/'false' → boolean, 정수 리터럴 → number, 그 외 → string
+function coerceConfigValue(value) {
+  if (value === 'true') return true
+  if (value === 'false') return false
+  if (/^-?\d+$/.test(value)) return Number(value)
+  return value
+}
+
 function readContext() {
   if (!existsSync(DEV_CONTEXT_PATH)) {
-    return { current_topic: null, topics: {}, updatedAt: new Date().toISOString() }
+    return { current_topic: null, topics: {}, config: {}, updatedAt: new Date().toISOString() }
   }
   const ctx = JSON.parse(readFileSync(DEV_CONTEXT_PATH, 'utf8'))
   if (!ctx.topics || typeof ctx.topics !== 'object' || Array.isArray(ctx.topics)) {
@@ -35,6 +59,9 @@ function readContext() {
   }
   if (!Object.hasOwn(ctx, 'current_topic')) {
     ctx.current_topic = null
+  }
+  if (!ctx.config || typeof ctx.config !== 'object' || Array.isArray(ctx.config)) {
+    ctx.config = {}
   }
   return ctx
 }
@@ -143,6 +170,20 @@ switch (subcommand) {
       break
     }
 
+    // 글로벌 config 점 경로 (config.<ns>.<key>)
+    if (field === 'config' || field.startsWith('config.')) {
+      if (topic) die('set-field: config.* 는 글로벌 필드이므로 --topic과 함께 사용할 수 없습니다')
+      const parsed = parseConfigPath(field)
+      if (!parsed.ok) die(`set-field: ${parsed.reason}`)
+      const ctx = readContext()
+      if (!ctx.config[parsed.ns] || typeof ctx.config[parsed.ns] !== 'object' || Array.isArray(ctx.config[parsed.ns])) {
+        ctx.config[parsed.ns] = {}
+      }
+      ctx.config[parsed.ns][parsed.key] = coerceConfigValue(value)
+      writeContext(ctx)
+      break
+    }
+
     if (!topic) die('set-field: --topic 필요 (current_topic 제외)')
 
     if (PROTECTED_FIELDS.has(field)) {
@@ -188,6 +229,20 @@ switch (subcommand) {
     if (field === 'current_topic') {
       if (topic) die('read: current_topic은 글로벌 필드이므로 --topic과 함께 사용할 수 없습니다')
       const val = ctx.current_topic
+      process.stdout.write((val === null || val === undefined ? '' : String(val)) + '\n')
+      break
+    }
+
+    // 글로벌 config 점 경로 (config.<ns>.<key>)
+    if (field === 'config' || field.startsWith('config.')) {
+      if (topic) die('read: config.* 는 글로벌 필드이므로 --topic과 함께 사용할 수 없습니다')
+      const parsed = parseConfigPath(field)
+      if (!parsed.ok) die(`read: ${parsed.reason}`)
+      // Object.prototype 상속 속성이 own property로 읽히지 않도록 hasOwn 가드
+      const hasNs = ctx.config && Object.hasOwn(ctx.config, parsed.ns)
+      const nsObj = hasNs ? ctx.config[parsed.ns] : undefined
+      const hasKey = nsObj !== null && typeof nsObj === 'object' && Object.hasOwn(nsObj, parsed.key)
+      const val = hasKey ? nsObj[parsed.key] : undefined
       process.stdout.write((val === null || val === undefined ? '' : String(val)) + '\n')
       break
     }
