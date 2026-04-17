@@ -42,13 +42,16 @@
   "current_topic": "<topic-name>",
   "topics": {
     "<topic-name>": {
-      "phase": "spec | plan | impl | review",
-      "status": "drafting | reviewing | confirmed | ready | in-progress",
+      "phase": "spec | plan | impl | review | docs | pr",
+      "status": "drafting | reviewing | confirmed | ready | in-progress | generated | created",
       "spec": "<path>",
       "specReview": "<path>",
       "plan": "<path>",
       "planReview": "<path>",
       "currentTask": "<task-id> | null",
+      "refDoc": "docs/specs/<name>.md",
+      "branchType": "feature | fix | chore",
+      "baseBranch": "<branch-or-null>",
       "createdAt": "<ISO 8601>",
       "updatedAt": "<ISO 8601>"
     }
@@ -57,6 +60,10 @@
   "updatedAt": "<ISO 8601>"
 }
 ```
+
+- `refDoc`: `/dev:docs` 완료 시 저장. PR body의 참조 문서 링크로 사용.
+- `branchType`: `/dev:pr`의 브랜치명 패턴 검증에 사용.
+- `baseBranch`: 토픽별 override. `null`이면 `config.git.baseBranch` 사용.
 
 최상위 필드:
 - `current_topic` · `topics`: 본 문서가 다루는 토픽 라이프사이클 상태
@@ -74,7 +81,9 @@
 | plan:reviewing | plan:confirmed, plan:ready |
 | plan:confirmed | impl:in-progress |
 | impl:in-progress | review:in-progress |
-| review:in-progress | impl:in-progress |
+| review:in-progress | impl:in-progress, docs:generated |
+| docs:generated | pr:created, review:in-progress |
+| pr:created | docs:generated |
 
 ## 동작
 
@@ -101,7 +110,9 @@
 | `/dev:plan` | spec:confirmed | → plan:ready → plan:reviewing |
 | `/dev:impl` | plan:confirmed \| impl:in-progress | plan:confirmed → impl:in-progress |
 | `/dev:review` | impl:in-progress + 모든 Task 완료 | → review:in-progress |
-| `/dev:done` | review:in-progress | (remove-topic으로 제거) |
+| `/dev:docs` | review:in-progress \| docs:generated | → docs:generated |
+| `/dev:pr` | docs:generated \| pr:created | docs:generated → pr:created |
+| `/dev:done` | pr:created | (remove-topic으로 제거) |
 
 ### Codex 스킬 연동
 
