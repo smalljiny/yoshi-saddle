@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob
@@ -56,7 +56,22 @@ Each phase should include:
 - Minimize context switching
 - Structure for incremental testability
 
+### 5. Design per-Task Commit Message
+
+For each Task, design a commit message that will be executed when the Task is complete:
+
+- **Format**: `<type>(<scope>): <subject>` (Conventional Commits)
+- **Type**: one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci`
+- **Scope**: consult `.harness/commit-scopes.md` for project-specific scopes; free-form is also acceptable
+- **Subject**: 72 characters or fewer, imperative mood ("add X", "extend Y", not "added" or "adds")
+- **Principle**: commit message reflects only what this Task produces — not what a future Task will change
+- **Optional body**: include when context is needed to understand the change (breaking changes, migration notes, etc.)
+
 ## Plan Output Format
+
+**When invoked from `/dev:plan`** (harness workflow): use `.harness/contracts/implementation-plan.md` as the canonical output format. Include a `**Commit**` field in every Task block as specified in that contract. Do NOT use the Phase/Architecture format below.
+
+**When invoked for general planning** (not harness workflow): use the format below.
 
 ```markdown
 # Implementation Plan: [Feature Name]

@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: brainstorming
 description: Use when writing a spec draft — refines rough ideas into fully-formed specs through collaborative questioning, alternative exploration, and incremental validation. Loaded by /dev:spec during draft writing.
 origin: sample-claude-env
@@ -79,6 +79,20 @@ After presenting, announce completion so `/dev:spec` can save the file:
 | `## 3. 역할 정의` (역할 경계, 책임 분리) | ⬜ Omit if not applicable | ✅ Include | ✅ Include |
 
 Use section number `## 3.` for whichever optional section applies. If the topic does not clearly fit any category, use the `역할 정의` structure to describe boundaries and responsibilities — section 3 is always required in some form.
+
+## PR 병합 가능 단위 체크
+
+스펙 작성 중 아래 질문으로 단위가 PR 병합에 적합한지 점검한다. Step 7(분할 추천)도 동일 기준을 사용한다.
+
+| 기준 | 판단 질문 |
+|------|----------|
+| 독립 배포 가능 | 이 스펙만 merge해도 시스템이 정상 동작하는가? |
+| 독립 롤백 가능 | 이 변경만 revert해도 다른 기능이 깨지지 않는가? |
+| 다른 PR에 비의존 | 동시 진행 중인 다른 PR의 완료 없이도 merge 가능한가? |
+| Coupling Rationale | 여러 목표가 의존 사슬로 묶여야 한다면 §1.3에 coupling rationale을 명시했는가? |
+
+**단위가 너무 크다는 신호**: 목표가 3개 이상이고 각각 독립 배포 가능한 경우 → 분할 권장.
+**단위를 유지하는 정당한 이유**: 부분 merge 시 워크플로우가 깨지거나 이중 검증 비용이 발생하는 의존 사슬.
 
 ## Key Principles
 

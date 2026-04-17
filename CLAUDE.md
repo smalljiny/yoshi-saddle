@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 ---
 
 # CLAUDE.md
@@ -36,17 +36,19 @@ This repository is a **harness for Claude Code-based development**. It functions
 ## Development Workflow
 
 ```
-/dev:spec → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → /dev:done → PR
+/dev:spec → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → /dev:docs → /dev:pr → /dev:done
 ```
 
 | Command | Role |
 |---------|------|
 | `/dev:spec <name>` | Write spec draft (brainstorming skill) → save to `backlog/`, run Codex review loop |
-| `/dev:plan [<name>]` | Select from backlog or specify topic → move to `active/`, register in dev-context.json, planner agent → generate implementation-plan.md |
-| `/dev:impl` | Execute one Task (auto-invokes tdd-specialist + code-reviewer) |
-| `/dev:review` | Final full review (code-reviewer + security-reviewer in parallel) |
+| `/dev:plan [<name>]` | Select from backlog or specify topic → move to `active/`, register in dev-context.json, planner agent → generate implementation-plan.md (with `**Commit**` fields) |
+| `/dev:impl` | Execute one Task (auto-invokes tdd-specialist + code-reviewer). Commits via plan's `**Commit**` field after each Task. |
+| `/dev:review` | Final full review (code-reviewer + security-reviewer in parallel). Review fixes go in separate commits. |
 | `/dev:verify` | Verification gates (build → type-check → lint → test → security) |
-| `/dev:done` | Complete current topic → generate reference doc to `docs/specs/`, archive to `done/`, clean up dev-context.json |
+| `/dev:docs` | Generate reference doc (`docs/specs/<name>.md`) from implemented harness files + commit. Run before `/dev:pr`. |
+| `/dev:pr` | Push branch + create GitHub PR (publish-only). PR title/body from plan Commit fields + `.harness/templates/pr-body.md`. |
+| `/dev:done` | Archive planning artifacts to `done/`, remove topic from dev-context.json. Requires `pr:created` state. |
 | `/dev:topic` | Check active topics + backlog list, or switch active topics (`/dev:topic switch <name>`) |
 | `/harness:learn` | Extract session patterns → save to skills/learned/ |
 
@@ -96,6 +98,18 @@ When modifying any component file, increment `version` by 1 before saving.
 - Branch strategy: `main` (production), `develop` (integration), `feature/` for features, `fix/` for fixes
 - Commit style: conventional commits (`feat:`, `fix:`, `docs:`, `chore:`, etc.)
 - PR target: `main`
+
+## .harness/ Directory
+
+`.harness/` contains shared infrastructure used by both Claude Code and Codex.
+
+| Path | Role |
+|------|------|
+| `.harness/rules/` | **Shared rules** (Claude + Codex). `coding-style.md`, `git-workflow.md`, `testing.md`, `security.md`, `typescript/`. Claude-only rules remain in `.claude/rules/common/`. |
+| `.harness/commit-scopes.md` | **Project-specific commit scope list**. `plan-review` uses this for Commit field validation (warning level). When copying this harness to another project, replace this file with the target project's scope table. |
+| `.harness/contracts/` | Exchange document format specs (spec-review, plan-review, implementation-plan). |
+| `.harness/templates/` | Reusable templates (e.g., `pr-body.md` for `/dev:pr`). |
+| `.harness/scripts/` | CLI scripts (`dev-context.js` — topic lifecycle state manager). |
 
 ## references/ Directory
 

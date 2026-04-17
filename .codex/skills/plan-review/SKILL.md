@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: plan-review
 description: >-
   Review an implementation plan against an 8-point quality gate. Resolves plan
@@ -67,10 +67,22 @@ Do not infer the spec path from the plan path or directory.
 - Determine plan path (see Required Inputs above)
 - Determine spec path (always via `dev-context.js read --field=spec`)
 - Read both documents in full
+- Read `.harness/rules/git-workflow.md` for commit convention rules (type allowlist, scope warning level)
+- Read `.harness/commit-scopes.md` for project-specific scope list. Parse scope values using regex `^\|\s*([a-z0-9_-]+)\s*\|` on each line, excluding rows where the captured value is `scope` (header) or matches `^-+$` (separator)
 
 ### 2. Evaluate the 8 mandatory checks
 
 Apply the checklist in `references/checklist-template.md`.
+
+**Commit 섹션 검증** (warning level, not a separate check — apply within check 4 "완료 기준 명확성"):
+
+For each Task block that contains a `**Commit**:` field (plans written after `pr-driven-commit-workflow` Task 4):
+- `type` must be one of: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci` → warn if not
+- `scope` should match an entry in `.harness/commit-scopes.md` (free-form is acceptable) → warn if not in list
+- `subject` must be 72 characters or fewer → warn if exceeded
+- Each Task's commit should reflect only that Task's output → flag if the message appears to cover multiple Tasks
+
+**If a Task has no `**Commit**` field**: skip Commit validation for that Task (backward-compatible). Do not fail the plan for missing Commit fields.
 
 ### 3. Produce decision
 
@@ -127,4 +139,7 @@ The report written to disk must follow this structure exactly:
 - `references/checklist-template.md`: 8-check template with per-check evaluation instructions.
 - `.harness/contracts/plan-review.md`: Canonical format contract for this report.
 - `.harness/contracts/implementation-plan.md`: Expected structure of the plan under review.
+- `.harness/rules/git-workflow.md` (Read): Commit convention rules (type allowlist, review-fix policy).
+- `.harness/rules/` (Read): Shared project rules for context.
+- `.harness/commit-scopes.md` (Read): Project-specific scope list for Commit field validation.
 - `docs/_local/dev-context.json`: Context source.

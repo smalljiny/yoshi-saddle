@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 name: spec-review
 description: >-
   Review a spec document against an 8-point quality gate. Resolves spec path from:
@@ -128,4 +128,5 @@ Use `[NOTE]` for non-blocking observations.
 - `references/checklist-template.md`: 8-check template with per-check evaluation instructions.
 - `references/rules-and-inputs.md`: Context loading rules, field definitions, fallback inputs.
 - `.harness/contracts/spec-review.md`: Canonical format contract for this report.
+- `.harness/rules/` (Read): Shared coding-style, git-workflow, testing, security, typescript rules — referenced during load context.
 - `docs/_local/dev-context.json`: Context source.

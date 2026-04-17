@@ -192,6 +192,11 @@ switch (subcommand) {
       die(`set-field: '${field}' 필드는 update-state 전용입니다`)
     }
 
+    // 프로토타입 오염 방지: topic 필드 예약 키 금지
+    if (field === '__proto__' || field === 'constructor' || field === 'prototype') {
+      die(`set-field: '${field}' 필드는 사용할 수 없습니다`)
+    }
+
     const ctx = readContext()
     const t = ctx.topics[topic]
     if (!t) die(`set-field: 토픽 '${topic}' 미존재`)

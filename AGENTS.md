@@ -131,6 +131,17 @@ Phase/status values by lifecycle stage:
 | plan | confirmed | Plan approved, ready for implementation |
 | impl | in-progress | Implementation in progress |
 | review | in-progress | Final review in progress |
+| docs | generated | Reference document committed (`/dev:docs` complete) |
+| pr | created | PR created (`/dev:pr` complete) |
+
+**Workflow order** (Claude Code side):
+```
+/dev:spec → /dev:plan → /dev:impl → /dev:review → /dev:verify → /dev:docs → /dev:pr → /dev:done
+```
+
+**Shared rules**: `.harness/rules/` (coding-style, git-workflow, testing, security, typescript). Claude-only rules in `.claude/rules/common/`.
+
+**Commit scope list**: `.harness/commit-scopes.md` — used by `plan-review` to validate `**Commit**` fields at warning level. Replace when copying harness to another project.
 
 Full schema definition: `.codex/skills/spec-review/references/rules-and-inputs.md`
 
@@ -145,7 +156,7 @@ Spec path resolution:
 
 | Access | Paths |
 |--------|-------|
-| Read | `docs/_local/dev-context.json`, spec file (`topics[current_topic].spec`), `.claude/rules/` |
+| Read | `docs/_local/dev-context.json`, spec file (`topics[current_topic].spec`), `.harness/rules/` (shared rules), `.claude/rules/` (Claude operational rules) |
 | Write | `<dirname(spec)>/spec-review-<yymmddhhmmss>.md` (new file) |
 | Update | `docs/_local/dev-context.json` — `specReview` field only (via `dev-context.js set-field`) |
 | Never modify | `phase`, `status` fields (owned by Claude `/dev:spec` via `update-state`) |
@@ -154,7 +165,7 @@ Spec path resolution:
 
 | Access | Paths |
 |--------|-------|
-| Read | `docs/_local/dev-context.json`, plan file (`topics[current_topic].plan`), spec file (`topics[current_topic].spec`), `.harness/contracts/plan-review.md` |
+| Read | `docs/_local/dev-context.json`, plan file (`topics[current_topic].plan`), spec file (`topics[current_topic].spec`), `.harness/contracts/plan-review.md`, `.harness/rules/` (shared rules), `.harness/commit-scopes.md` (scope validation) |
 | Write | `docs/_local/active/<topic>/plan-review-<yymmddhhmmss>.md` (new file) |
 | Update | `docs/_local/dev-context.json` — `planReview` field + `phase`/`status` via `update-state` |
 

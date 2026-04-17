@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 category: dev-workflow
 ---
@@ -104,6 +104,7 @@ If `current_topic` is already set to a different active topic, prompt:
 Pass the following to the planner agent:
 - Current topic name
 - Confirmed spec path: `docs/_local/active/<topic>/spec.md`
+- Instruction: **use `.harness/contracts/implementation-plan.md` as the output format** and include a `**Commit**` field in every Task block (type/scope from `.harness/commit-scopes.md`, subject ≤ 72 chars)
 
 The planner agent produces **only**:
 - `docs/_local/active/<topic>/implementation-plan.md`

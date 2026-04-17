@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel.
 category: dev-workflow
 ---
@@ -59,9 +59,15 @@ node .harness/scripts/dev-context.js update-state \
 
 ### 3. Identify Change Scope
 
+Read the base branch from config (default: `main`):
 ```bash
-git diff develop...HEAD
-git log develop...HEAD --oneline
+node .harness/scripts/dev-context.js read --field=config.git.baseBranch
+node .harness/scripts/dev-context.js read --field=config.git.pullRemote
+```
+
+```bash
+git diff <pullRemote>/<baseBranch>...HEAD
+git log <pullRemote>/<baseBranch>...HEAD --oneline
 ```
 
 ### 4. **Run code-reviewer + security-reviewer in parallel**
@@ -90,6 +96,19 @@ Organize issues by severity:
 ### 6. Fix Issues
 
 Fix CRITICAL and HIGH issues, then re-review.
+
+### 6.1 Commit Review Fixes
+
+**모든 수정은 별도 commit으로 분리한다** — plan의 `**Commit**` 필드를 amend하거나 덮어쓰지 않는다.
+
+- **amend 금지**: 기존 Task commit을 수정하지 않는다.
+- **권장 commit 메시지 패턴** (강제 아님):
+  ```
+  fix: review feedback
+  refactor: address review comments
+  ```
+- 여러 이슈를 수정한 경우 하나의 review-fix commit으로 묶거나 이슈별로 분리 가능.
+- 참조: `.harness/rules/git-workflow.md` — "Review-fix Commit" 섹션
 
 ### 7. Completion Report
 

@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 description: Execute a single Task from the implementation plan. Automatically invokes tdd-specialist and code-reviewer. Stops after completing one Task.
 category: dev-workflow
 ---
@@ -127,12 +127,65 @@ Immediately review the Task code:
 
 Check completion criteria in the plan document.
 
-### 8. Update Plan Document
+### 8. Execute Commit
+
+Read the `auto_commit` config:
+
+```bash
+node .harness/scripts/dev-context.js read --field=config.dev_impl.auto_commit
+```
+
+**Find the Commit message** from the current Task's plan block:
+- Look for `- **Commit**:` line in the Task section of the plan document
+- Extract the subject line (first backtick-quoted value after `**Commit**:`)
+- Optionally include the body lines (indented under the subject)
+
+**If no `**Commit**` field exists** in this Task (pre-contract plan or omitted):
+```
+이 Task에 **Commit** 필드가 없습니다. commit을 건너뛰시겠습니까? (y/skip)
+```
+- `y`: skip commit for this Task
+- `skip`: same as `y`
+Proceed to Step 9.
+
+**Stage files**: stage only files changed by this Task. Do **NOT** use `git add -A` or `git add .`.
+- Use the list of files from Step 5/6 (tdd-specialist and code-reviewer output) as the staging target.
+- Run `git status --short` first, confirm the staged file list with the user if `auto_commit=false`.
+- Exclude sensitive files unconditionally: `.env*`, `*.pem`, `*.key`, `credentials.json`.
+
+**If `auto_commit = "true"`**: execute commit automatically using a HEREDOC to avoid shell metacharacter injection:
+```bash
+git add <task-files>
+git commit -m "$(cat <<'COMMIT_MSG'
+<subject>
+<body>
+COMMIT_MSG
+)"
+```
+Print: `auto_commit: <commit-message>`
+
+**If `auto_commit` is false/empty (default)**: show the planned message and prompt:
+```
+이 Task의 commit 메시지:
+  <commit-subject>
+  [<body>]
+
+스테이징 대상 파일: <file list>
+
+지금 commit하시겠습니까? (y/n/skip)
+```
+- `y`: stage and commit using HEREDOC pattern (never interpolate commit message directly into shell argument)
+- `n`: stop — do not proceed to the next step until the user manually commits or re-runs `/dev:impl`
+- `skip`: skip commit and continue to Step 9 (commit omitted for this Task)
+
+**amend is forbidden** — always create a new commit. Review-fix commits from `/dev:review` must also be separate commits (see `.harness/rules/git-workflow.md`).
+
+### 9. Update Plan Document
 
 Mark completed Tasks:
 - `[ ]` → `[x]`
 
-### 9. Update dev-context.json
+### 10. Update dev-context.json
 
 ```bash
 node .harness/scripts/dev-context.js set-field \
@@ -145,7 +198,7 @@ node .harness/scripts/dev-context.js set-field \
   --topic=<topic> --field=currentTask --value=null
 ```
 
-### 10. **Output Task completion briefing and stop**
+### 11. **Output Task completion briefing and stop**
 
 ```
 ---
@@ -174,6 +227,9 @@ node .harness/scripts/dev-context.js set-field \
 - **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
 - **TDD enforced** — `tdd` type must write tests first
 - **Immediate review** — automatically invoke code-reviewer immediately after implementation
+- **Commit from plan** — commit message comes from the Task's `**Commit**` field; never invent a message
+- **auto_commit default is false** — user sees and approves each commit unless `config.dev_impl.auto_commit=true`
+- **amend forbidden** — always create a new commit; review-fix commits are separate
 
 ## Next Steps
 

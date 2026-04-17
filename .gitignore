@@ -12,3 +12,12 @@ docs/_local/
 node_modules/
 dist/
 .DS_Store
+
+# 민감한 파일 (절대 커밋하지 않음)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+credentials.json
+*.token
