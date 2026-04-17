@@ -84,7 +84,7 @@ Merge the three lists and remove duplicates.
 git diff 결과가 비어 있습니다.
 베이스 브랜치를 입력하세요 (기본값: <baseBranch>):
 ```
-Validate the user-provided branch name against `^[a-zA-Z0-9_/.-]+$` before using it. If invalid, re-prompt. Then verify the branch exists (`git rev-parse --verify <branch>`); if not found, show an error and stop. Then re-run the three diff sources with this branch as base and re-apply the harness filter.
+Validate the user-provided branch name against `^[a-zA-Z0-9][a-zA-Z0-9_/.-]*$` before using it (leading `-` is rejected to prevent option injection). If invalid, re-prompt. Then verify the branch exists (`git rev-parse --verify -- <branch>`); if not found, show an error and stop. Then re-run the three diff sources with this branch as base and re-apply the harness filter.
 
 Filter to harness files only — keep files matching any of:
 - path starts with `.claude/`
@@ -105,23 +105,25 @@ Filter to harness files only — keep files matching any of:
 
 Read `docs/_local/active/<topic>/spec.md`. Compare its contents against the collected changed files to identify discrepancies — things implemented but not described in the spec, or spec items that were not implemented.
 
-**If discrepancies found**: present the list and ask for approval:
+**If discrepancies found**: first classify each discrepancy — mark items that would alter implementation goals with `⚠ 구현 목표 변경`. Then present the list:
+
 ```
 스펙-구현 불일치 항목:
   - [불일치 항목 1]
-  - [불일치 항목 2]
+  - [불일치 항목 2]  ⚠ 구현 목표 변경
+```
 
+If any item is marked `⚠ 구현 목표 변경`, stop immediately without showing the approval prompt:
+```
+⚠ 스펙 수정이 구현 목표를 변경합니다.
+/dev:docs를 중단합니다. /dev:plan 또는 /dev:review부터 재검토하세요.
+```
+
+If no goal-level changes exist, show the approval prompt:
+```
 spec.md에 반영하시겠습니까? (y/n)
 ```
-- `y`: apply all listed discrepancies to `spec.md` and save
-
-  Before saving, check whether the proposed changes alter the implementation goals (not just wording, details, or typos). If goal-level changes are detected, stop immediately:
-  ```
-  ⚠ 스펙 수정이 구현 목표를 변경합니다.
-  /dev:docs를 중단합니다. /dev:plan 또는 /dev:review부터 재검토하세요.
-  ```
-  If the changes are corrections only (typos, missing details, wording), proceed. Note: these corrections do not require re-running `specReview`, `planReview`, or `implementation-plan.md`.
-
+- `y`: apply all listed discrepancies to `spec.md` and save. Note: corrections only (typos, missing details, wording) do not require re-running `specReview`, `planReview`, or `implementation-plan.md`.
 - `n`: skip spec update and proceed to Step 5
 
 **If no discrepancies**: print `스펙-구현 불일치 없음.` and proceed to Step 5 automatically.
@@ -136,11 +138,17 @@ Analyze the collected changed files and the (updated) spec to infer which existi
   2. docs/specs/bar.md — [이유]
   3. (신규 생성 필요) baz.md — [이유: 기존 파일 없음]
 
-승인하시겠습니까? (y/목록 수정)
+승인하시겠습니까?
+  y          : 위 목록대로 진행
+  - <번호>   : 해당 후보 제거 (예: `- 2`)
+  + <경로>   : 후보 추가 (예: `+ docs/specs/qux.md`)
+  edit       : 목록 전체 재입력
 ```
 
 - `y`: proceed with the proposed list
-- Other input: user adjusts the list, then re-confirm
+- `- <번호>`: remove that candidate and re-confirm
+- `+ <경로>`: add a file and re-confirm
+- `edit`: user provides a new list from scratch, then re-confirm
 
 **If zero existing-file candidates** (all content is new): use the same new-file flow as below.
 

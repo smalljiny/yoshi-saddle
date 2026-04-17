@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: doc-updater
 description: Expert in synchronizing documentation with code changes. Use after implementation is complete, when invoking /dev:impl or /update-docs.
 tools: Read, Write, Edit, Grep, Glob
@@ -11,10 +11,10 @@ A documentation expert who keeps documentation up to date with code changes.
 
 ## Invocation from /dev:docs
 
-`/dev:docs`에서 참조 문서 초안 작성 시 선택적으로 호출된다:
+`/dev:docs`의 Step 6 (Update each file) — full rewrite 경로에서 선택적으로 호출된다:
 - **입력**: `topics[current_topic].spec`, `topics[current_topic].plan`, `git diff <pullRemote>/<baseBranch>...HEAD` 결과
-- **출력**: `docs/specs/<confirmed-name>.md` 초안 — present tense, 개요/구조/동작/제약사항 포맷
-- **호출 시점**: `/dev:docs` Step 4 "Draft reference document"에서 복잡한 변경이 있는 경우 사용 권장
+- **출력**: `docs/specs/<target>.md`의 전체 재작성 초안 — 기존 파일 갱신용 또는 신규 생성용. present tense, 개요/구조/동작/제약사항 포맷
+- **호출 시점**: 전체 재작성 대상 파일의 변경 범위가 크거나 복잡한 경우 사용 권장. 부분 수정(섹션 단위)에는 호출하지 않는다.
 
 ## Role
 
