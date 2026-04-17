@@ -82,6 +82,7 @@ severity가 명시되지 않은 이슈(adversarial-review의 설계 challenge �
 | `disabled` | `config.review.adversarial_enabled` 미설정 또는 `false` | 없음 (정상 opt-out) |
 | `codex unavailable` | `config.codex.available=false` | 출력 |
 | `codex not authenticated` | `config.codex.authenticated=false` | 출력 |
+| `companion not found` | companion 스크립트 경로 해결 실패 (캐시 디렉터리 없음 또는 containment 검증 실패) | 출력 |
 | `companion exited non-zero` | companion 실행 후 비-0 exit code | 출력 |
 
 ## State Transition Responsibility

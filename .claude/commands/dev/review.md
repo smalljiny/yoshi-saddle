@@ -160,7 +160,7 @@ process.stdout.write(p);
 `<baseBranch>`는 Step 4에서 읽은 `config.git.baseBranch` (기본 `main`).
 
 companion 경로 해결 실패 시 (`COMPANION_PATH`가 빈 문자열):
-- 경고 출력, `adversarialStatus="skipped"`, `skipReason="companion exited non-zero"` → Step 8로 진행
+- 경고 출력, `adversarialStatus="skipped"`, `skipReason="companion not found"` → Step 8로 진행
 
 ```bash
 ADVERSARIAL_OUTPUT=$(node "$COMPANION_PATH" adversarial-review --wait --base "<baseBranch>")
