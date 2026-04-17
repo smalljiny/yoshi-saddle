@@ -19,7 +19,9 @@ const VALID_TRANSITIONS = {
   'plan:reviewing':   ['plan:confirmed', 'plan:ready'],
   'plan:confirmed':   ['impl:in-progress'],
   'impl:in-progress': ['review:in-progress'],
-  'review:in-progress': ['impl:in-progress'],  // 리뷰 실패 → 재구현
+  'review:in-progress': ['impl:in-progress', 'docs:generated'],  // 리뷰 실패 → 재구현, 통과 → 문서 생성
+  'docs:generated':   ['pr:created', 'review:in-progress'],      // PR 생성 또는 리뷰 재진입
+  'pr:created':       ['docs:generated'],                         // PR 수정 시 참조 문서 재작성 후 재push 경로
 }
 
 // phase/status 설정 금지 필드
