@@ -1,5 +1,5 @@
 ---
-version: 6
+version: 7
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 category: dev-workflow
 ---
@@ -160,7 +160,7 @@ process.stdout.write(p);
 `<baseBranch>`는 Step 4에서 읽은 `config.git.baseBranch` (기본 `main`).
 
 companion 경로 해결 실패 시 (`COMPANION_PATH`가 빈 문자열):
-- 경고 출력, `adversarialStatus="skipped"`, `skipReason="codex unavailable"` → Step 8로 진행
+- 경고 출력, `adversarialStatus="skipped"`, `skipReason="companion exited non-zero"` → Step 8로 진행
 
 ```bash
 ADVERSARIAL_OUTPUT=$(node "$COMPANION_PATH" adversarial-review --wait --base "<baseBranch>")
@@ -169,9 +169,67 @@ ADVERSARIAL_OUTPUT=$(node "$COMPANION_PATH" adversarial-review --wait --base "<b
 - 성공(exit 0): `adversarialStatus="run"`, `ADVERSARIAL_OUTPUT`을 `## Adversarial Review` 원문으로 보관 (Step 9에서 사용)
 - 비-0 exit: 경고 출력, `adversarialStatus="skipped"`, `skipReason="companion exited non-zero"` (stdout 일부를 말미에 첨부)
 
-### 8. (Reserved for Task 3 — 처리 내역 산출)
+`adversarialStatus="run"`인 경우 Step 6과 동일한 규칙으로 CRITICAL·HIGH 이슈를 review-fix commit으로 반영한 뒤 Step 8로 진행한다. severity가 명시되지 않은 설계 challenge는 보고서 `## Adversarial Review` 원문 섹션에만 반영하고 처리 내역 표에서 제외한다.
 
-### 9. (Reserved for Task 3 — review-report 파일 저장)
+### 8. Compute 처리 내역
+
+review-fix commit 완료 후 실행한다.
+
+```bash
+git log <SAVED_SHA>..HEAD --oneline
+```
+
+신규 commit 존재 여부로 처리 결과를 분류한다:
+- **신규 commit 있음**: CRITICAL·HIGH → `fixed`, MEDIUM → `deferred`
+- **신규 commit 없음**: 모든 이슈 → `deferred`
+
+각 이슈를 다음 형식으로 정리한다:
+- `issueSummary`: 원문의 한 줄 요약, 80자 이내
+- `severity`: CRITICAL | HIGH | MEDIUM
+- `reviewer`: code-reviewer | security-reviewer | adversarial-review
+- `status`: fixed | deferred
+
+severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)는 처리 내역 표에서 제외하고 `## Adversarial Review` 원문 섹션에 보존한다.
+
+### 9. Write review-report file
+
+파일 경로:
+```
+docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
+```
+
+`.harness/contracts/review-report.md`의 Required Format을 준수해 파일을 작성한다:
+
+```markdown
+# Review Report
+
+- topic: <topic>
+- timestamp: <YYMMDDHHmmss>
+- baseBranch: <baseBranch>
+
+## Reviewers
+
+| reviewer | status | skipReason |
+|---|---|---|
+| code-reviewer | run \| skipped | — |
+| security-reviewer | run \| skipped | — |
+| adversarial-review | run \| skipped | <skipReason 또는 —> |
+
+## Code Review
+<code-reviewer 원문 출력>
+
+## Security Review
+<security-reviewer 원문 출력>
+
+## Adversarial Review
+<ADVERSARIAL_OUTPUT 원문 또는 "skipped: <skipReason>">
+
+## 처리 내역
+
+| issue | severity | reviewer | status |
+|---|---|---|---|
+| <issueSummary> | <severity> | <reviewer> | <status> |
+```
 
 ### 10. Completion Report
 
@@ -183,6 +241,7 @@ HIGH: 0
 MEDIUM: [N]
 
 adversarial-review: [run | skipped (<skipReason>)]
+보고서: docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 
 Next: pass the verification gate with /dev:verify
 ```
