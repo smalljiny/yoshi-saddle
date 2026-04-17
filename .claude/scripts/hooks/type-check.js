@@ -4,7 +4,8 @@
  * .ts, .tsx 파일에만 동작.
  */
 
-import { execSync, existsSync } from 'child_process'
+import { execSync } from 'child_process'
+import { existsSync } from 'fs'
 import { join } from 'path'
 
 const filePath = process.argv[2] || ''

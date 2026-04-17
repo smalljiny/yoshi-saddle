@@ -3,7 +3,8 @@
  * PostToolUse 훅: JS/TS 파일 편집 후 Prettier로 자동 포맷한다.
  */
 
-import { execSync, existsSync } from 'child_process'
+import { execSync } from 'child_process'
+import { existsSync } from 'fs'
 import { join } from 'path'
 
 const filePath = process.argv[2] || ''

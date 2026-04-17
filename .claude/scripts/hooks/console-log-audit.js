@@ -3,7 +3,7 @@
  * Stop 훅: 세션 중 수정된 파일에서 console.log를 감사한다.
  */
 
-import { execSync } from 'child_process'
+import { execSync, spawnSync } from 'child_process'
 
 const cwd = process.env.PWD || process.cwd()
 
@@ -28,17 +28,13 @@ function checkConsoleLog(files) {
   const violations = []
 
   for (const file of files) {
-    try {
-      const output = execSync(`grep -n "console\\.log" "${file}" 2>/dev/null`, {
-        cwd,
-        encoding: 'utf-8',
-        timeout: 3000,
-      })
-      if (output.trim()) {
-        violations.push({ file, lines: output.trim() })
-      }
-    } catch {
-      // grep 결과 없음 = 문제 없음
+    const result = spawnSync('grep', ['-n', 'console\\.log', file], {
+      cwd,
+      encoding: 'utf-8',
+      timeout: 3000,
+    })
+    if (result.status === 0 && result.stdout.trim()) {
+      violations.push({ file, lines: result.stdout.trim() })
     }
   }
 
