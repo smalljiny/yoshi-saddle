@@ -3,8 +3,8 @@
 ## Rules to load
 
 Load and apply where relevant:
-- `.claude/rules/common/coding-style.md`
-- `.claude/rules/common/security.md`
+- `.harness/rules/coding-style.md`
+- `.harness/rules/security.md`
 - `.claude/rules/common/development-workflow.md`
 
 ## Topic states and input sources

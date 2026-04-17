@@ -48,7 +48,7 @@ If the user explicitly provides a spec path, always use it regardless of `dev-co
 
 - Determine spec path (see Required Inputs above)
 - Read the spec document in full
-- Read project rules from `.claude/rules/` where relevant
+- Read project rules from `.harness/rules/` (shared) and `.claude/rules/` (Claude operational) where relevant
 
 ### 2. Evaluate the 8 mandatory checks
 

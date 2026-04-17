@@ -239,11 +239,11 @@ function getChecks(root) {
       category: 'Quality Gates',
       points: 3,
       scopes: ['repo'],
-      path: '.claude/rules/common/testing.md',
+      path: '.harness/rules/testing.md',
       description: 'Testing rules with 80%+ coverage requirement documented',
-      pass: exists(root, '.claude/rules/common/testing.md') &&
-            safeRead(root, '.claude/rules/common/testing.md').includes('80'),
-      fix: 'Add .claude/rules/common/testing.md with 80%+ coverage requirement.',
+      pass: exists(root, '.harness/rules/testing.md') &&
+            safeRead(root, '.harness/rules/testing.md').includes('80'),
+      fix: 'Add .harness/rules/testing.md with 80%+ coverage requirement.',
     },
 
     // ── Memory Persistence ───────────────────────────────────────────────
@@ -346,10 +346,10 @@ function getChecks(root) {
       category: 'Security Guardrails',
       points: 3,
       scopes: ['repo'],
-      path: '.claude/rules/common/security.md',
+      path: '.harness/rules/security.md',
       description: 'Security rules documented',
-      pass: exists(root, '.claude/rules/common/security.md'),
-      fix: 'Add .claude/rules/common/security.md.',
+      pass: exists(root, '.harness/rules/security.md'),
+      fix: 'Add .harness/rules/security.md.',
     },
     {
       id: 'security-hook-guard',

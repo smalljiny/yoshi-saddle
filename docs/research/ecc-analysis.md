@@ -141,7 +141,7 @@ Saves a named snapshot of current state: test results, coverage, build status, o
 ### /test-coverage
 **Path**: `commands/test-coverage.md`
 
-Analyzes coverage report, identifies untested areas, and generates test stubs for missing cases. Enforces the 80% threshold defined in `rules/common/testing.md`.
+Analyzes coverage report, identifies untested areas, and generates test stubs for missing cases. Enforces the 80% threshold defined in `.harness/rules/testing.md`.
 
 **Why useful**: `/dev:verify` checks whether coverage passes, but doesn't help reach it. This command bridges the gap between "coverage failed" and "tests written."
 

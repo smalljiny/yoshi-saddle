@@ -111,6 +111,7 @@ When modifying any component file, increment `version` by 1 before saving.
 - **Agent**: `.claude/agents/<name>.md` — YAML frontmatter (version, name, description, tools, model) + instructions
 - **Skill**: `.claude/skills/<name>/SKILL.md` — YAML frontmatter (version, name, description, origin) + content
 - **Command**: `.claude/commands/<name>.md` — YAML frontmatter (version, description) + execution flow
-- **Rule**: `.claude/rules/common/<name>.md` or `.claude/rules/typescript/<name>.md` — YAML frontmatter (version) + rules
+- **Shared Rule**: `.harness/rules/<name>.md` or `.harness/rules/typescript/<name>.md` — YAML frontmatter (version) + rules (Claude + Codex 공유; coding-style, git-workflow, testing, security, typescript)
+- **Claude Rule**: `.claude/rules/common/<name>.md` — YAML frontmatter (version) + rules (Claude Code 운영 규칙: agents, performance, development-workflow, component-boundaries. Codex가 맥락 파악 목적으로 일부 참조 가능)
 
 Always start with `version: 1` in the frontmatter.
