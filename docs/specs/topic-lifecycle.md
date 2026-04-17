@@ -13,8 +13,8 @@
 ```
 .harness/
 ├── scripts/
-│   ├── dev-context.js          CLI 스크립트 (5개 서브커맨드)
-│   └── dev-context.test.js     31개 테스트 (node:test)
+│   ├── dev-context.js          CLI 스크립트 (5개 서브커맨드, config 점 경로 지원)
+│   └── dev-context.test.js     59개 테스트 (node:test)
 └── contracts/
     ├── spec-review.md          spec-review 리포트 형식 계약
     ├── plan-review.md          plan-review 리포트 형식 계약
@@ -24,9 +24,9 @@
 ├── commands/dev/
 │   ├── spec.md (v6)    토픽 등록 + spec 작성
 │   ├── plan.md (v7)    spec:confirmed 게이트 + plan-review 안내
-│   ├── impl.md (v3)    plan:confirmed 게이트 + impl:in-progress 전환
+│   ├── impl.md (v4)    plan:confirmed 게이트 + impl:in-progress 전환 + auto_start 소비
 │   ├── review.md (v4)  impl:in-progress 게이트 + 완료 검사
-│   └── done.md (v3)    review:in-progress 게이트 + 이동 정책
+│   └── done.md (v3)    review:in-progress 게이트 + 보존 정책 (삭제 없음)
 └── skills/
     └── dev-context/SKILL.md    dev-context.js 사용 계약 스킬
 
@@ -52,9 +52,16 @@
       "createdAt": "<ISO 8601>",
       "updatedAt": "<ISO 8601>"
     }
-  }
+  },
+  "config": { ... },
+  "updatedAt": "<ISO 8601>"
 }
 ```
+
+최상위 필드:
+- `current_topic` · `topics`: 본 문서가 다루는 토픽 라이프사이클 상태
+- `config`: 하네스 운영 설정 (깊이 2의 `config.<namespace>.<key>` 구조). 상세는 `dev-context-config.md`
+- `updatedAt`: 파일 전체의 마지막 쓰기 시각 (`writeContext()`가 원자적 쓰기 직전에 갱신)
 
 ### 상태 전환표
 
@@ -77,11 +84,13 @@
 
 - `register-topic --topic=<n> --spec=<path>` — `spec:drafting`으로 등록, `current_topic` 설정, 레거시 필드 정리
 - `update-state --topic=<n> --phase=<p> --status=<s>` — 전환 테이블 기반 유효성 검사 후 전환
-- `set-field --topic=<n> --field=<f> --value=<v>` — 단일 필드 업데이트 (`phase`/`status` 보호됨). `--field=current_topic`은 `--topic` 없이 사용
+- `set-field --topic=<n> --field=<f> --value=<v>` — 단일 필드 업데이트 (`phase`/`status` 보호됨). `--field=current_topic`은 `--topic` 없이 사용. `--field=config.<ns>.<key>`(깊이 2 고정) 경로는 전역 config 필드로 처리되며 config 경로에서만 타입 추론(`true`/`false` → boolean, 정수 리터럴 → number, 그 외 → string) 적용
 - `remove-topic --topic=<n>` — 토픽 제거, `current_topic` 자동 전환
-- `read --topic=<n> --field=<f>` / `read --field=current_topic` — 필드 값 stdout 출력
+- `read --topic=<n> --field=<f>` / `read --field=current_topic` / `read --field=config.<ns>.<key>` — 필드 값 stdout 출력. config 경로는 `Object.hasOwn` 가드로 상속 속성을 제외하고 own property만 조회
 
 쓰기는 원자적 (tmp → rename), 부모 디렉토리 자동 생성. `DEV_CONTEXT_PATH` 환경변수로 경로 오버라이드 가능 (테스트 격리용).
+
+전역 `config` 섹션 스키마와 첫 키 `config.dev_impl.auto_start`의 사용 계약은 `dev-context-config.md` 참조.
 
 ### 커맨드 게이트 체계
 
