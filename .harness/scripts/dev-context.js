@@ -131,9 +131,19 @@ switch (subcommand) {
 
   case 'set-field': {
     const { topic, field, value } = args
-    if (!topic) die('set-field: --topic 필요')
     if (!field) die('set-field: --field 필요')
     if (value === undefined) die('set-field: --value 필요')
+
+    // 글로벌 필드: current_topic (--topic 없이 사용, read와 대칭)
+    if (field === 'current_topic') {
+      if (topic) die('set-field: current_topic은 글로벌 필드이므로 --topic과 함께 사용할 수 없습니다')
+      const ctx = readContext()
+      ctx.current_topic = value === 'null' ? null : value
+      writeContext(ctx)
+      break
+    }
+
+    if (!topic) die('set-field: --topic 필요 (current_topic 제외)')
 
     if (PROTECTED_FIELDS.has(field)) {
       die(`set-field: '${field}' 필드는 update-state 전용입니다`)

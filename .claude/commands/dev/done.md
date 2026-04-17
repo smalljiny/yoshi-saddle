@@ -1,12 +1,12 @@
 ---
-version: 2
-description: Mark the current topic as done. Generates a reference document to docs/specs/, archives implementation-plan.md to done/, and cleans up dev-context.json.
+version: 3
+description: Mark the current topic as done. Generates a reference document to docs/specs/, archives all planning artifacts to done/, and removes the topic from dev-context.json.
 category: dev-workflow
 ---
 
 # /dev:done
 
-Mark the current topic as complete. Generates a reference document from the implemented files, archives the implementation plan to `done/`, and removes the topic from `dev-context.json`.
+Mark the current topic as complete. Generates a reference document from the implemented files, moves all planning artifacts to `done/`, and removes the topic from `dev-context.json`.
 
 ## Usage
 
@@ -20,8 +20,11 @@ Always operates on `current_topic`. To complete a different topic, run `/dev:top
 
 ### 1. Read current topic
 
-Read `docs/_local/dev-context.json`:
-- If `current_topic` is null or missing, stop:
+```bash
+node .harness/scripts/dev-context.js read --field=current_topic
+```
+
+- If `current_topic` is empty or missing, stop:
   ```
   완료할 토픽이 없습니다.
   현재 작업 중인 토픽이 없습니다.
@@ -31,16 +34,23 @@ Read `docs/_local/dev-context.json`:
   ```
   유효하지 않은 토픽 이름입니다. 영문자, 숫자, 하이픈, 언더스코어만 허용됩니다.
   ```
-- Read `topics[<topic>]` entry — this is the source of truth for all paths
 
-### 2. Check phase
+### 2. Gate: verify review:in-progress
 
-Read `topics[<topic>].phase`:
-- If phase is `spec` or `plan` (implementation not started), stop:
-  ```
-  '<topic>'은 아직 구현이 시작되지 않았습니다. (현재 단계: <phase>)
-  구현을 먼저 진행하세요: /dev:impl
-  ```
+```bash
+node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
+node .harness/scripts/dev-context.js read --topic=<topic> --field=status
+```
+
+If `phase:status` is not `review:in-progress`, stop immediately:
+
+```
+완료 처리를 실행할 수 없습니다.
+현재 상태: <phase>:<status>
+review:in-progress 상태여야 합니다.
+```
+
+Do not warn and continue — stop entirely.
 
 ### 3. Check verification status (optional)
 
@@ -64,7 +74,7 @@ Collect changed files from all three sources and deduplicate:
 2. `git diff --name-only` — unstaged working tree changes
 3. `git diff --cached --name-only` — staged (index) changes
 
-Merge the three lists and remove duplicates. This ensures files are captured whether the work is committed, staged, or still in the working tree.
+Merge the three lists and remove duplicates.
 
 **If all three sources are empty** (e.g., truly no changes):
 ```
@@ -72,16 +82,13 @@ git diff 결과가 비어 있습니다.
 베이스 브랜치를 입력하세요 (기본값: develop):
 ```
 Validate the user-provided branch name against `^[a-zA-Z0-9_/.-]+$` before using it.
-If invalid, re-prompt:
-```
-유효하지 않은 브랜치명입니다. 영문자, 숫자, 슬래시, 하이픈, 점만 허용됩니다.
-```
-Then verify the branch exists (`git rev-parse --verify <branch>`); if not found, show an error and stop.
+If invalid, re-prompt. Then verify the branch exists (`git rev-parse --verify <branch>`); if not found, show an error and stop.
 Use the validated branch (or `develop` if blank) and re-run source 1 only, then merge again.
 
 Filter to harness files only — keep files matching any of:
 - path starts with `.claude/`
 - path starts with `.codex/`
+- path starts with `.harness/`
 - path is `CLAUDE.md`
 - path is `AGENTS.md`
 
@@ -155,35 +162,30 @@ Validate filename against `^[a-zA-Z0-9_-]+\.md$` — if invalid, re-prompt.
 
 ### 5. Archive to done/
 
-Archive only the implementation plan; discard planning artifacts:
+Move all planning artifacts to `done/` — **no files are deleted**:
 
-1. Resolve active directory from spec path: `dirname(topics[<topic>].spec)`
+1. Resolve active directory: `docs/_local/active/<topic>/`
 2. Create `docs/_local/done/` if it does not exist
 3. If `docs/_local/done/<topic>/` already exists, use `docs/_local/done/<topic>-<yyyyMMddHHmmss>/` instead
-4. Create `docs/_local/done/<topic>/` (or timestamped variant)
-5. Move `active/<topic>/implementation-plan.md` → `done/<topic>/implementation-plan.md` (skip if file does not exist — re-entrant safe)
-6. Delete `active/<topic>/spec.md` and `active/<topic>/spec-review-*.md` if they exist (planning artifacts — superseded by reference document)
-7. Remove `active/<topic>/` directory; if unexpected files remain, warn the user and ask for confirmation before deleting
-8. Show:
-  ```
-  아카이브: docs/_local/done/<topic>/
-  ```
+4. Create `docs/_local/done/<topic>/`
+5. Move these files if they exist (skip silently if absent — re-entrant safe):
+   - `active/<topic>/spec.md` → `done/<topic>/spec.md`
+   - `active/<topic>/spec-review-*.md` → `done/<topic>/` (all matching files)
+   - `active/<topic>/plan-review-*.md` → `done/<topic>/` (all matching files)
+   - `active/<topic>/implementation-plan.md` → `done/<topic>/implementation-plan.md`
+6. Remove `active/<topic>/` directory if empty; if unexpected files remain, warn the user and ask for confirmation before removing
+7. Show:
+   ```
+   아카이브: docs/_local/done/<topic>/
+   ```
 
-### 6. Update dev-context.json
+### 6. Remove topic from dev-context.json
 
-Remove the topic from `dev-context.json` and update `current_topic`:
-- Remove `topics[<topic>]` from the topics object
-- Set `current_topic` to another active topic if one exists, otherwise `null`
-- Update `updatedAt`
-
-```json
-{
-  "current_topic": "<next-active-topic or null>",
-  "topics": {
-    // <topic> removed
-  }
-}
+```bash
+node .harness/scripts/dev-context.js remove-topic --topic=<topic>
 ```
+
+`remove-topic` automatically sets `current_topic` to another remaining active topic, or `null` if none remain.
 
 ### 7. Output completion report
 
@@ -197,7 +199,7 @@ If reference document was generated (Step 4 completed normally):
   현재 주제: <next-active-topic or "없음">
 ```
 
-If reference document was skipped (Step 4.1 returned no harness files and user chose to skip — spec copied as fallback):
+If reference document was skipped:
 ```
 완료되었습니다: <topic>
 
@@ -222,11 +224,14 @@ If no active topics remain:
 ## Key Principles
 
 - **current_topic only** — `/dev:done` always operates on `current_topic`. Use `/dev:topic switch` to change.
-- **Paths come from dev-context.json** — spec path and active directory are read from `topics[<topic>].spec`, not hardcoded.
-- **Reference document is generated automatically** — `docs/specs/<confirmed-name>.md` is generated from implemented files at completion time; `done/` is local archive.
+- **Gate: review:in-progress** — `/dev:done` only proceeds when `phase=review && status=in-progress`; stop entirely on mismatch.
+- **Gate validation is /dev:done's responsibility** — `remove-topic` has no state validation; `/dev:done` pre-validates before calling it.
+- **No deletions** — all planning artifacts (spec.md, spec-review-*.md, plan-review-*.md, implementation-plan.md) are moved to `done/`, never deleted.
+- **Paths come from dev-context.json** — active directory is derived from `topics[<topic>]`, not hardcoded.
+- **`.harness/` is included in file scope** — changes to `.harness/` are included when generating the reference document.
+- **Reference document is generated automatically** — `docs/specs/<confirmed-name>.md` is generated from implemented files; `done/` is the local archive.
 - **`done/` is git-ignored** — local reference only; `docs/specs/` is the tracked record.
 - **Verification is recommended, not required** — warns if `/dev:verify` has not passed, but does not block.
-- **Failure behavior** — each step is independent. If a step fails, execution stops at that point. Steps already completed (e.g., reference document generation) are not rolled back. Re-run `/dev:done` after fixing the issue; Step 4 is re-entrant via the existing-file overwrite prompt.
 
 ## Next Steps
 

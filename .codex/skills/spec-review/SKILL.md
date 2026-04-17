@@ -1,12 +1,11 @@
 ---
-version: 3
+version: 5
 name: spec-review
 description: >-
   Review a spec document against an 8-point quality gate. Resolves spec path from:
-  (1) explicit argument, (2) active topic in dev-context.json, (3) current_spec
-  field in dev-context.json (backlog fallback), or (4) user prompt. Returns READY
-  only when all 8 checks pass; READY WITH NOTE when non-blocking observations
-  exist; otherwise NOT READY with concrete fixes required.
+  (1) explicit argument, (2) dev-context.js read --topic=<name> --field=spec, or
+  (3) user prompt. Returns READY only when all 8 checks pass; READY WITH NOTE when
+  non-blocking observations exist; otherwise NOT READY with concrete fixes required.
 ---
 
 # Spec Review
@@ -27,25 +26,18 @@ Resolve the spec path using the first matching source:
    codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
    ```
 
-2. **Unambiguous auto-resolution** — exactly one of the following exists in `dev-context.json`:
-   - `current_spec` field (backlog draft saved by `/dev:spec`) → use it
-   - `current_topic` in topics (active topic) → use `topics[current_topic].spec`
+2. **Auto-resolution** — read from dev-context.json via CLI:
+   ```bash
+   node .harness/scripts/dev-context.js read --field=current_topic
+   # then:
+   node .harness/scripts/dev-context.js read --topic=<current_topic> --field=spec
+   ```
 
-3. **Ambiguous — both exist** — `current_spec` AND `current_topic` are both set:
-   - Do not silently choose. Ask the user:
-     ```
-     dev-context.json에 backlog 스펙(current_spec)과 active 토픽이 모두 있습니다.
-     어떤 스펙을 리뷰할까요?
-       1. Backlog 스펙: <current_spec 경로>
-       2. Active 토픽 스펙: <topics[current_topic].spec 경로>
-     ```
-   - Use the user's selection.
-
-4. **User prompt** — none of the above apply; ask the user for the spec path before proceeding
+3. **User prompt** — neither applies; ask the user for the spec path before proceeding.
 
 If the user explicitly provides a spec path, always use it regardless of `dev-context.json` content.
 
-### Derived values (both cases)
+### Derived values
 
 - Review report path → `<dirname(spec)>/spec-review-<yymmddhhmmss>.md`
   where `<yymmddhhmmss>` is the current local datetime at review time (e.g. `spec-review-260415143022.md`)
@@ -73,15 +65,36 @@ See `references/rules-and-inputs.md` for context loading rules and field definit
 
 ### 4. Persist review artifacts
 
-- Determine the report filename as `spec-review-<yymmddhhmmss>.md` using the current local datetime.
 - Write the final review report to `<dirname(spec)>/spec-review-<yymmddhhmmss>.md`.
-- **Active topics only**: Update `docs/_local/dev-context.json`:
-  - Keep the existing topic selection unchanged.
-  - Set `topics[<current_topic>].specReview` to the review report path.
-- **Backlog topics**: Do NOT write to `dev-context.json` — the topic is not registered there.
+- Determine the owning topic before writing `specReview`:
+  1. Read `current_topic`:
+     ```bash
+     node .harness/scripts/dev-context.js read --field=current_topic
+     ```
+  2. Read that topic's registered spec path:
+     ```bash
+     node .harness/scripts/dev-context.js read --topic=<current_topic> --field=spec
+     ```
+  3. **If the resolved spec path does not match the spec actually reviewed**, ask the user:
+     ```
+     리뷰한 스펙 경로(<reviewed-path>)가 현재 토픽(<current_topic>)에 등록된 경로(<registered-path>)와 다릅니다.
+     specReview 필드를 업데이트할 토픽을 확인해주세요:
+       1. <current_topic> (등록 경로 무시)
+       2. 업데이트 안 함
+     ```
+     Do not silently write to the wrong topic.
+- Update `docs/_local/dev-context.json` via CLI (Codex owns this update):
+  ```bash
+  node .harness/scripts/dev-context.js set-field \
+    --topic=<confirmed_topic> \
+    --field=specReview \
+    --value=<report-path>
+  ```
 - If the report cannot be written, state that clearly.
 
 ## Output Format
+
+See `.harness/contracts/spec-review.md` for the canonical format contract.
 
 The review report written to disk must use this exact structure:
 
@@ -114,4 +127,5 @@ Use `[NOTE]` for non-blocking observations.
 
 - `references/checklist-template.md`: 8-check template with per-check evaluation instructions.
 - `references/rules-and-inputs.md`: Context loading rules, field definitions, fallback inputs.
-- `docs/_local/dev-context.json`: Context source for active topics only.
+- `.harness/contracts/spec-review.md`: Canonical format contract for this report.
+- `docs/_local/dev-context.json`: Context source.

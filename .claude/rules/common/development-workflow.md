@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 ---
 # Development Workflow
 
@@ -8,43 +8,46 @@ This rule extends the feature implementation workflow from git-workflow.md.
 ## Overall Flow
 
 ```
-/dev:spec → /dev:plan → /dev:impl (repeat) → /dev:review → /dev:verify → /dev:done → PR
+/dev:spec → /dev:plan → (plan-review) → /dev:impl (repeat) → /dev:review → /dev:verify → /dev:done → PR
 ```
 
 ## Step-by-Step Rules
 
 ### 1. Write Spec (`/dev:spec`)
 
-- Start a new topic with `/dev:spec <topic>` — no need to run `/dev:topic` first
+- Start a new topic with `/dev:spec <topic>`
 - Load the brainstorming skill to write a spec draft collaboratively
 - Save draft to `docs/_local/backlog/<topic>/spec.md`
+- **Register topic** in `dev-context.json` at `spec:drafting` immediately after saving
+- Transition to `spec:reviewing` before invoking Codex review
 - Run Codex review loop until READY: `codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"`
-- Spec is confirmed when the latest `spec-review-*.md` has decision `READY` or `READY WITH NOTE`
-- `/dev:spec` does **not** register topics in `dev-context.json` — registration happens at `/dev:plan`. It does write a temporary `current_spec` field (the spec path) after saving the draft, and removes it after spec confirmation. Codex uses this field to auto-discover the spec path without requiring an explicit argument.
+- NOT READY → rollback to `spec:drafting`, fix and re-review
+- Spec is confirmed (`spec:confirmed`) when the latest `spec-review-*.md` has decision `READY` or `READY WITH NOTE`
 
 ### 2. Plan (`/dev:plan`)
 
-- Run with a topic argument or select from backlog list:
-  - `/dev:plan <topic>` — plan a specific backlog topic
-  - `/dev:plan` — show backlog list and select
-- Moves `backlog/<topic>/` → `active/<topic>/`
-- Registers topic in `dev-context.json` and sets `current_topic`
-- If `current_topic` is already set to another topic, prompts for confirmation before switching
+- **Gate**: topic must be `spec:confirmed` — checked via `dev-context.js read --field=phase/status`
+- Run with a topic argument or select from backlog list
+- Moves `backlog/<topic>/` → `active/<topic>/`, updates paths in `dev-context.json`
 - **planner** agent auto-activates with `docs/_local/active/<topic>/spec.md` as input
 - Deliverable: `docs/_local/active/<topic>/implementation-plan.md`
-- No implementation before plan is approved
+- After planner completes: transition to `plan:ready`, then `plan:reviewing`
+- Run Codex plan-review: `codex "plan-review 스킬을 실행해줘"`
+- NOT READY → `plan:ready`, re-plan; READY → `plan:confirmed` (set by Codex plan-review)
 
 ### 3. Implement Tasks (`/dev:impl`)
 
-Progress one task at a time in order:
-
-1. **tdd-specialist** auto-called → RED-GREEN-REFACTOR cycle
-2. Immediately after implementation, **code-reviewer** auto-called → instant feedback + fixes
-3. Commit
+- **Gate**: topic must be `plan:confirmed` — blocks if not met, shows plan-review command
+- Progress one task at a time in order
+- First Task: transitions to `impl:in-progress`
+- 1. **tdd-specialist** auto-called → RED-GREEN-REFACTOR cycle
+- 2. Immediately after implementation, **code-reviewer** auto-called → instant feedback + fixes
+- 3. Commit
 
 ### 4. Final Review (`/dev:review`)
 
-After all tasks are complete:
+- **Gate**: topic must be `impl:in-progress` — blocks if not met
+- Transitions to `review:in-progress` on start
 - **code-reviewer** + **security-reviewer** run in parallel
 - Quality review of full change scope
 
@@ -59,10 +62,10 @@ Must pass before completing:
 
 ### 6. Done (`/dev:done`)
 
-After verify passes:
-- Reads implemented harness files via `git diff` against the base branch (default: `develop`) and generates a reference document → `docs/specs/<confirmed-name>.md` (permanent)
-- Archives `implementation-plan.md` to `docs/_local/done/<topic>/`; deletes `spec.md` and `spec-review-*.md` (planning artifacts)
-- Removes topic from `dev-context.json`
+- **Gate**: topic must be `review:in-progress` — blocks if not met
+- Reads implemented harness files via `git diff` against `develop` (includes `.harness/`) and generates a reference document → `docs/specs/<confirmed-name>.md` (permanent)
+- Moves **all** artifacts to `docs/_local/done/<topic>/` — no deletions: spec.md, spec-review-*.md, plan-review-*.md, implementation-plan.md
+- Removes topic from `dev-context.json` via `remove-topic`
 - Switches `current_topic` to next active topic (or null if none remain)
 
 ## Topic Management
@@ -72,23 +75,38 @@ After verify passes:
 /dev:topic switch <name>     다른 active 토픽으로 전환 (backlog 토픽은 /dev:plan 필요)
 ```
 
-Topic registration is handled by `/dev:plan`. Running `/dev:topic <name>` directly is deprecated.
+Topic registration happens at `/dev:spec` (not `/dev:plan`). Running `/dev:topic <name>` directly is deprecated.
 
 ## Document Lifecycle
 
 ```
-스펙 초안  →  docs/_local/backlog/<topic>/spec.md      (git-ignored)
-              spec-review-*.md 리뷰 파일도 이 위치에 저장
-              dev-context.json에 current_spec 임시 기록 (Codex 경로 자동 해석용)
-              스펙 확정(/dev:spec 확정 단계) 후 current_spec 제거
+스펙 초안  →  docs/_local/backlog/<topic>/spec.md        (git-ignored)
+              dev-context.json: phase=spec, status=drafting
+              /dev:spec 리뷰 루프 → status=reviewing → confirmed
 
-플랜 수립  →  docs/_local/active/<topic>/              (backlog/에서 이동)
+플랜 수립  →  docs/_local/active/<topic>/                (backlog/에서 이동)
               implementation-plan.md 생성
-              dev-context.json에 토픽 등록 (current_spec 잔존 시 함께 제거)
+              dev-context.json: phase=plan, status=ready → reviewing → confirmed (Codex plan-review)
 
-구현 중    →  docs/_local/active/<topic>/              (git-ignored)
+구현 중    →  docs/_local/active/<topic>/                (git-ignored)
+              dev-context.json: phase=impl, status=in-progress
 
-완료       →  docs/specs/<confirmed-name>.md            (git-tracked, 참조 문서 자동 생성)
-              docs/_local/done/<topic>/                (git-ignored, implementation-plan.md만 보존)
+리뷰       →  dev-context.json: phase=review, status=in-progress
+
+완료       →  docs/specs/<confirmed-name>.md             (git-tracked, 참조 문서 자동 생성)
+              docs/_local/done/<topic>/                  (git-ignored, 모든 산출물 보존)
               dev-context.json에서 토픽 제거
 ```
+
+## State Transition Summary
+
+| State | Trigger |
+|-------|---------|
+| `spec:drafting` | `/dev:spec` registers topic |
+| `spec:reviewing` | `/dev:spec` before Codex review |
+| `spec:confirmed` | `/dev:spec` after READY decision |
+| `plan:ready` | `/dev:plan` after planner |
+| `plan:reviewing` | `/dev:plan` before Codex plan-review |
+| `plan:confirmed` | Codex plan-review READY |
+| `impl:in-progress` | `/dev:impl` first Task |
+| `review:in-progress` | `/dev:review` on start |

@@ -1,6 +1,6 @@
 ---
-version: 5
-description: Write a spec for a new topic. Writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
+version: 6
+description: Write a spec for a new topic. Registers the topic in dev-context.json, writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 category: dev-workflow
 ---
 
@@ -23,7 +23,16 @@ If `$ARGUMENTS` is provided:
 - Use it as `<topic>`
 
 If no argument:
-- Scan `docs/_local/backlog/` for existing topics
+- Read `current_topic` from `dev-context.json`:
+  ```bash
+  node .harness/scripts/dev-context.js read --field=current_topic
+  ```
+- If a topic is returned, read its phase:
+  ```bash
+  node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
+  ```
+- If `phase` is `spec`: use it automatically
+- Otherwise scan `docs/_local/backlog/` for existing directories
 - If one topic found: use it automatically
 - If multiple topics found: show list and stop:
   ```
@@ -36,12 +45,13 @@ If no argument:
 
 **Detect current state and resume from the right step:**
 
-| State | Action |
-|-------|--------|
-| `docs/_local/backlog/<topic>/` exists + `spec-review-*.md` exists with READY decision | Show "스펙이 이미 확정되었습니다." and jump to Step 6 |
-| `docs/_local/backlog/<topic>/` exists + `spec-review-*.md` exists with NOT READY decision | Jump to Step 5 (reflect existing review) |
-| `docs/_local/backlog/<topic>/spec.md` exists + no review file | Ensure `current_spec` is set in `dev-context.json`, then jump to Step 4 |
-| `docs/_local/backlog/<topic>/` does not exist | Continue to Step 2 (normal flow) |
+| `phase:status` | Action |
+|----------------|--------|
+| `spec:confirmed` | Show "스펙이 이미 확정되었습니다." and jump to Step 7 |
+| `spec:reviewing` + latest `spec-review-*.md` has NOT READY decision | Jump to Step 5 (reflect existing review) |
+| `spec:reviewing` + no review file yet | Jump to Step 4 (waiting for Codex) |
+| `spec:drafting` + spec file exists | Jump to Step 4 (request review) |
+| topic not yet registered | Continue to Step 2 (normal flow) |
 
 ### 2. Prepare working directory
 
@@ -52,25 +62,32 @@ If no argument:
 Load `.claude/skills/brainstorming/SKILL.md` and follow its process.
 When brainstorming announces completion, save the presented spec to `docs/_local/backlog/<topic>/spec.md`.
 
-Then record the spec path in `dev-context.json`:
+Then register the topic in `dev-context.json`:
 
-```json
-{ "current_spec": "docs/_local/backlog/<topic>/spec.md" }
+```bash
+node .harness/scripts/dev-context.js register-topic \
+  --topic=<topic> \
+  --spec=docs/_local/backlog/<topic>/spec.md
 ```
 
 ### 4. Request Codex review
 
-After the draft is saved, show the user this message:
+Transition to `spec:reviewing`:
+
+```bash
+node .harness/scripts/dev-context.js update-state \
+  --topic=<topic> \
+  --phase=spec \
+  --status=reviewing
+```
+
+Then show the user this message:
 
 ```
 스펙 초안이 작성되었습니다: docs/_local/backlog/<topic>/spec.md
 
 Codex 리뷰를 실행하세요:
   codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
-
-active 토픽이 없다면 경로 없이도 실행 가능합니다:
-  codex "spec-review 스킬을 실행해줘"
-  (active 토픽과 backlog 초안이 동시에 존재하면 Codex가 어느 스펙을 리뷰할지 물어봅니다)
 
 리뷰 완료 후 spec-review-*.md 파일이 생성되면 다시 /dev:spec을 실행하세요.
 ```
@@ -85,12 +102,28 @@ When the user returns after Codex review:
 - Read the review report
 - If decision is `NOT READY`:
   - Apply all Required Fixes to `spec.md`
+  - Transition back to drafting:
+    ```bash
+    node .harness/scripts/dev-context.js update-state \
+      --topic=<topic> \
+      --phase=spec \
+      --status=drafting
+    ```
   - Go back to step 4 (request another Codex review)
 - If decision is `READY` or `READY WITH NOTE`:
   - Apply Notes that correct factual inaccuracies, missing context, or add missing Open Questions identified by the review. Do NOT apply Notes that are stylistic preferences or scope expansions.
   - Proceed to step 6
 
 ### 6. Confirm spec
+
+Transition to `spec:confirmed`:
+
+```bash
+node .harness/scripts/dev-context.js update-state \
+  --topic=<topic> \
+  --phase=spec \
+  --status=confirmed
+```
 
 Show confirmation:
 
@@ -99,8 +132,6 @@ Show confirmation:
   스펙: docs/_local/backlog/<topic>/spec.md
   리뷰: docs/_local/backlog/<topic>/spec-review-<timestamp>.md
 ```
-
-Then remove the `current_spec` key from `dev-context.json`.
 
 ### 7. Recommend splitting
 
@@ -137,9 +168,9 @@ Present the recommendation with reasoning:
 
 ## Key Principles
 
-- **Topic initialization is NOT included** — `/dev:spec` does not register topics in `dev-context.json`. Registration happens at `/dev:plan`.
-- **`current_spec` is a temporary field** — `/dev:spec` writes `current_spec` to `dev-context.json` after saving the draft, and removes it after spec confirmation (Step 6). This is the only field `/dev:spec` writes; it does not register topics.
+- **Topic initialization IS included** — `/dev:spec` registers the topic in `dev-context.json` at `spec:drafting` immediately after saving the spec draft (Step 3).
 - **Spec lives in backlog/** — spec is created and stays in `docs/_local/backlog/<topic>/` until `/dev:plan` moves it to `active/`
-- **Brainstorming owns content, /dev:spec owns persistence** — the brainstorming skill presents the spec inline and announces completion; `/dev:spec` is responsible for saving to file.
+- **Brainstorming owns content, /dev:spec owns persistence** — the brainstorming skill presents the spec inline and announces completion; `/dev:spec` is responsible for saving to file and registering the topic.
 - **Review loop runs until READY** — do not confirm the spec on a NOT READY result
 - **Codex handoff is manual** — Claude cannot invoke Codex directly; the user runs the `codex` command
+- **`specReview` is owned by Codex** — `/dev:spec` does not write `specReview`; the Codex spec-review skill updates it via `set-field`

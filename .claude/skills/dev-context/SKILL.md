@@ -71,6 +71,22 @@ node .harness/scripts/dev-context.js read --field=current_topic
 
 > `--field=current_topic` must NOT be combined with `--topic`.
 
+### `set-field` (global variant)
+
+`set-field` also supports setting the global `current_topic` field without `--topic` (parallel to `read`):
+
+```bash
+# Update current_topic globally
+node .harness/scripts/dev-context.js set-field \
+  --field=current_topic --value=<topic>
+
+# Clear current_topic
+node .harness/scripts/dev-context.js set-field \
+  --field=current_topic --value=null
+```
+
+> `--field=current_topic` must NOT be combined with `--topic`.
+
 ---
 
 ## Gate Validation Pattern
@@ -95,8 +111,6 @@ Then check `$PHASE:$STATUS` against the required state. If it does not match, ha
 ## Command-by-Command Invocation Map
 
 ### `/dev:spec`
-
-> Note: `/dev:spec` currently does not call `register-topic`. This mapping reflects the **target design** (implemented in Task 6). Until that task is complete, topic registration still happens at `/dev:plan`.
 
 | Step | Call |
 |------|------|

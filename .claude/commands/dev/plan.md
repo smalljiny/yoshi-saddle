@@ -1,6 +1,6 @@
 ---
-version: 5
-description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, registers in dev-context.json, and generates implementation-plan.md.
+version: 7
+description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 category: dev-workflow
 ---
 
@@ -11,8 +11,8 @@ Create an implementation plan from a confirmed spec document and save it to `doc
 ## Usage
 
 ```
-/dev:plan            List backlog topics and select one
-/dev:plan <topic>    Plan a specific backlog topic directly
+/dev:plan            List spec:confirmed topics and select one
+/dev:plan <topic>    Plan a specific topic directly
 ```
 
 ## Execution Flow
@@ -46,90 +46,153 @@ If no argument:
   플랜할 토픽 번호를 선택하세요:
   ```
 
-### 2. Check spec is confirmed
+### 2. Gate: verify spec is confirmed
 
-Verify the spec is ready for planning:
-- Check `docs/_local/backlog/<topic>/spec.md` exists — if not, stop:
-  ```
-  스펙 파일이 없습니다. 먼저 /dev:spec <topic>을 실행하세요.
-  ```
-- Find the latest `docs/_local/backlog/<topic>/spec-review-*.md` (sort by filename descending)
-- Read the review file and check its `Decision:` field
-- If no review file exists, or decision is not one of `READY` / `READY WITH NOTE`, stop:
-  ```
-  확정된 스펙이 없습니다.
-  먼저 /dev:spec <topic>을 실행하여 Codex 리뷰를 통과하세요.
-  ```
+Read `phase` and `status` from dev-context.json:
+
+```bash
+node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
+node .harness/scripts/dev-context.js read --topic=<topic> --field=status
+```
+
+If `phase:status` is not `spec:confirmed`, stop:
+
+```
+플랜을 수립할 수 없습니다.
+현재 상태: <phase>:<status>
+spec:confirmed 상태여야 합니다.
+먼저 /dev:spec <topic>을 실행하여 Codex 리뷰를 통과하세요.
+```
 
 ### 3. Move to active
 
 Move the topic directory from backlog to active:
-- If `docs/_local/active/<topic>/` already exists, stop:
-  ```
-  '<topic>'이 이미 active 상태입니다.
-  /dev:topic switch <topic>으로 전환하거나 /dev:impl로 구현을 계속하세요.
-  ```
-- Move `docs/_local/backlog/<topic>/` → `docs/_local/active/<topic>/`
+
+- If `docs/_local/active/<topic>/` already exists, skip the move (re-entry — directory already moved)
+- Otherwise move `docs/_local/backlog/<topic>/` → `docs/_local/active/<topic>/`
+
+Update paths in dev-context.json to reflect the new location:
+
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --topic=<topic> --field=spec \
+  --value=docs/_local/active/<topic>/spec.md
+
+node .harness/scripts/dev-context.js set-field \
+  --topic=<topic> --field=specReview \
+  --value=docs/_local/active/<topic>/spec-review-<latest-timestamp>.md
+```
 
 ### 4. Invoke the planner agent
+
+If `current_topic` is already set to a different active topic, prompt:
+
+```
+현재 작업 중인 토픽: <current_topic>
+<topic>으로 전환하시겠습니까? (y/n)
+```
+
+- `y`: proceed (current_topic will be updated in Step 6)
+- `n`: stop with guidance:
+  ```
+  plan-review는 current_topic 기준으로 spec을 해석합니다.
+  <topic>을 plan-review하려면 먼저 current_topic을 전환해야 합니다:
+    /dev:topic switch <topic>
+  전환 후 다시 /dev:plan을 실행하세요.
+  ```
 
 Pass the following to the planner agent:
 - Current topic name
 - Confirmed spec path: `docs/_local/active/<topic>/spec.md`
 
 The planner agent produces **only**:
-- `docs/_local/active/<topic>/implementation-plan.md` — Task list
+- `docs/_local/active/<topic>/implementation-plan.md`
 
 The spec document is already confirmed and must not be modified.
 
-### 5. Review the plan
+### 5. Review and approve plan
 
 Present the planner results to the user and request approval.
 If revisions are requested, re-invoke the planner agent.
 
 ### 6. Update dev-context.json
 
-After approval:
+After approval, update state and register the plan path:
 
-- If `current_topic` is already set to a different topic, prompt:
-  ```
-  현재 작업 중인 토픽: <current_topic>
-  <topic>으로 전환하시겠습니까? (y/n)
-  ```
-  - `y`: set `current_topic` to `<topic>`
-  - `n`: keep existing `current_topic`, still register `<topic>` in topics
+```bash
+node .harness/scripts/dev-context.js update-state \
+  --topic=<topic> --phase=plan --status=ready
 
-Register the topic in `dev-context.json` (set `current_topic` only if user confirmed `y` above, or if no previous topic existed):
-
-```json
-{
-  "current_topic": "<topic or existing value>",
-  "topics": {
-    "<topic>": {
-      "phase": "plan",
-      "spec": "docs/_local/active/<topic>/spec.md",
-      "specConfirmed": true,
-      "specReview": "docs/_local/active/<topic>/spec-review-<yymmddhhmmss>.md",
-      "plan": "docs/_local/active/<topic>/implementation-plan.md",
-      "currentTask": null,
-      "createdAt": "<ISO 8601>",
-      "updatedAt": "<ISO 8601>"
-    }
-  }
-}
+node .harness/scripts/dev-context.js set-field \
+  --topic=<topic> --field=plan \
+  --value=docs/_local/active/<topic>/implementation-plan.md
 ```
 
-Also remove the `current_spec` key from `dev-context.json` if it exists (it was written by `/dev:spec` during the backlog phase and is no longer needed once the topic is registered here).
+If user confirmed `y` in Step 4, also update `current_topic`:
 
-Note: `specConfirmed` is stored as a convenience field reflecting the review result. It is set here by `/dev:plan`. `/dev:spec` does not register topics, but it does write a temporary `current_spec` field (removed here during plan registration). `specConfirmed` is not used as a gate — the gate is the `spec-review-*.md` Decision check in Step 2.
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=current_topic --value=<topic>
+```
+
+### 7. Request plan-review
+
+Transition to `plan:reviewing`:
+
+```bash
+node .harness/scripts/dev-context.js update-state \
+  --topic=<topic> --phase=plan --status=reviewing
+```
+
+Show the user this message:
+
+```
+구현 계획이 작성되었습니다: docs/_local/active/<topic>/implementation-plan.md
+
+Codex plan-review를 실행하세요:
+  codex "plan-review 스킬로 docs/_local/active/<topic>/implementation-plan.md를 리뷰해줘"
+
+리뷰 완료 후 plan-review-*.md 파일이 생성되면 다시 /dev:plan을 실행하세요.
+```
+
+Stop and wait for the user to run Codex and return.
+
+### 8. Reflect plan-review result (re-entry)
+
+When the user returns after Codex plan-review, check the latest `planReview` state:
+
+```bash
+node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
+node .harness/scripts/dev-context.js read --topic=<topic> --field=status
+```
+
+Re-entry state table:
+
+Read `planReview` field and check the Decision in the file (if it exists):
+
+```bash
+node .harness/scripts/dev-context.js read --topic=<topic> --field=planReview
+```
+
+| `phase:status` | `planReview` Decision | Action |
+|----------------|-----------------------|--------|
+| `plan:confirmed` | READY / READY WITH NOTE | `/dev:impl`을 시작할 수 있습니다. |
+| `plan:ready` | NOT READY (파일 존재, Decision 확인) | 재계획 안내: 플래너 재호출 (Step 4로 돌아가기) |
+| `plan:ready` | 없음 (파일 미존재) | plan-review 실행 안내 (Step 7 메시지 반복) |
+| `plan:reviewing` | 없음 | plan-review 실행 안내 (Step 7 메시지 반복) |
 
 ## Plan Document Format
+
+See `.harness/contracts/implementation-plan.md` for the canonical format.
 
 ```markdown
 # Implementation Plan: <topic name>
 
 ## Overview
 [Summary]
+
+## Spec Reference
+> Based on: `docs/_local/active/<topic>/spec.md`
 
 ## Task List
 
@@ -146,12 +209,13 @@ Note: `specConfirmed` is stored as a convenience field reflecting the review res
 
 ## Key Principles
 
-- **Spec must be READY** — requires a `spec-review-*.md` with `READY` or `READY WITH NOTE` decision in `backlog/<topic>/`
+- **Gate: spec:confirmed** — `/dev:plan` only proceeds when `phase=spec && status=confirmed`
 - **Planner reads spec, does not write it** — spec path is `docs/_local/active/<topic>/spec.md` after move
 - **backlog → active is atomic** — directory move happens before planner invocation; if planner fails, the directory stays in `active/`
 - **Plans are stored in `docs/_local/active/`** (git-ignored)
-- After completion, run `/dev:impl` to execute one Task at a time
+- **plan:confirmed is set by Codex plan-review** — `/dev:plan` does not set `plan:confirmed`; that is owned by the Codex plan-review skill
+- After plan-review passes: run Tasks with `/dev:impl`
 
 ## Next Steps
 
-After plan approval: run Tasks with `/dev:impl`
+After plan-review passes (`plan:confirmed`): run Tasks with `/dev:impl`

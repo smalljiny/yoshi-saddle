@@ -19,32 +19,32 @@ Unlike ECC-style harnesses, skills here are **explicitly referenced** (not auto-
 | Skill | Path | When to Use |
 |-------|------|-------------|
 | `spec-review` | `.codex/skills/spec-review/` | Review a spec document before planning begins |
+| `plan-review` | `.codex/skills/plan-review/` | Review an implementation plan before implementation begins |
 
 ### How to invoke a skill
 
-For backlog topics, providing the path explicitly is preferred but not required. After `/dev:spec` saves a draft, the path is available in `dev-context.json` as `current_spec`:
+Provide the path explicitly (preferred):
 
 ```
 codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
+codex "plan-review 스킬로 docs/_local/active/<topic>/implementation-plan.md를 리뷰해줘"
 ```
 
-Or without a path — Codex will read `current_spec` from `dev-context.json` automatically:
+Or without a path — Codex resolves the path from `dev-context.json` automatically:
 
 ```
 codex "spec-review 스킬을 실행해줘"
+codex "plan-review 스킬을 실행해줘"
 ```
 
-For active topics (already registered in `dev-context.json`), the path is resolved from `topics[current_topic].spec` automatically.
-
-> **Note**: Explicit path always takes priority. If no path is provided and `current_spec` is not set (e.g., spec was confirmed or a new session started without running `/dev:spec`), Codex will ask for the path.
->
-> **Warning**: If both `current_spec` (backlog draft) and `current_topic` (active topic) exist in `dev-context.json`, Codex will ask which spec to review rather than silently choosing the active topic. Use an explicit path to avoid the prompt.
+Explicit path always takes priority. If no path is provided, Codex reads
+`topics[current_topic].spec` or `topics[current_topic].plan` from `dev-context.json`.
 
 ## spec-review Skill
 
 Reviews a spec document against an 8-point quality gate and produces a review report.
 
-**When to run**: After `/dev:spec` generates a spec draft (`docs/_local/backlog/<topic>/spec.md`), before `/dev:plan`.
+**When to run**: After `/dev:spec` generates a spec draft, before `/dev:plan`.
 
 **What it checks**:
 1. 목표 명확성 — Goals are specific and verifiable
@@ -60,59 +60,113 @@ Reviews a spec document against an 8-point quality gate and produces a review re
 
 **Decision**: `READY` | `READY WITH NOTE` | `NOT READY`
 
+**After review**: Codex writes `specReview` field via `dev-context.js set-field`. State transition (`spec:confirmed` or `spec:drafting`) is handled by Claude `/dev:spec`.
+
+## plan-review Skill
+
+Reviews an implementation plan against an 8-point quality gate and produces a review report.
+
+**When to run**: After `/dev:plan` generates `implementation-plan.md`, before `/dev:impl`.
+
+**What it checks**:
+1. 목표 커버리지 — All spec goals are covered by at least one Task
+2. Non-goals 준수 — Plan does not implement spec Non-goals
+3. Task 독립성 — Each Task is independently executable
+4. 완료 기준 명확성 — Completion Criteria are objectively verifiable
+5. Task 타입 정확성 — Task Type matches its Work Items
+6. Task 규모 적정성 — Each Task fits within a single commit unit
+7. 구현 순서 타당성 — Task order respects dependency relationships
+8. 범위 초과 없음 — No Tasks implement functionality beyond spec scope
+
+**Path resolution**:
+- Plan: (1) explicit path, (2) `dev-context.js read --topic=<name> --field=plan`, (3) user prompt
+- Spec: always `dev-context.js read --topic=<name> --field=spec` (separate from plan)
+- If explicit plan path differs from `topics[current_topic].plan`, ask user to confirm
+
+**Output**: `docs/_local/active/<topic>/plan-review-<yymmddhhmmss>.md`
+
+**Decision**: `READY` | `READY WITH NOTE` | `NOT READY`
+
+**After review**:
+- READY / READY WITH NOTE → `update-state --phase=plan --status=confirmed` + `set-field planReview`
+- NOT READY → `update-state --phase=plan --status=ready` + `set-field planReview`
+
 ## Context
 
-### Backlog topics
+### Topic lifecycle states
 
-Specs in `docs/_local/backlog/` are created by `/dev:spec`. They are not registered in `dev-context.json` topics, but `/dev:spec` writes a temporary `current_spec` field to `dev-context.json` after saving the draft.
+All topics are registered in `dev-context.json` from the moment `/dev:spec` saves the spec draft (`spec:drafting`). There is no distinction between backlog and active topics in terms of registration.
 
-Spec path resolution (mirrors SKILL.md):
-1. **Explicit path** — always wins
-2. **Exactly one of the following exists** — auto-resolve:
-   - Only `current_spec` set → use it (backlog draft)
-   - Only `current_topic` set → use `topics[current_topic].spec` (active topic)
-3. **Both `current_spec` and `current_topic` exist** — ask the user which spec to review; do not silently choose
-4. **Neither exists** — ask the user for the spec path
-
-```
-codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
-```
-
-### Active topics (registered in dev-context.json)
-
-Once `/dev:plan` moves a topic to `active/` and registers it, Codex can resolve the spec path from `dev-context.json`:
+Expected shape:
 
 ```json
 {
-  "current_topic": "<topic>",
+  "current_topic": "<topic-name>",
   "topics": {
-    "<topic>": {
-      "spec": "docs/_local/active/<topic>/spec.md",
-      "specConfirmed": true,
-      "specReview": "docs/_local/active/<topic>/spec-review-<yymmddhhmmss>.md",
-      "plan": "docs/_local/active/<topic>/implementation-plan.md",
+    "<topic-name>": {
+      "phase": "spec",
+      "status": "drafting",
+      "spec": "docs/_local/backlog/<topic-name>/spec.md",
+      "specReview": null,
+      "plan": null,
+      "planReview": null,
       "currentTask": null,
       "createdAt": "<ISO 8601>",
       "updatedAt": "<ISO 8601>"
     }
-  }
+  },
+  "updatedAt": "<ISO 8601>"
 }
 ```
 
+Phase/status values by lifecycle stage:
+
+| Phase | Status | Meaning |
+|-------|--------|---------|
+| spec | drafting | Spec draft in progress |
+| spec | reviewing | Codex spec-review in progress |
+| spec | confirmed | Spec approved, ready for planning |
+| plan | ready | Plan generated, ready for plan-review |
+| plan | reviewing | Codex plan-review in progress |
+| plan | confirmed | Plan approved, ready for implementation |
+| impl | in-progress | Implementation in progress |
+| review | in-progress | Final review in progress |
+
 Full schema definition: `.codex/skills/spec-review/references/rules-and-inputs.md`
 
-After review of an active topic, Codex writes the report path to `topics[<topic>].specReview`.
-`specConfirmed` is set by the Claude Code `/dev:plan` command — Codex does not set it. `/dev:spec` does not register topics, but it writes a temporary `current_spec` field (removed by `/dev:spec` itself after spec confirmation in Step 6; `/dev:plan` also removes it as cleanup when registering the topic).
+Spec path resolution:
+1. **Explicit path** — always wins
+2. **Auto-resolution** — `dev-context.js read --topic=<current_topic> --field=spec`
+3. **User prompt** — if neither applies
 
-## File Access Scope (spec-review)
+## File Access Scope
 
-The spec-review skill accesses only the following paths:
+### spec-review
 
 | Access | Paths |
 |--------|-------|
-| Read | `docs/_local/dev-context.json` (active topics: `topics[current_topic].spec`; backlog topics: `current_spec` field), `docs/_local/backlog/<topic>/spec.md` or `docs/_local/active/<topic>/spec.md`, `.claude/rules/` |
-| Write | `<dirname(spec)>/spec-review-<yymmddhhmmss>.md` (new file), `docs/_local/dev-context.json` (`specReview` field only, active topics only) |
-| Never modify | `specConfirmed` field, `.claude/settings.json`, any file outside `docs/_local/` |
+| Read | `docs/_local/dev-context.json`, spec file (`topics[current_topic].spec`), `.claude/rules/` |
+| Write | `<dirname(spec)>/spec-review-<yymmddhhmmss>.md` (new file) |
+| Update | `docs/_local/dev-context.json` — `specReview` field only (via `dev-context.js set-field`) |
+| Never modify | `phase`, `status` fields (owned by Claude `/dev:spec` via `update-state`) |
+
+### plan-review
+
+| Access | Paths |
+|--------|-------|
+| Read | `docs/_local/dev-context.json`, plan file (`topics[current_topic].plan`), spec file (`topics[current_topic].spec`), `.harness/contracts/plan-review.md` |
+| Write | `docs/_local/active/<topic>/plan-review-<yymmddhhmmss>.md` (new file) |
+| Update | `docs/_local/dev-context.json` — `planReview` field + `phase`/`status` via `update-state` |
+
+### Contracts
+
+`.harness/contracts/` defines the canonical format for Claude↔Codex exchange documents:
+
+| Contract | Producer | Consumer |
+|----------|----------|----------|
+| `spec-review.md` | Codex spec-review | Claude /dev:spec, /dev:plan |
+| `plan-review.md` | Codex plan-review | Claude /dev:impl |
+| `implementation-plan.md` | Claude planner | Codex plan-review, Claude /dev:impl |
 
 Topic names are expected to contain only alphanumeric characters, hyphens, and underscores.
 

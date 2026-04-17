@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Execute a single Task from the implementation plan. Automatically invokes tdd-specialist and code-reviewer. Stops after completing one Task.
 category: dev-workflow
 ---
@@ -18,13 +18,35 @@ Execute Tasks from the implementation plan one at a time.
 
 ## Execution Flow
 
-### 1. Read Context and Plan
+### 1. Read Context and Gate Check
 
-1. Get the current topic and plan path from `docs/_local/dev-context.json`
-2. Determine which Task to run from `implementation-plan.md`:
+1. Get the current topic from dev-context.json:
+   ```bash
+   node .harness/scripts/dev-context.js read --field=current_topic
+   ```
+
+2. Read `phase` and `status`:
+   ```bash
+   node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
+   node .harness/scripts/dev-context.js read --topic=<topic> --field=status
+   ```
+
+3. Gate: if `phase:status` is not `plan:confirmed` and not `impl:in-progress`, stop:
+   ```
+   구현을 시작할 수 없습니다.
+   현재 상태: <phase>:<status>
+   plan:confirmed 상태여야 합니다.
+   codex "plan-review 스킬을 실행해줘"
+   ```
+
+4. Get the plan path and determine which Task to run:
+   ```bash
+   node .harness/scripts/dev-context.js read --topic=<topic> --field=plan
+   node .harness/scripts/dev-context.js read --topic=<topic> --field=currentTask
+   ```
    - Explicit argument → that Task
-   - `currentTask` → Task from context
-   - Otherwise → first incomplete `[ ]` Task
+   - `currentTask` value → that Task
+   - Otherwise → first incomplete `[ ]` Task in `implementation-plan.md`
 
 ### 2. Understand Task Details
 
@@ -61,7 +83,16 @@ Before starting implementation, present the work plan to the user:
 
 Do not start implementation without approval.
 
-### 4. **Automatically invoke tdd-specialist agent** (type: tdd)
+### 4. Transition to `impl:in-progress` (first Task only)
+
+If current `phase:status` is `plan:confirmed` (not yet `impl:in-progress`):
+
+```bash
+node .harness/scripts/dev-context.js update-state \
+  --topic=<topic> --phase=impl --status=in-progress
+```
+
+### 5. **Automatically invoke tdd-specialist agent** (type: tdd)
 
 - Write failing tests (RED)
 - Confirm tests fail
@@ -75,36 +106,35 @@ For types `config`, `infra`, `refactor`:
 - `infra`: Change infrastructure and document
 - `refactor`: Improve structure after ensuring test coverage
 
-### 5. **Automatically invoke code-reviewer agent** (immediately after implementation)
+### 6. **Automatically invoke code-reviewer agent** (immediately after implementation)
 
 Immediately review the Task code:
 - Quality review
 - Immediate feedback + fixes
 
-### 6. Verify Completion Criteria
+### 7. Verify Completion Criteria
 
 Check completion criteria in the plan document.
 
-### 7. Update Plan Document
+### 8. Update Plan Document
 
 Mark completed Tasks:
 - `[ ]` → `[x]`
 
-### 8. Update dev-context.json
+### 9. Update dev-context.json
 
-```json
-{
-  "topics": {
-    "<topic>": {
-      "phase": "impl",
-      "currentTask": "<next-task-id>",
-      "updatedAt": "<ISO 8601>"
-    }
-  }
-}
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --topic=<topic> --field=currentTask --value=<next-task-id>
 ```
 
-### 9. **Output Task completion briefing and stop**
+Use `null` when all Tasks are complete:
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --topic=<topic> --field=currentTask --value=null
+```
+
+### 10. **Output Task completion briefing and stop**
 
 ```
 ---
@@ -130,6 +160,7 @@ Mark completed Tasks:
 
 - **One Task at a time** — only one Task per invocation
 - **Prior approval required** — do not start implementation without approving the work plan
+- **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
 - **TDD enforced** — `tdd` type must write tests first
 - **Immediate review** — automatically invoke code-reviewer immediately after implementation
 

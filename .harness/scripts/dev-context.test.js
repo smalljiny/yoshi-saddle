@@ -235,6 +235,25 @@ describe('dev-context.js', () => {
       assert.notEqual(err.code, 0)
       assert.ok(err.stderr.includes('update-state 전용'))
     })
+
+    test('current_topic 글로벌 필드 업데이트 (--topic 없이)', () => {
+      run('register-topic', '--topic=other-topic', '--spec=other/spec.md')
+      run('set-field', '--field=current_topic', '--value=sf-test')
+      const ctx = readCtx()
+      assert.equal(ctx.current_topic, 'sf-test')
+    })
+
+    test('current_topic null 설정', () => {
+      run('set-field', '--field=current_topic', '--value=null')
+      const ctx = readCtx()
+      assert.equal(ctx.current_topic, null)
+    })
+
+    test('set-field --topic=X --field=current_topic → 에러', async () => {
+      const err = await runExpectFail('set-field', '--topic=sf-test', '--field=current_topic', '--value=sf-test')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('--topic과 함께 사용할 수 없습니다'))
+    })
   })
 
   describe('read', () => {
