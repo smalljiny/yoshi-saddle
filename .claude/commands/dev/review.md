@@ -1,6 +1,6 @@
 ---
-version: 5
-description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel.
+version: 6
+description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 category: dev-workflow
 ---
 
@@ -57,7 +57,13 @@ node .harness/scripts/dev-context.js update-state \
   --topic=<topic> --phase=review --status=in-progress
 ```
 
-### 3. Identify Change Scope
+Capture the current HEAD sha for later use in Step 8 (처리 내역 산출):
+
+```bash
+SAVED_SHA=$(git rev-parse HEAD)
+```
+
+### 4. Identify Change Scope
 
 Read the base branch from config (default: `main`):
 ```bash
@@ -70,7 +76,7 @@ git diff <pullRemote>/<baseBranch>...HEAD
 git log <pullRemote>/<baseBranch>...HEAD --oneline
 ```
 
-### 4. **Run code-reviewer + security-reviewer in parallel**
+### 5. **Run code-reviewer + security-reviewer in parallel**
 
 Invoke both agents simultaneously:
 
@@ -86,20 +92,16 @@ Invoke both agents simultaneously:
 - Missing input validation
 - Authentication/authorization issues
 
-### 5. Consolidate Review Results
+### 6. Consolidate and Fix Issues
 
-Organize issues by severity:
+**이슈 분류**:
 - **CRITICAL**: Requires immediate fix. Cannot proceed before fixing.
 - **HIGH**: Requires prompt fix.
 - **MEDIUM**: Plan a fix.
 
-### 6. Fix Issues
+**수정 및 재리뷰**: Fix CRITICAL and HIGH issues, then re-review.
 
-Fix CRITICAL and HIGH issues, then re-review.
-
-### 6.1 Commit Review Fixes
-
-**모든 수정은 별도 commit으로 분리한다** — plan의 `**Commit**` 필드를 amend하거나 덮어쓰지 않는다.
+**Commit 규칙** — 모든 수정은 별도 commit으로 분리한다. plan의 `**Commit**` 필드를 amend하거나 덮어쓰지 않는다.
 
 - **amend 금지**: 기존 Task commit을 수정하지 않는다.
 - **권장 commit 메시지 패턴** (강제 아님):
@@ -110,7 +112,68 @@ Fix CRITICAL and HIGH issues, then re-review.
 - 여러 이슈를 수정한 경우 하나의 review-fix commit으로 묶거나 이슈별로 분리 가능.
 - 참조: `.harness/rules/git-workflow.md` — "Review-fix Commit" 섹션
 
-### 7. Completion Report
+### 7. Adversarial Review (conditional, sequential)
+
+CRITICAL·HIGH 수정이 완료된 후 실행한다 (정제된 상태를 대상으로 해야 adversarial 피드백이 유효).
+
+**활성화 조건** — 아래 순서로 평가하고 첫 매치만 적용 (미정의/빈값은 false로 취급):
+
+```bash
+node .harness/scripts/dev-context.js read --field=config.review.adversarial_enabled
+node .harness/scripts/dev-context.js read --field=config.codex.available
+node .harness/scripts/dev-context.js read --field=config.codex.authenticated
+```
+
+1. `adversarial_enabled`이 false이거나 미정의 → `skipReason="disabled"` (조용히 skip, 경고 없음)
+2. `codex.available`이 false이거나 미정의 → `skipReason="codex unavailable"` (경고 출력)
+3. `codex.authenticated`이 false이거나 미정의 → `skipReason="codex not authenticated"` (경고 출력)
+4. 모두 true → 아래 실행 흐름 진행
+
+활성화 방법 (기본값 false, 명시적 opt-in 필요):
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=config.review.adversarial_enabled --value=true
+```
+
+**조건 충족 시**:
+
+companion 경로를 `/codex:setup` one-liner 패턴으로 해결한다:
+
+```bash
+COMPANION_PATH=$(node -e "
+const {existsSync,readdirSync}=require('fs');
+const {join,resolve,sep}=require('path');
+const {homedir}=require('os');
+const base=join(homedir(),'.claude/plugins/cache/openai-codex/codex');
+if(!existsSync(base)){process.exit(1);}
+const vs=readdirSync(base,{withFileTypes:true})
+  .filter(d=>d.isDirectory()&&/^\d+\.\d+\.\d+$/.test(d.name))
+  .map(d=>d.name)
+  .sort((a,b)=>{const pa=a.split('.').map(Number),pb=b.split('.').map(Number);for(let i=0;i<3;i++){if((pb[i]??0)!==(pa[i]??0))return(pb[i]??0)-(pa[i]??0);}return 0;});
+if(!vs.length){process.exit(1);}
+const p=join(base,vs[0],'scripts/codex-companion.mjs');
+if(!resolve(p).startsWith(resolve(base)+sep)||!existsSync(p)){process.exit(1);}
+process.stdout.write(p);
+")
+```
+
+`<baseBranch>`는 Step 4에서 읽은 `config.git.baseBranch` (기본 `main`).
+
+companion 경로 해결 실패 시 (`COMPANION_PATH`가 빈 문자열):
+- 경고 출력, `adversarialStatus="skipped"`, `skipReason="codex unavailable"` → Step 8로 진행
+
+```bash
+ADVERSARIAL_OUTPUT=$(node "$COMPANION_PATH" adversarial-review --wait --base "<baseBranch>")
+```
+
+- 성공(exit 0): `adversarialStatus="run"`, `ADVERSARIAL_OUTPUT`을 `## Adversarial Review` 원문으로 보관 (Step 9에서 사용)
+- 비-0 exit: 경고 출력, `adversarialStatus="skipped"`, `skipReason="companion exited non-zero"` (stdout 일부를 말미에 첨부)
+
+### 8. (Reserved for Task 3 — 처리 내역 산출)
+
+### 9. (Reserved for Task 3 — review-report 파일 저장)
+
+### 10. Completion Report
 
 ```
 Review complete
@@ -118,6 +181,8 @@ Review complete
 CRITICAL: 0
 HIGH: 0
 MEDIUM: [N]
+
+adversarial-review: [run | skipped (<skipReason>)]
 
 Next: pass the verification gate with /dev:verify
 ```
