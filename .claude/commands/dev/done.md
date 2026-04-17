@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 description: Archive planning artifacts and remove the topic from dev-context.json. Run after /dev:pr (pr:created state). Reference document generation is handled by /dev:docs.
 category: dev-workflow
 ---
@@ -69,6 +69,7 @@ Move all planning artifacts to `done/` — **no files are deleted**:
    - `active/<topic>/spec.md` → `done/<topic>/spec.md`
    - `active/<topic>/spec-review-*.md` → `done/<topic>/` (all matching files)
    - `active/<topic>/plan-review-*.md` → `done/<topic>/` (all matching files)
+   - `active/<topic>/review-report-*.md` → `done/<topic>/` (all matching files)
    - `active/<topic>/implementation-plan.md` → `done/<topic>/implementation-plan.md`
 6. Remove `active/<topic>/` directory if empty; if unexpected files remain, warn the user and ask for confirmation before removing
 7. Show:
@@ -111,7 +112,7 @@ If no active topics remain:
 - **current_topic only** — `/dev:done` always operates on `current_topic`. Use `/dev:topic switch` to change.
 - **Gate: pr:created** — `/dev:done` only proceeds when `phase=pr && status=created`; stop entirely on mismatch.
 - **Gate validation is /dev:done's responsibility** — `remove-topic` has no state validation; `/dev:done` pre-validates before calling it.
-- **No deletions** — all planning artifacts (spec.md, spec-review-*.md, plan-review-*.md, implementation-plan.md) are moved to `done/`, never deleted.
+- **No deletions** — all planning artifacts (spec.md, spec-review-*.md, plan-review-*.md, review-report-*.md, implementation-plan.md) are moved to `done/`, never deleted.
 - **Paths come from dev-context.json** — active directory is derived from `topics[<topic>]`, not hardcoded.
 - **Reference document is NOT generated here** — that is `/dev:docs`'s responsibility. `/dev:done` only archives planning artifacts.
 - **`done/` is git-ignored** — local archive only; `docs/specs/` (written by `/dev:docs`) is the tracked record.
