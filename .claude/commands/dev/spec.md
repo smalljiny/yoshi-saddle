@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 description: Write a spec for a new topic. Registers the topic in dev-context.json, writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 category: dev-workflow
 ---
@@ -59,7 +59,7 @@ If no argument:
 
 ### 3. Write spec draft
 
-Load `.claude/skills/brainstorming/SKILL.md` and follow its process.
+Load `.claude/skills/brainstorming/SKILL.md` and `.harness/contracts/spec.md`, then follow the brainstorming process using the contract as the spec document format.
 When brainstorming announces completion, save the presented spec to `docs/_local/backlog/<topic>/spec.md`.
 
 Then register the topic in `dev-context.json`:
@@ -174,3 +174,4 @@ Present the recommendation with reasoning:
 - **Review loop runs until READY** — do not confirm the spec on a NOT READY result
 - **Codex handoff is manual** — Claude cannot invoke Codex directly; the user runs the `codex` command
 - **`specReview` is owned by Codex** — `/dev:spec` does not write `specReview`; the Codex spec-review skill updates it via `set-field`
+- **Format injection** — spec document format is defined in `.harness/contracts/spec.md` and injected by `/dev:spec` when loading brainstorming; the brainstorming skill itself is format-agnostic
