@@ -1,0 +1,23 @@
+# Claude Code
+.claude/sessions/
+.claude/checkpoints.log
+
+# 로컬 작업 문서 (개발 중 임시 파일)
+docs/_local/
+
+# 참조 자료 (외부 프로젝트, read-only)
+/references/
+
+# 의존성
+node_modules/
+dist/
+.DS_Store
+
+# 민감한 파일 (절대 커밋하지 않음)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+credentials.json
+*.token
