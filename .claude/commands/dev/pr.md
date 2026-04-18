@@ -105,6 +105,11 @@ Defaults:
 - `baseBranch`: `main` (topic-level override takes precedence if set)
 - `branchType`: `feature`
 
+**Validate config-derived values before use**:
+- Remote names (`pushRemote`, `pullRemote`): must match `^[a-zA-Z0-9_.-]+$` and must not start with `-`. Verify existence with `git remote get-url <remote>`; stop with an error if not found.
+- Branch names (`baseBranch`, topic-level `baseBranch`): must match `^[a-zA-Z0-9][a-zA-Z0-9_/.-]*$` (leading `-` rejected). Verify with `git rev-parse --verify -- <branch>` before use in diff or PR creation commands.
+- If any validation fails, stop immediately and show the invalid value and expected format.
+
 ### 4. Draft PR title
 
 Read the implementation plan to extract Task Commit fields:

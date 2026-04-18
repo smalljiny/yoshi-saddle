@@ -3,7 +3,7 @@
  * PostToolUse 훅: JS/TS 파일 편집 후 Prettier로 자동 포맷한다.
  */
 
-import { execSync } from 'child_process'
+import { spawnSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
@@ -37,14 +37,11 @@ function main() {
     process.exit(0)
   }
 
-  try {
-    execSync(`npx prettier --write "${filePath}" 2>/dev/null`, {
-      cwd,
-      timeout: 10000,
-    })
-  } catch {
-    // Prettier 실패는 무시 (포맷은 선택적)
-  }
+  spawnSync('npx', ['prettier', '--write', filePath], {
+    cwd,
+    timeout: 10000,
+    stdio: 'ignore',
+  })
 
   process.exit(0)
 }
