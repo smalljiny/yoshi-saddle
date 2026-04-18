@@ -1,13 +1,15 @@
-<!--
-스펙 문서 형식 템플릿. `/dev:spec`이 브레인스토밍 호출 시 형식 기준으로 주입한다.
+# Contract: Spec Document Format
 
-사용처:
-  Step 3 — 브레인스토밍 호출 시 이 파일을 형식 기준으로 전달
-  Step 7 — 분할 판단 기준(PR 병합 가능 단위 체크)을 참조
+- **Producer**: Claude brainstorming skill (content) + `/dev:spec` (persistence)
+- **Consumer**: `/dev:spec` Step 7 (split analysis), Codex `spec-review` skill (quality validation)
+
+스펙 문서가 갖춰야 할 섹션 구조와 PR 병합 단위 판단 기준을 정의한다.
+`/dev:spec`은 브레인스토밍 호출 시 이 파일을 형식 기준으로 주입한다.
 
 버전 정책: 섹션 구조나 분할 기준 변경 시 PR 본문에 변경점을 명시한다.
-           YAML frontmatter 및 version 필드는 사용하지 않는다 (pr-body.md와 동일 정책).
--->
+YAML frontmatter 및 version 필드는 사용하지 않는다.
+
+---
 
 ## 스펙 문서 형식
 
