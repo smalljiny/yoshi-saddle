@@ -68,9 +68,9 @@
 - `.claude/rules/common/` — Claude Code 운영 규칙만 (agents, performance, development-workflow, component-boundaries)
 - `.harness/commit-scopes.md` — 프로젝트별 scope 목록. 다른 프로젝트 복사 시 이 파일만 교체.
 
-### PR 병합 단위 체크 (`/dev:spec` + `brainstorming`)
+### PR 병합 단위 체크 (`/dev:spec` + `.harness/contracts/spec.md`)
 
-스펙 작성 중 다음 기준으로 단일 PR 적합성을 검증한다:
+스펙 작성 중 다음 기준으로 단일 PR 적합성을 검증한다 (전체 기준은 `.harness/contracts/spec.md` 참조):
 
 - 독립 배포 가능 (다른 PR 없이 merge 가능)
 - 독립 롤백 가능 (revert 시 다른 기능이 깨지지 않음)

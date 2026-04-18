@@ -43,20 +43,21 @@ docs/_local/backlog/<topic>/
 
 | 역할 | 담당 |
 |------|------|
-| 대화로 스펙 내용 완성 | brainstorming 스킬 |
+| 스펙 문서 형식 정의 | `.harness/contracts/spec.md` |
+| 대화로 스펙 내용 완성 | brainstorming 스킬 (형식은 `/dev:spec`이 주입) |
 | 완성된 스펙 파일 저장 | `/dev:spec` |
 | 토픽 등록 (`register-topic`) | `/dev:spec` |
 | 상태 전환 (`spec:drafting` → `spec:reviewing` → `spec:confirmed`) | `/dev:spec` |
 | Codex 리뷰 루프 관리 | `/dev:spec` |
 | `specReview` 필드 업데이트 | Codex `spec-review` 스킬 |
-| 분할 추천 | `/dev:spec` (Step 7) |
+| 분할 추천 (기준: `contracts/spec.md`) | `/dev:spec` (Step 7) |
 
 ### brainstorming 스킬 동작
 
 **대화 프로세스**:
-- 한 번에 하나씩 질문하여 아이디어를 구체화한다
+- 한 번에 하나씩 질문하며 항상 `AskUserQuestion` 도구를 사용한다. 각 질문에 추천안(`(Recommended)`)을 포함한다
 - 방향이 불명확할 때만 2-3가지 접근방식을 제안한다. 사용자가 이미 방향을 제시한 경우 대안을 강요하지 않고 검증한다
-- 200-300단어 섹션 단위로 스펙을 작성하며 각 섹션마다 검증한다
+- 200-300단어 섹션 단위로 스펙을 작성하며 각 섹션마다 검증한다 (섹션 승인도 `AskUserQuestion` 사용)
 
 **출력 계약**:
 - 완성된 스펙을 대화 안에서 인라인으로 제시한다
@@ -64,11 +65,8 @@ docs/_local/backlog/<topic>/
 - 완료 시 자연어로 선언한다: *"스펙 초안이 완성되었습니다. /dev:spec이 파일로 저장합니다."*
 
 **출력 형식**:
-- 필수 섹션: 개요 / 목표 / 의사결정 / Non-goals / Open Questions / 관련 문서
-- 선택 섹션 (섹션 3은 반드시 포함):
-  - `## 3. 아키텍처` — 코드/기능 토픽
-  - `## 3. 역할 정의` — 워크플로우/정책/역할 조정 토픽
-  - 두 유형에 해당하지 않으면 `역할 정의` 구조 사용
+- 스펙 문서 형식은 `.harness/contracts/spec.md`가 정의하며, `/dev:spec`이 브레인스토밍 호출 시 이를 주입한다
+- brainstorming 스킬 자체는 형식 비종속 — 주입된 형식을 따르며 주입이 없으면 맥락에 맞는 형식을 자유롭게 사용한다
 
 ### `/dev:spec` 실행 흐름
 
