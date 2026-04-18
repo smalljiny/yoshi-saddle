@@ -135,7 +135,7 @@ Show confirmation:
 
 ### 7. Recommend splitting
 
-Analyze the confirmed spec and recommend whether it should be split, using the **PR 병합 가능 단위** criteria from `.claude/skills/brainstorming/SKILL.md`:
+Analyze the confirmed spec and recommend whether it should be split, using the **PR 병합 가능 단위** criteria from `.harness/contracts/spec.md`:
 
 **Split when**: the spec has 3 or more goals that each satisfy all of — (1) independently deployable, (2) independently revertable, (3) not dependent on another concurrent PR.
 **Keep single when**: goals are tightly coupled by a dependency chain (document as Coupling Rationale in §1.3), or there are fewer than 3 independently merge-able goals.
