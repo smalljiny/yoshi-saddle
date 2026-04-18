@@ -9,8 +9,7 @@
       "Bash(node:*)",
       "Bash(mkdir:*)",
       "Bash(ls:*)",
-      "Skill(*)",
-      "Bash(curl *)"
+      "Skill(*)"
     ]
   },
   "hooks": {
