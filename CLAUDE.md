@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 ---
 
 # CLAUDE.md
@@ -86,6 +86,14 @@ version: 1          # integer, starts at 1, increments by 1 on each edit
 ```
 
 When modifying any component file, increment `version` by 1 before saving.
+
+## Asking Questions
+
+When asking the user a question — whether for clarification, approval, or exploration — always use the `AskUserQuestion` tool. Always include a recommendation as the first option, labeled with `(Recommended)`.
+
+- Apply to all question types: confirmations, approach selection, clarifications
+- Never ask a question as plain text when a choice is involved
+- If only one natural answer exists, still offer it as the recommended option with a brief alternative
 
 ## Language Rules
 
