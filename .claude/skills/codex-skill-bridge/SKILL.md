@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: codex-skill-bridge
 description: Prototype feasibility spike — do NOT load this skill for general use. This skill should be used only when explicitly testing whether Claude can invoke Codex spec-review or plan-review via the codex exec non-interactive CLI and read the resulting review files. Use it to run the bridge experiment or verify codex exec availability. Do not trigger for normal spec or plan authoring tasks.
 origin: harness
@@ -53,21 +53,34 @@ If either returns a value other than `"true"`:
 
 ## Path Validation (Required Before Invocation)
 
-Before using any path in `codex exec` arguments or `find` calls, validate it against a safe
-repo-relative path pattern:
+Before using any path in `codex exec` arguments or `find` calls, enforce repo-relative
+containment using canonicalization:
 
 ```bash
-# Validate: only alphanumeric, dots, hyphens, underscores, slashes — no shell metacharacters
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 SPEC_PATH="<value-from-dev-context>"
-if ! echo "$SPEC_PATH" | grep -qE '^[A-Za-z0-9._/-]+$'; then
+
+# Reject empty, absolute (/…), traversal (../ or /..), control chars, leading dash
+if [ -z "$SPEC_PATH" ] || \
+   echo "$SPEC_PATH" | grep -qE '(^/|^\-|\.\.|[[:cntrl:]])'; then
   echo "UNSAFE path rejected: $SPEC_PATH" >&2
   exit 1
 fi
+
+# Canonicalize and confirm it stays inside the repo root
+CANON_PATH="$(realpath --no-symlinks "$REPO_ROOT/$SPEC_PATH" 2>/dev/null)"
+case "$CANON_PATH" in
+  "$REPO_ROOT"/*) ;;   # OK: inside repo
+  *) echo "Path escapes repo root: $SPEC_PATH" >&2; exit 1 ;;
+esac
 ```
 
-Reject any path that does not match `^[A-Za-z0-9._/-]+$`. This prevents shell metacharacter
-injection (`"`, `$`, `` ` ``, `;`, etc.) when interpolating paths into `codex exec` prompts
-or `find` arguments.
+This prevents:
+- Absolute paths (e.g. `/tmp/spec.md`)
+- Directory traversal (e.g. `../../outside`)
+- Shell metacharacter injection (`"`, `$`, `` ` ``, `;`)
+
+Use `$CANON_PATH` in subsequent `codex exec` and `find` calls.
 
 ---
 
@@ -127,20 +140,31 @@ skills.
 
 ## Parsing the Decision
 
-To extract the decision from the generated review file:
+To avoid accepting a stale review artifact, record the invocation start time and require
+a new file created after that point:
 
 ```bash
 # Set pattern: spec-review → 'spec-review-*.md' / plan-review → 'plan-review-*.md'
 PATTERN='spec-review-*.md'
-REVIEW_DIR="docs/_local/active/my-topic"   # validate with path check above first
+REVIEW_DIR="$CANON_PATH_DIR"   # use canonicalized path from Path Validation above
 
-# Find the most recent review file (quote REVIEW_DIR to prevent word-splitting)
-REVIEW_FILE=$(find "$REVIEW_DIR" -maxdepth 1 -name "$PATTERN" -print0 \
-  2>/dev/null | sort -rz | head -zn1 | tr -d '\0')
+# Record start time before invoking codex exec
+INVOKE_START=$(date +%s)
 
-# Guard against missing file
+# --- run codex exec here ---
+codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
+EXEC_EXIT=$?
+
+# Find review files created AFTER the invocation start (freshness check)
+REVIEW_FILE=$(find "$REVIEW_DIR" -maxdepth 1 -name "$PATTERN" -newer /proc/1/exe \
+  -print0 2>/dev/null | sort -rz | head -zn1 | tr -d '\0')
+# macOS alternative (no /proc): use a temp reference file
+# TMP_REF=$(mktemp); touch -t "$(date -r $INVOKE_START '+%Y%m%d%H%M.%S')" "$TMP_REF" 2>/dev/null
+# REVIEW_FILE=$(find "$REVIEW_DIR" -maxdepth 1 -name "$PATTERN" -newer "$TMP_REF" ...)
+
+# Guard: require exactly one new artifact from this invocation
 if [ -z "$REVIEW_FILE" ]; then
-  echo "No review file found — codex exec may not have triggered the skill"
+  echo "No new review file found after codex exec (exit=$EXEC_EXIT) — stale or missing" >&2
   exit 1
 fi
 
@@ -191,5 +215,7 @@ sandbox 보호를 사실상 무력화합니다. 실험 목적 외 프로덕션 �
    This determines whether stdout can serve as a fallback parsing source.
 
 4. **Does `codex exec` sandbox policy allow the review skill to write files?**
-   Observe: if no review file is generated despite exit 0, the default sandbox (`workspace-write`)
-   restriction may need to be explicitly allowed via `codex exec -a always ...` or similar.
+   Observe: if no review file is generated despite exit 0, check whether `workspace-write`
+   covers the target review directory. Do NOT use `-a always` (disables all safeguards).
+   Instead, investigate which specific file path Codex is trying to write and adjust the
+   sandbox profile to allow only that path.
