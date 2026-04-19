@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
 category: dev-workflow
 ---
@@ -27,7 +27,7 @@ Execute Tasks from the implementation plan one at a time, or all at once in batc
      ```bash
      node .harness/scripts/dev-context.js read --field=config.dev_impl.batch_mode
      ```
-   - Set `batch = true` if `--all` is present OR `batch_mode == "true"`. Carry this value through all subsequent steps.
+   - Set `batch = true` if `--all` is present OR (`batch_mode == "true"` AND no explicit Task ID/name argument is given). An explicit Task argument (e.g. `T2`) always runs a single Task regardless of `batch_mode`. Carry this value through all subsequent steps.
 
 2. Get the current topic from dev-context.json:
    ```bash
@@ -173,17 +173,19 @@ node .harness/scripts/dev-context.js read --field=config.dev_impl.auto_commit
 ```
 - `y` or `skip`: skip commit for this Task and continue to Step 9
 - Any other response:
-  - `batch == true`: set `batch_failed = true` with reason "commit skipped by user refused" and proceed to Step 11 (terminal)
+  - `batch == true`: set `batch_failed = true` with reason "user declined to skip commit (no **Commit** field)" and proceed to Step 11 (terminal)
   - `batch == false`: stop
 
 **Stage files**: stage only files changed by this Task. Do **NOT** use `git add -A` or `git add .`.
 - Use the list of files from Step 5/6 (tdd-specialist and code-reviewer output) as the staging target.
+- **Quote every file path** when passing to `git add` — paths may contain spaces or glob characters: `git add "path/to/file" "other file.ts"`
 - Run `git status --short` first, confirm the staged file list with the user if `auto_commit=false`.
 - Exclude sensitive files unconditionally: `.env*`, `*.pem`, `*.key`, `credentials.json`.
+- When `auto_commit=true`, verify the staged file list against the sensitive file patterns before committing — abort if any match is found regardless of `batch` value.
 
 **If `auto_commit = "true"`**: execute commit automatically using a HEREDOC to avoid shell metacharacter injection:
 ```bash
-git add <task-files>
+git add "<task-file-1>" "<task-file-2>"
 git commit -m "$(cat <<'COMMIT_MSG'
 <subject>
 <body>
@@ -239,7 +241,7 @@ node .harness/scripts/dev-context.js set-field \
 
 Evaluate only when `batch == true`:
 
-1. Find the next incomplete `[ ]` Task in `implementation-plan.md`
+1. Read `currentTask` written by Step 10 — this must equal the first remaining `[ ]` Task in `implementation-plan.md`. If they disagree (plan edited mid-batch), use the plan file as the authoritative source and log a warning.
 2. If a next Task exists → jump back to Step 2 (start next Task)
 3. If no more incomplete Tasks remain → proceed to Step 11 (terminal: batch complete)
 
@@ -313,6 +315,8 @@ Resume after fixing the issue:
 - **Immediate review** — automatically invoke code-reviewer immediately after implementation
 - **Commit from plan** — commit message comes from the Task's `**Commit**` field; never invent a message
 - **auto_commit default is false** — user sees and approves each commit unless `config.dev_impl.auto_commit=true`
+- **batch + auto_start + auto_commit = fully unattended** — enabling all three removes every human gate after Task 1 approval; use only in trusted environments
+- **Explicit Task overrides batch_mode** — `/dev:impl T2` always runs a single Task regardless of `config.dev_impl.batch_mode`; `--all` always activates batch mode
 - **amend forbidden** — always create a new commit; review-fix commits are separate
 
 ## Next Steps
