@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: codex-skill-bridge
 description: Prototype feasibility spike — do NOT load this skill for general use. This skill should be used only when explicitly testing whether Claude can invoke Codex spec-review or plan-review via the codex exec non-interactive CLI and read the resulting review files. Use it to run the bridge experiment or verify codex exec availability. Do not trigger for normal spec or plan authoring tasks.
 origin: harness
@@ -51,17 +51,34 @@ If either returns a value other than `"true"`:
 
 ---
 
+## Path Validation (Required Before Invocation)
+
+Before using any path in `codex exec` arguments or `find` calls, validate it against a safe
+repo-relative path pattern:
+
+```bash
+# Validate: only alphanumeric, dots, hyphens, underscores, slashes — no shell metacharacters
+SPEC_PATH="<value-from-dev-context>"
+if ! echo "$SPEC_PATH" | grep -qE '^[A-Za-z0-9._/-]+$'; then
+  echo "UNSAFE path rejected: $SPEC_PATH" >&2
+  exit 1
+fi
+```
+
+Reject any path that does not match `^[A-Za-z0-9._/-]+$`. This prevents shell metacharacter
+injection (`"`, `$`, `` ` ``, `;`, etc.) when interpolating paths into `codex exec` prompts
+or `find` arguments.
+
+---
+
 ## Invocation Pattern
 
 ### spec-review
 
 ```bash
-timeout 120 codex exec "spec-review 스킬로 <full-repo-relative-spec-path>를 리뷰해줘"
-```
-
-Example:
-```bash
-timeout 120 codex exec "spec-review 스킬로 docs/_local/active/my-topic/spec.md를 리뷰해줘"
+# Validate path first (see "Path Validation" above)
+SPEC_PATH="docs/_local/active/my-topic/spec.md"
+timeout 120 codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
 ```
 
 ### plan-review
@@ -76,10 +93,12 @@ if set) to locate the target plan file — no explicit path argument is needed.
 ### Isolation via DEV_CONTEXT_PATH
 
 To run experiments without mutating the active development topic, point `DEV_CONTEXT_PATH`
-to a fixture dev-context file:
+to a fixture dev-context file inside the repo (e.g. `docs/_local/.../fixture/`):
 
 ```bash
-DEV_CONTEXT_PATH=<path-to-fixture-dev-context.json> timeout 120 codex exec "..."
+# Validate fixture path before use
+DEV_CONTEXT_PATH="docs/_local/active/codex-skill-bridge/fixture/fixture-dev-context.json"
+DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" timeout 120 codex exec "..."
 ```
 
 The fixture `dev-context.json` must contain:
@@ -111,8 +130,12 @@ skills.
 To extract the decision from the generated review file:
 
 ```bash
-# Find the most recent review file (verified against spec-review output format)
-REVIEW_FILE=$(find <review-dir> -maxdepth 1 -name 'spec-review-*.md' -print0 \
+# Set pattern: spec-review → 'spec-review-*.md' / plan-review → 'plan-review-*.md'
+PATTERN='spec-review-*.md'
+REVIEW_DIR="docs/_local/active/my-topic"   # validate with path check above first
+
+# Find the most recent review file (quote REVIEW_DIR to prevent word-splitting)
+REVIEW_FILE=$(find "$REVIEW_DIR" -maxdepth 1 -name "$PATTERN" -print0 \
   2>/dev/null | sort -rz | head -zn1 | tr -d '\0')
 
 # Guard against missing file
@@ -140,14 +163,18 @@ Decision line format (from existing review files): `- Decision: READY` / `- Deci
 | `codex exec` exits 0 but no review file generated | Record observation (sandbox policy may block write), show manual fallback |
 | Timeout (120s elapsed) | Record timeout, consider increasing threshold or checking sandbox settings |
 
-**Manual fallback** (shown when bridge cannot proceed):
+**Manual fallback** (interactive session — shown when bridge cannot proceed):
 
+```bash
+# Interactive Codex session (manual review, not automated)
+codex "spec-review 스킬로 <spec-path>를 리뷰해줘"
+# or
+codex "plan-review 스킬을 실행해줘"
 ```
-Manual fallback — run Codex directly:
-  codex "spec-review 스킬로 <spec-path>를 리뷰해줘"
-  # or
-  codex "plan-review 스킬을 실행해줘"
-```
+
+**⚠ `-a always` 사용 주의**: `codex exec -a always ...`는 모든 작업 승인을 자동화하며
+sandbox 보호를 사실상 무력화합니다. 실험 목적 외 프로덕션 코드에 사용 금지.
+문제 발생 시 먼저 stdout/stderr를 확인하고, 필요 최소 권한만 허용하세요.
 
 ---
 
