@@ -48,14 +48,15 @@ transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/de
 # --- Context bar ---
 # max_context: 1M default (Opus 4.x). Set STATUSLINE_MAX_CONTEXT for other models.
 max_context="${STATUSLINE_MAX_CONTEXT:-1000000}"
-# Validate to prevent bash arithmetic injection (e.g. STATUSLINE_MAX_CONTEXT='a[$(cmd)]')
-[[ "$max_context" =~ ^[0-9]+$ ]] || max_context=1000000
+# Validate: must be a positive integer (rejects 0 to prevent division by zero,
+# and non-numeric strings to prevent bash arithmetic injection)
+[[ "$max_context" =~ ^[1-9][0-9]*$ ]] || max_context=1000000
 bar_width=10
 
 if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
-    # NOTE: jq -s slurps the full transcript — O(n) per statusline refresh.
-    # Acceptable for typical session sizes; optimize if needed for very long sessions.
-    context_length=$(jq -s '
+    # Scan only the last 200 lines to bound parsing cost on long sessions.
+    # Usage entries appear frequently, so the tail reliably contains a recent one.
+    context_length=$(tail -200 "$transcript_path" 2>/dev/null | jq -s '
         map(select(.message.usage and .isSidechain != true and .isApiErrorMessage != true)) |
         last |
         if . then
@@ -63,7 +64,7 @@ if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
             (.message.usage.cache_read_input_tokens // 0) +
             (.message.usage.cache_creation_input_tokens // 0)
         else 0 end
-    ' < "$transcript_path" 2>/dev/null)
+    ' 2>/dev/null)
 
     context_length="${context_length:-0}"
     # Validate integer to prevent bash arithmetic injection
