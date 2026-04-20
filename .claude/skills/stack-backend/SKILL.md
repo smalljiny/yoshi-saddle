@@ -562,108 +562,112 @@ export function getConfig() {
 <!-- origin: ECC backend-patterns -->
 ## Rate Limiting
 
-### Simple In-Memory Rate Limiter
+### Rate Limiting (Production Pattern)
+
+> **⚠️ Security note**: Never use `request.headers.get('x-forwarded-for')` directly as a rate-limit key — this header is client-controlled and can be spoofed to bypass limits. Always derive the client IP from the framework's trusted-proxy API after explicit proxy configuration.
+
+**Recommended approach**: Use a shared backend store (Redis) with atomic increment/expiry so limits survive restarts and work across multiple instances.
 
 ```typescript
-class RateLimiter {
-  private requests = new Map<string, number[]>()
+import Fastify from 'fastify'
+import fastifyRateLimit from '@fastify/rate-limit'
+import Redis from 'ioredis'
 
-  async checkLimit(
-    identifier: string,
-    maxRequests: number,
-    windowMs: number
-  ): Promise<boolean> {
-    const now = Date.now()
-    const requests = this.requests.get(identifier) || []
+const redis = new Redis(process.env.REDIS_URL!)
 
-    // Remove old requests outside window
-    const recentRequests = requests.filter(time => now - time < windowMs)
+const app = Fastify()
 
-    if (recentRequests.length >= maxRequests) {
-      return false  // Rate limit exceeded
-    }
+// Configure rate limiting with Redis store (multi-instance safe)
+await app.register(fastifyRateLimit, {
+  max: 100,
+  timeWindow: '1 minute',
+  redis,
+  keyGenerator: (request) => {
+    // Use framework's trusted IP resolution after proxy configuration
+    return request.ip  // Fastify resolves via trustProxy setting
+  },
+  errorResponseBuilder: (_req, context) => ({
+    statusCode: 429,
+    error: 'Too Many Requests',
+    message: `Rate limit exceeded. Retry after ${context.after}`,
+  }),
+})
 
-    // Add current request
-    recentRequests.push(now)
-    this.requests.set(identifier, recentRequests)
-
-    return true
-  }
-}
-
-const limiter = new RateLimiter()
-
-export async function GET(request: Request) {
-  const ip = request.headers.get('x-forwarded-for') || 'unknown'
-
-  const allowed = await limiter.checkLimit(ip, 100, 60000)  // 100 req/min
-
-  if (!allowed) {
-    return NextResponse.json({
-      error: 'Rate limit exceeded'
-    }, { status: 429 })
-  }
-
-  // Continue with request
-}
+// Trust proxy — set to number of proxy hops, not true (avoids header spoofing)
+const app = Fastify({ trustProxy: 1 })
 ```
+
+> **Local-dev only** — If you need a simple in-memory limiter for local development:
+> ```typescript
+> // LOCAL DEV ONLY — not for production (single-instance, non-persistent, spoofable IP)
+> const requests = new Map<string, number[]>()
+> function checkLimit(key: string, max: number, windowMs: number): boolean {
+>   const now = Date.now()
+>   const times = (requests.get(key) || []).filter(t => now - t < windowMs)
+>   if (times.length >= max) return false
+>   times.push(now)
+>   requests.set(key, times)
+>   return true
+> }
+> ```
 
 
 <!-- origin: ECC backend-patterns -->
 ## Background Jobs & Queues
 
-### Simple Queue Pattern
+### Background Jobs & Queues (Production Pattern)
+
+> **⚠️ Data loss risk**: An in-memory queue loses all pending jobs on process restart, crash, or deploy. Never use it for work that must not be lost (payments, emails, indexing).
+
+**Recommended approach**: Persist the job before returning 202. Use BullMQ (Redis-backed), pg-boss (Postgres), or a cloud queue (SQS/Pub-Sub) for durability, retry, and dead-letter handling.
 
 ```typescript
-class JobQueue<T> {
-  private queue: T[] = []
-  private processing = false
+import { Queue, Worker } from 'bullmq'
+import Redis from 'ioredis'
 
-  async add(job: T): Promise<void> {
-    this.queue.push(job)
+const connection = new Redis(process.env.REDIS_URL!, { maxRetriesPerRequest: null })
 
-    if (!this.processing) {
-      this.process()
-    }
-  }
-
-  private async process(): Promise<void> {
-    this.processing = true
-
-    while (this.queue.length > 0) {
-      const job = this.queue.shift()!
-
-      try {
-        await this.execute(job)
-      } catch (error) {
-        console.error('Job failed:', error)
-      }
-    }
-
-    this.processing = false
-  }
-
-  private async execute(job: T): Promise<void> {
-    // Job execution logic
-  }
-}
-
-// Usage for indexing markets
-interface IndexJob {
-  marketId: string
-}
-
-const indexQueue = new JobQueue<IndexJob>()
+// Producer: persist job before returning success
+const indexQueue = new Queue<{ marketId: string }>('market-indexing', { connection })
 
 export async function POST(request: Request) {
   const { marketId } = await request.json()
 
-  // Add to queue instead of blocking
-  await indexQueue.add({ marketId })
+  // Job is persisted in Redis before we respond — survives restarts
+  await indexQueue.add('index', { marketId }, {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 2000 },
+  })
 
-  return NextResponse.json({ success: true, message: 'Job queued' })
+  return Response.json({ success: true, message: 'Job queued' }, { status: 202 })
 }
+
+// Consumer (separate worker process or file)
+const worker = new Worker<{ marketId: string }>(
+  'market-indexing',
+  async (job) => {
+    // Idempotent job — safe to retry
+    await indexMarket(job.data.marketId)
+  },
+  { connection, concurrency: 5 }
+)
+
+worker.on('failed', (job, err) => {
+  // Structured error logging — job goes to dead-letter after max attempts
+  console.error({ jobId: job?.id, marketId: job?.data.marketId, error: err.message })
+})
 ```
+
+> **Local-dev only** — If you need a simple in-process queue for local development:
+> ```typescript
+> // LOCAL DEV ONLY — no persistence, no retry, no multi-instance support
+> const queue: Array<() => Promise<void>> = []
+> let running = false
+> async function enqueue(fn: () => Promise<void>) {
+>   queue.push(fn)
+>   if (!running) { running = true; while (queue.length) { try { await queue.shift()!() } catch (e) { console.error(e) } } running = false }
+> }
+> ```
 
 
 <!-- origin: ECC backend-patterns -->
