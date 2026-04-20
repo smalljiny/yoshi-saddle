@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 ---
 
 # Performance Optimization
@@ -44,7 +44,7 @@ Prefer these tasks when context is high:
 
 When approaching the limit mid-task, run `/compact` at a clean boundary
 (e.g., after completing a Task, before starting the next one).
-See `.claude/skills/strategic-compact/SKILL.md` for safe compaction points.
+See `.claude/skills/wf-compact/SKILL.md` for safe compaction points.
 
 ## Extended Thinking
 

@@ -45,6 +45,8 @@ docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 
 아래 순서로 평가하며 첫 매치만 적용한다. 미정의/빈값은 `false`로 취급한다.
 
+`config.codex.available`·`config.codex.authenticated` 값은 `codex-session-detection` 시스템이 세션 시작 시 캐싱한다. 캐시 스키마·TTL·갱신 방법은 `codex-session-detection.md` 참조.
+
 | 조건 | skipReason | 경고 |
 |---|---|---|
 | `config.review.adversarial_enabled=false` 또는 미정의 | `disabled` | 없음 (정상 opt-out) |

@@ -6,14 +6,7 @@
 
 `/dev:pr`, `/dev:docs`, `/dev:review`는 `config.git.pushRemote`, `config.git.pullRemote`, `config.git.baseBranch`, `config.git.branchPattern`을 `dev-context.json`에서 읽는다. 이 값들이 저장되지 않은 경우 커맨드들은 항상 기본값(`origin`/`main`)으로 동작한다. `/dev:setup git`은 이 공백을 채운다.
 
-저장 필드:
-
-| 필드 | 역할 |
-|------|------|
-| `config.git.pushRemote` | feature 브랜치를 push하는 remote |
-| `config.git.pullRemote` | PR diff 기준 remote (git diff 비교 대상) |
-| `config.git.baseBranch` | merge 대상 브랜치 (`main`, `develop` 등) |
-| `config.git.branchPattern` | 유효한 브랜치명 정규식 |
+저장 필드: `config.git.pushRemote`, `config.git.pullRemote`, `config.git.baseBranch`, `config.git.branchPattern`. 각 필드의 역할·기본값·소비 커맨드 상세는 `dev-context-config.md`의 `config.git.*` 절 참조.
 
 저장 위치는 `dev-context.json`의 최상위 `config.git` 객체이며, `--topic` 플래그 없이 `set-field`를 호출하는 프로젝트 전역 설정이다.
 

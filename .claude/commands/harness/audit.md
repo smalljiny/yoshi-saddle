@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 description: Run a deterministic harness health audit and return a prioritized scorecard.
 category: harness-management
 ---
@@ -30,12 +30,12 @@ node .claude/scripts/harness-audit.js [scope] [--format text|json]
 | # | Category | What it checks |
 |---|----------|---------------|
 | 1 | Tool Coverage | agents, skills, hook scripts, settings.json |
-| 2 | Context Efficiency | CLAUDE.md, performance rules, strategic-compact |
+| 2 | Context Efficiency | CLAUDE.md, performance rules, wf-compact |
 | 3 | Quality Gates | verify/review/checkpoint commands, testing rules |
 | 4 | Memory Persistence | session-start hook, session-logger, sessions/ dir |
-| 5 | Eval Coverage | tdd-workflow skill, verification-loop skill, /learn |
+| 5 | Eval Coverage | wf-tdd skill, wf-verification skill, /learn |
 | 6 | Security Guardrails | security-reviewer agent, security rules, hook guards |
-| 7 | Cost Efficiency | performance rules, async hooks, strategic-compact |
+| 7 | Cost Efficiency | performance rules, async hooks, wf-compact |
 
 ## Output
 
@@ -63,6 +63,6 @@ Harness Audit (repo): 54/70  [77%]
 
 Top Actions:
   1. [Cost Efficiency] Add .claude/rules/common/performance.md
-  2. [Context Efficiency] Add .claude/skills/strategic-compact/SKILL.md
+  2. [Context Efficiency] Add .claude/skills/wf-compact/SKILL.md
   3. [Cost Efficiency] Mark session-logger hook as async
 ```

@@ -26,7 +26,7 @@
 │   ├── plan.md (v7)    spec:confirmed 게이트 + plan-review 안내
 │   ├── impl.md (v4)    plan:confirmed 게이트 + impl:in-progress 전환 + auto_start 소비
 │   ├── review.md (v4)  impl:in-progress 게이트 + 완료 검사
-│   └── done.md (v3)    review:in-progress 게이트 + 보존 정책 (삭제 없음)
+│   └── done.md (v3)    pr:created 게이트 + 보존 정책 (삭제 없음)
 └── skills/
     └── dev-context/SKILL.md    dev-context.js 사용 계약 스킬
 
@@ -135,7 +135,7 @@
 - 토픽은 `/dev:spec` 이전에 등록 불가 — `register-topic`은 spec 초안 저장 직후 호출
 - `phase`/`status` 직접 수정 불가 — `update-state` 전용
 - 허용되지 않은 상태 전환 시 non-zero exit, 허용 전환 목록 stderr 출력
-- `review:in-progress` 이후 상태 없음 — `/dev:done`이 `remove-topic`으로 제거
+- `/dev:done`은 `pr:created` 상태에서만 실행 가능 — `remove-topic`으로 토픽 제거
 - `docs/specs/` 참조 문서만 git-tracked; `docs/_local/`은 git-ignored
 - 비-current 토픽 plan-review 실행 불가 — 먼저 `/dev:topic switch <topic>` 필요
 - `/dev:review`는 모든 Task가 완료된 경우에만 실행 가능 (`currentTask=null` + `[ ]` 없음)

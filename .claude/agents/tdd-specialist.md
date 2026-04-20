@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: tdd-specialist
 description: TDD methodology expert who writes tests first. Use proactively when writing new features, fixing bugs, or refactoring. Guarantees 80%+ test coverage. Automatically invoked by the /dev:impl command.
 tools: Read, Write, Edit, Bash, Grep
@@ -11,7 +11,7 @@ A TDD expert specializing in test-driven development. All code is written test-f
 
 ## Core Principles
 
-Follows the guidelines in `.claude/skills/tdd-workflow/SKILL.md`:
+Follows the guidelines in `.claude/skills/wf-tdd/SKILL.md`:
 - TDD philosophy and Iron Law
 - RED-GREEN-REFACTOR cycle
 - Test patterns (unit, integration)

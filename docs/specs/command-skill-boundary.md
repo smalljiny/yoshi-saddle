@@ -10,10 +10,10 @@
 
 ```
 .claude/rules/common/component-boundaries.md   역할 경계 규칙 (version 1)
-.claude/commands/harness/learn.md              /harness:learn (version 3)
-.claude/commands/dev/verify.md                 /dev:verify (version 3)
-.claude/skills/continuous-learning/SKILL.md    패턴 추출 스킬 (version 4)
-.claude/skills/verification-loop/SKILL.md      검증 게이트 스킬 (version 2)
+.claude/commands/harness/learn.md                  /harness:learn (version 4)
+.claude/commands/dev/verify.md                     /dev:verify (version 4)
+.claude/skills/wf-continuous-learning/SKILL.md     패턴 추출 스킬 (version 5)
+.claude/skills/wf-verification/SKILL.md            검증 게이트 스킬 (version 3)
 ```
 
 ## 동작
@@ -37,14 +37,14 @@
 Load `.claude/skills/<name>/SKILL.md` and follow its process.
 ```
 
-기준 사례: `dev/spec.md` → `brainstorming/SKILL.md`
+기준 사례: `dev/spec.md` → `wf-brainstorming/SKILL.md`
 
 ### `/harness:learn` (`learn.md`)
 
 세션 로그를 분석하여 재사용 가능한 패턴을 `.claude/skills/learned/`에 저장한다.
 
 1. `.claude/sessions/`의 세션 로그 확인
-2. `continuous-learning/SKILL.md` **Steps 1–4만** 실행 (스캔, 식별, 필터, 저장)
+2. `wf-continuous-learning/SKILL.md` **Steps 1–4만** 실행 (스캔, 식별, 필터, 저장)
 3. 완료 후 저장된 스킬 목록 출력
 
 Step 5(Curate — 기존 항목 삭제)는 기본 실행에서 제외된다. 기본 실행은 **비파괴적**이며 기존 스킬을 삭제하지 않는다. 커레이션은 사용자가 명시적으로 요청해야 하며, 삭제 전 사용자 확인이 필요하다.
@@ -53,9 +53,9 @@ Step 5(Curate — 기존 항목 삭제)는 기본 실행에서 제외된다. 기
 
 PR 전 전체 검증 게이트를 실행한다.
 
-`verification-loop/SKILL.md`에 위임하여 build → type-check → lint → test → security 순서로 게이트를 실행한다. 모든 게이트 통과 후 `/dev:done`을 실행한다.
+`wf-verification/SKILL.md`에 위임하여 build → type-check → lint → test → security 순서로 게이트를 실행한다. 모든 게이트 통과 후 `/dev:done`을 실행한다.
 
-### `continuous-learning/SKILL.md`의 Step 5
+### `wf-continuous-learning/SKILL.md`의 Step 5
 
 Step 5(Curate)는 자기 완결적 안전 게이트를 갖는다: 명시적으로 요청된 경우에만 실행하며, 항목 제거 전 반드시 사용자 확인을 받는다. 이는 커맨드와 스킬 양 계층에서 동일하게 적용된다.
 

@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 description: Analyze patterns used repeatedly in the current session and save them as reusable skills.
 category: harness-management
 ---
@@ -11,7 +11,7 @@ Extract reusable patterns from the current session and save them to `.claude/ski
 ## Execution Flow
 
 1. Verify `.claude/sessions/` exists and contains log files for the current session.
-2. Load `.claude/skills/continuous-learning/SKILL.md` and follow **Steps 1–4 only** (scan, identify, filter, write). Do **not** execute Step 5 (Curate — deleting existing entries).
+2. Load `.claude/skills/wf-continuous-learning/SKILL.md` and follow **Steps 1–4 only** (scan, identify, filter, write). Do **not** execute Step 5 (Curate — deleting existing entries).
 3. On completion, show a summary:
 
    ```

@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 description: Run the full verification gate before PR. Checks build, type-check, lint, test, and security in order.
 category: dev-workflow
 ---
@@ -10,7 +10,7 @@ All verification gates must pass before a PR.
 
 ## Execution Flow
 
-Load `.claude/skills/verification-loop/SKILL.md` and follow its process.
+Load `.claude/skills/wf-verification/SKILL.md` and follow its process.
 
 ## Next Steps
 

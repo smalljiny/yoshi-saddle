@@ -50,6 +50,8 @@
 - 권장 메시지: `fix: review feedback` (강제 아님)
 - amend 금지, plan Commit 필드 불변 유지
 
+이슈 분류(CRITICAL/HIGH/MEDIUM), adversarial-review 후 처리, 처리 내역 산출 방식은 `review-adversarial-workflow.md` 참조.
+
 ### 커밋 메시지 형식
 
 ```

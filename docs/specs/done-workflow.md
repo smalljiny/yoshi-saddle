@@ -4,7 +4,9 @@
 
 ## 개요
 
-`/dev:done`은 개발 워크플로우의 완료 단계를 처리하는 커맨드다. 토픽이 `review:in-progress` 상태일 때만 실행되며, 구현된 하네스 파일을 직접 읽어 현재 시제 참조 문서를 `docs/specs/`에 생성하고, 스펙·리뷰·구현 계획 등 모든 계획 아티팩트를 `docs/_local/done/<topic>/`으로 이동한다. 이후 `dev-context.json`에서 해당 토픽을 제거한다.
+`/dev:done`은 개발 워크플로우의 완료 단계를 처리하는 커맨드다. 토픽이 `pr:created` 상태일 때만 실행되며(`/dev:pr` 이후), 구현된 하네스 파일을 직접 읽어 현재 시제 참조 문서를 `docs/specs/`에 생성하고, 스펙·리뷰·구현 계획 등 모든 계획 아티팩트를 `docs/_local/done/<topic>/`으로 이동한다. 이후 `dev-context.json`에서 해당 토픽을 제거한다.
+
+참조 문서(`docs/specs/<name>.md`)는 `/dev:docs` 단계에서 이미 생성된다. `/dev:done`의 문서 생성 경로(Step 4.1–4.5)는 `/dev:docs`를 건너뛴 경우의 폴백이다.
 
 ## 구조 / 스키마
 
@@ -21,10 +23,11 @@
   "current_topic": "<topic>",
   "topics": {
     "<topic>": {
-      "phase": "review",
-      "status": "in-progress",
+      "phase": "pr",
+      "status": "created",
       "spec": "docs/_local/active/<topic>/spec.md",
-      "plan": "docs/_local/active/<topic>/implementation-plan.md"
+      "plan": "docs/_local/active/<topic>/implementation-plan.md",
+      "refDoc": "docs/specs/<name>.md"
     }
   }
 }
@@ -45,7 +48,7 @@ docs/_local/done/<topic>/                    — 계획 아티팩트 아카이�
 
 ### 게이트 (Step 2)
 
-`phase:status`가 `review:in-progress`가 아니면 즉시 중단한다. 우회·경고 후 진행은 하지 않는다.
+`phase:status`가 `pr:created`가 아니면 즉시 중단한다. 우회·경고 후 진행은 하지 않는다. `/dev:pr`을 먼저 실행해야 이 상태에 도달할 수 있다.
 
 ### 검증 상태 확인 (Step 3)
 
@@ -109,7 +112,7 @@ docs/_local/done/<topic>/                    — 계획 아티팩트 아카이�
 
 ## 제약사항
 
-- **게이트: `review:in-progress`** — 다른 상태에서 실행 시 즉시 중단, 우회 없음
+- **게이트: `pr:created`** — `/dev:pr` 완료 후에만 실행 가능. 다른 상태에서 실행 시 즉시 중단, 우회 없음
 - **삭제 없음** — 스펙·리뷰·구현 계획 등 모든 계획 아티팩트는 `done/`으로 이동되며 어떤 것도 삭제되지 않는다
 - **`done/`은 git-ignored** — 로컬 참조 전용. 영구 기록은 `docs/specs/`의 참조 문서
 - **참조 문서 자동 갱신 없음** — 이후 코드 변경과 문서의 일관성은 별도 작업으로 유지

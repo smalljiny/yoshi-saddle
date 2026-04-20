@@ -10,6 +10,8 @@
 
 - `config.dev_impl` — `/dev:impl` 실행 동작 제어
 - `config.git` — `/dev:docs`·`/dev:pr` 에서 참조하는 git 원격 설정
+- `config.review` — `/dev:review` 옵션 설정 (adversarial-review opt-in)
+- `config.codex` — Codex CLI 감지 캐시 (쓰기 전용: `codex-session-detection` 시스템 소유. 소비: `/dev:review`·`meta-codex-bridge`)
 
 ## 구조 / 스키마
 
@@ -29,6 +31,15 @@
       "pullRemote": "origin",
       "baseBranch": "main",
       "branchPattern": "^(feature|fix|chore)/"
+    },
+    "review": {
+      "adversarial_enabled": false
+    },
+    "codex": {
+      "available": false,
+      "authenticated": false,
+      "version": "",
+      "checked_at": ""
     }
   },
   "updatedAt": "<ISO-8601>"
@@ -71,6 +82,36 @@
 
 커밋 대상 파일 결정 방식과 메시지 형식은 `commit-workflow.md` 참조.
 
+### `config.review.adversarial_enabled` — adversarial-review opt-in
+
+`/dev:review` Step 7(adversarial-review)의 활성화 여부를 결정한다:
+
+- `false`(기본): adversarial-review 건너뜀, 경고 없음
+- `true`: `config.codex.available`·`config.codex.authenticated`를 추가 확인 후 실행
+
+활성화 방법:
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=config.review.adversarial_enabled --value=true
+```
+
+adversarial-review 전체 실행 흐름과 조건 평가 순서는 `review-adversarial-workflow.md` 참조.
+
+### `config.codex.*` — Codex CLI 감지 캐시
+
+**쓰기 전용(시스템 소유)**: `codex-session-detection` 시스템(`detect-and-cache.js`)이 세션 시작 및 `/codex:setup` 실행 시 자동으로 기록한다. 이 네임스페이스에 직접 `set-field`를 호출하지 않는다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `available` | boolean | codex CLI 설치·실행 가능 여부 |
+| `authenticated` | boolean | 인증 완료 여부 |
+| `version` | string | codex CLI 버전 문자열 |
+| `checked_at` | ISO 8601 | 마지막 감지 시각 (TTL 1시간 기준) |
+
+**소비**: `/dev:review`(adversarial-review 활성화 조건), `meta-codex-bridge` 스킬(가용성 게이트). 두 소비처 모두 `available`과 `authenticated` 두 필드를 순서대로 확인한다.
+
+캐시 갱신 방법: `/codex:setup` 실행 또는 세션 재시작. 상세 동작은 `codex-session-detection.md` 참조.
+
 ### `config.git.*` — 원격 저장소 설정
 
 `/dev:docs`의 변경 파일 수집 시 `config.git.pullRemote`와 `config.git.baseBranch`를 조합하여 diff 기준을 결정한다:
@@ -88,7 +129,9 @@ git diff <pullRemote>/<baseBranch>...HEAD
 - 자동 타입 추론은 `config.*` 경로에서만 적용된다. 토픽 필드 경로는 문자열 저장 동작이 보존된다.
 - `auto_start` 기본값은 `false`(승인 대기)이다. `set-field`로 명시적으로 `true`로 전환할 때만 auto-start 모드로 진입한다.
 - `auto_commit` 기본값은 `false`(수동 확인)이다.
+- `adversarial_enabled` 기본값은 `false`(비활성)이다. `set-field`로 명시적으로 `true`로 전환할 때만 활성화된다.
+- `config.codex.*`는 시스템이 소유하는 캐시 네임스페이스다. 사용자·커맨드가 직접 `set-field`를 호출하지 않는다.
 - Per-invocation CLI 오버라이드(예: `/dev:impl --auto-start`)는 지원하지 않는다.
 - 토픽별 config 블록(`topics[X].config`)은 스키마에 존재하지 않는다.
-- 키별 기본값 테이블은 CLI에 중앙화되어 있지 않다. 소비 커맨드가 빈 문자열을 "미설정"으로 해석하여 기본 동작을 적용한다.
+- 키별 기본값 테이블은 CLI에 중앙화되어 있지 않다. 소비 커맨드가 빈 문자열을 "미설정"으로 해석하여 기본 동작을 적용한다. `config.git.*` 기본값: `pushRemote`·`pullRemote=origin`, `baseBranch=main`.
 - `.claude/settings.json` 등 런타임 설정 파일과는 통합하지 않는다 — `config`는 워크플로 전용이다.
