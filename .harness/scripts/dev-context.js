@@ -82,7 +82,12 @@ function parseArgs(argv) {
   const args = {}
   for (const arg of argv) {
     const m = arg.match(/^--([^=]+)=(.*)$/)
-    if (m) args[m[1]] = m[2]
+    if (m) {
+      args[m[1]] = m[2]
+    } else if (/^--[a-zA-Z]/.test(arg)) {
+      // boolean flag (no value): --flag → args['flag'] = true
+      args[arg.slice(2)] = true
+    }
   }
   return args
 }
@@ -264,6 +269,58 @@ switch (subcommand) {
     break
   }
 
+  case 'force-state': {
+    const { topic, phase, status } = args
+    if (!topic) die('force-state: --topic 필요')
+    if (!phase) die('force-state: --phase 필요')
+    if (!status) die('force-state: --status 필요')
+
+    // 예약어 토픽 이름 거부 (prototype pollution 방지)
+    if (topic === '__proto__' || topic === 'constructor' || topic === 'prototype') {
+      die(`force-state: '${topic}' 토픽 이름은 사용할 수 없습니다`)
+    }
+
+    const KNOWN_STATES = new Set(Object.keys(VALID_TRANSITIONS))
+    const to = `${phase}:${status}`
+    if (!KNOWN_STATES.has(to)) {
+      die(`force-state: 알 수 없는 상태 '${to}'\n허용: ${[...KNOWN_STATES].join(', ')}`)
+    }
+
+    const ctx = readContext()
+    const t = ctx.topics[topic]
+    if (!t) die(`force-state: 토픽 '${topic}' 미존재`)
+
+    const from = `${t.phase}:${t.status}`
+    if (from === to) break  // idempotent: 동일 상태는 무시
+
+    // 순방향(forward) 점프는 아티팩트 검증 없이 후기 상태로 진입할 수 있어 워크플로우 게이트를 우회함.
+    // 역방향(backward) 복구가 force-state의 의도된 용도이므로, 순방향에는 명시적 플래그 요구.
+    const STATE_ORDER = [
+      'spec:drafting', 'spec:reviewing', 'spec:confirmed',
+      'plan:ready', 'plan:reviewing', 'plan:confirmed',
+      'impl:in-progress', 'review:in-progress', 'docs:generated', 'pr:created',
+    ]
+    const fromIdx = STATE_ORDER.indexOf(from)
+    const toIdx = STATE_ORDER.indexOf(to)
+    const isForward = fromIdx !== -1 && toIdx !== -1 && toIdx > fromIdx
+    if (isForward && !args['allow-unsafe-force']) {
+      die(
+        `force-state: '${from}' → '${to}'는 순방향 점프입니다.\n` +
+        `아티팩트 검증 없이 후기 상태로 이동하면 워크플로우 게이트를 우회합니다.\n` +
+        `의도한 경우 --allow-unsafe-force 플래그를 추가하세요 (역방향 복구에는 불필요).`
+      )
+    }
+
+    const forwardNote = isForward ? ' [--allow-unsafe-force]' : ''
+    process.stderr.write(`force-state: VALID_TRANSITIONS를 우회해 ${from} → ${to}로 강제 전환했습니다 (관리자 용도)${forwardNote}.\n`)
+
+    t.phase = phase
+    t.status = status
+    t.updatedAt = new Date().toISOString()
+    writeContext(ctx)
+    break
+  }
+
   default:
-    die(`알 수 없는 서브커맨드: ${subcommand}\n사용 가능: register-topic, update-state, set-field, remove-topic, read`)
+    die(`알 수 없는 서브커맨드: ${subcommand}\n사용 가능: register-topic, update-state, set-field, remove-topic, read, force-state`)
 }

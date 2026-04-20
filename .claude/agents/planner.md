@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob
@@ -121,6 +121,24 @@ For each Task, design a commit message that will be executed when the Task is co
 - [ ] Criteria 1
 - [ ] Criteria 2
 ```
+
+### Known Repository Paths
+
+When analyzing tasks that reference harness components or external references, use these
+established paths. **Do not infer paths — verify with Glob/Grep first.**
+
+| Resource | Path |
+|----------|------|
+| ECC (Everything-Claude-Code) components | `references/everything-claude-code/` |
+| Harness skills | `.claude/skills/` |
+| Harness agents | `.claude/agents/` |
+| Harness commands | `.claude/commands/` |
+| Codex skills | `.codex/skills/` |
+| Active topic spec/plan | `docs/_local/active/<topic>/` |
+| Permanent reference docs | `docs/specs/<name>.md` |
+
+**Path discipline**: Never hard-code a path based on assumptions (e.g., `.kiro/`, `plugins/`).
+Always verify with `Glob` or `Grep` before citing a path in the plan.
 
 ## Best Practices
 

@@ -1,5 +1,5 @@
 ---
-version: 6
+version: 7
 ---
 # Development Workflow
 
@@ -97,6 +97,32 @@ Topic registration happens at `/dev:spec` (not `/dev:plan`). Running `/dev:topic
               docs/_local/done/<topic>/                  (git-ignored, 모든 산출물 보존)
               dev-context.json에서 토픽 제거
 ```
+
+## Shell Portability
+
+macOS의 기본 셸은 **zsh**이며, bash 전용 구문은 스킬·커맨드 파일에서 에러를 유발한다.
+Claude Code Bash 도구도 zsh로 실행된다.
+
+**금지 구문:**
+
+| 구문 | 이유 |
+|------|------|
+| `declare -A` (associative array) | zsh 미지원 |
+| `declare -a` (indexed array) | 사용 가능하나 `typeset -a`가 portable |
+| `mapfile` / `readarray` | bash 전용 builtin |
+
+**대안:**
+
+- 연상 배열 → 명시적 변수 (`KEY1=val1; KEY2=val2`) 또는 Node.js 스크립트 위임
+- 배열 반복 → POSIX `for` 루프 + 명시적 변수 나열
+- 여러 파일 복사 → 명시적 `cp` 명령어 나열
+
+**사전 점검:** 스킬·커맨드 파일 추가·수정 시 아래 명령으로 잔존 여부 확인 권장:
+```bash
+grep -rnE 'declare\s+-[aA]|mapfile|readarray' .claude .harness
+```
+
+현재 코드베이스 grep 결과: 0건 (2026-04-21 기준).
 
 ## State Transition Summary
 

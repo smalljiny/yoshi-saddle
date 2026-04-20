@@ -13,8 +13,8 @@
 ```
 .harness/
 ├── scripts/
-│   ├── dev-context.js          CLI 스크립트 (5개 서브커맨드, config 점 경로 지원)
-│   └── dev-context.test.js     59개 테스트 (node:test)
+│   ├── dev-context.js          CLI 스크립트 (6개 서브커맨드, config 점 경로 지원, boolean flag 파싱)
+│   └── dev-context.test.js     74개 테스트 (node:test)
 └── contracts/
     ├── spec-review.md          spec-review 리포트 형식 계약
     ├── plan-review.md          plan-review 리포트 형식 계약
@@ -89,13 +89,14 @@
 
 ### dev-context.js CLI
 
-5개 서브커맨드로 `dev-context.json`을 전담 관리한다:
+6개 서브커맨드로 `dev-context.json`을 전담 관리한다:
 
 - `register-topic --topic=<n> --spec=<path>` — `spec:drafting`으로 등록, `current_topic` 설정, 레거시 필드 정리
 - `update-state --topic=<n> --phase=<p> --status=<s>` — 전환 테이블 기반 유효성 검사 후 전환
 - `set-field --topic=<n> --field=<f> --value=<v>` — 단일 필드 업데이트 (`phase`/`status` 보호됨). `--field=current_topic`은 `--topic` 없이 사용. `--field=config.<ns>.<key>`(깊이 2 고정) 경로는 전역 config 필드로 처리되며 config 경로에서만 타입 추론(`true`/`false` → boolean, 정수 리터럴 → number, 그 외 → string) 적용
 - `remove-topic --topic=<n>` — 토픽 제거, `current_topic` 자동 전환
 - `read --topic=<n> --field=<f>` / `read --field=current_topic` / `read --field=config.<ns>.<key>` — 필드 값 stdout 출력. config 경로는 `Object.hasOwn` 가드로 상속 속성을 제외하고 own property만 조회
+- `force-state --topic=<n> --phase=<p> --status=<s>` — 관리자 전용 강제 전환. `VALID_TRANSITIONS`를 우회하여 알려진 상태로 직접 전환. **역방향 복구(예: plan:confirmed → plan:reviewing)** 가 주 용도이며 플래그 없이 사용 가능. 순방향 점프는 `--allow-unsafe-force` 플래그 필요. 항상 stderr에 경고 출력. `__proto__`·`constructor`·`prototype` 토픽 이름과 알 수 없는 상태 값은 거부.
 
 쓰기는 원자적 (tmp → rename), 부모 디렉토리 자동 생성. `DEV_CONTEXT_PATH` 환경변수로 경로 오버라이드 가능 (테스트 격리용).
 
@@ -133,8 +134,9 @@
 ## 제약사항
 
 - 토픽은 `/dev:spec` 이전에 등록 불가 — `register-topic`은 spec 초안 저장 직후 호출
-- `phase`/`status` 직접 수정 불가 — `update-state` 전용
+- `phase`/`status` 직접 수정 불가 — `update-state` 전용 (역방향 복구에는 `force-state` 사용)
 - 허용되지 않은 상태 전환 시 non-zero exit, 허용 전환 목록 stderr 출력
+- `force-state` 순방향 점프는 `--allow-unsafe-force` 플래그 필요 — 워크플로우 게이트를 우회하지 않기 위해
 - `/dev:done`은 `pr:created` 상태에서만 실행 가능 — `remove-topic`으로 토픽 제거
 - `docs/specs/` 참조 문서만 git-tracked; `docs/_local/`은 git-ignored
 - 비-current 토픽 plan-review 실행 불가 — 먼저 `/dev:topic switch <topic>` 필요

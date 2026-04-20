@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 ---
 # Agent Coordination Rules
 
@@ -49,3 +49,29 @@ Use role-separated sub-agents for complex problems:
 - Senior Engineer
 - Security Expert
 - Consistency Reviewer
+
+## Tool Usage Discipline
+
+### Read-before-Edit
+
+The Edit tool requires the target file to have been Read in the same conversation turn.
+**Always call Read before Edit** — even for files you've seen in previous turns.
+
+### Parallel Edit Pattern
+
+When editing multiple files in the same step:
+
+```
+# GOOD: Read all files first, then Edit in a separate block
+Step 1 — Read block:  Read(file-a), Read(file-b), Read(file-c)  [parallel]
+Step 2 — Edit block:  Edit(file-a), Edit(file-b), Edit(file-c)  [parallel]
+
+# BAD: Read and Edit mixed in one block
+Read(file-a) + Edit(file-a) in the same tool-call block
+→ Edit may execute before its Read result is available
+```
+
+### Bash Edits
+
+When delegating file edits to Bash (e.g., `sed`, `awk`), the Read-before-Edit rule does not
+apply technically, but read the file first anyway to verify the content before modifying it.

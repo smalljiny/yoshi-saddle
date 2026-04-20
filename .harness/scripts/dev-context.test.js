@@ -539,4 +539,114 @@ describe('dev-context.js', () => {
       assert.notEqual(err.code, 0)
     })
   })
+
+  describe('force-state', () => {
+    test('역방향 복구: VALID_TRANSITIONS 없는 경로도 플래그 없이 성공', () => {
+      run('register-topic', '--topic=ft', '--spec=spec.md')
+      run('update-state', '--topic=ft', '--phase=spec', '--status=reviewing')
+      // spec:reviewing → spec:drafting (역방향, E03/E04 사용 사례)
+      run('force-state', '--topic=ft', '--phase=spec', '--status=drafting')
+      const ctx = readCtx()
+      assert.equal(ctx.topics.ft.phase, 'spec')
+      assert.equal(ctx.topics.ft.status, 'drafting')
+    })
+
+    test('역방향 복구 시 stderr에 경고 출력', async () => {
+      run('register-topic', '--topic=ft2', '--spec=spec.md')
+      run('update-state', '--topic=ft2', '--phase=spec', '--status=reviewing')
+      const result = await execFileAsync('node', [SCRIPT, 'force-state', '--topic=ft2', '--phase=spec', '--status=drafting'], {
+        encoding: 'utf8',
+        env: { ...process.env, DEV_CONTEXT_PATH: CTX_PATH },
+      })
+      assert.match(result.stderr, /VALID_TRANSITIONS를 우회해/)
+      assert.match(result.stderr, /관리자 용도/)
+    })
+
+    test('순방향 점프는 --allow-unsafe-force 없으면 non-zero exit', async () => {
+      run('register-topic', '--topic=ft2b', '--spec=spec.md')
+      const err = await runExpectFail('force-state', '--topic=ft2b', '--phase=plan', '--status=ready')
+      assert.notEqual(err.code, 0)
+      assert.match(err.stderr, /순방향 점프/)
+      assert.match(err.stderr, /allow-unsafe-force/)
+    })
+
+    test('순방향 점프는 --allow-unsafe-force 있으면 성공', () => {
+      run('register-topic', '--topic=ft2c', '--spec=spec.md')
+      run('force-state', '--topic=ft2c', '--phase=plan', '--status=ready', '--allow-unsafe-force')
+      const ctx = readCtx()
+      assert.equal(ctx.topics.ft2c.phase, 'plan')
+      assert.equal(ctx.topics.ft2c.status, 'ready')
+    })
+
+    test('동일 상태는 no-op (idempotent)', () => {
+      run('register-topic', '--topic=ft3', '--spec=spec.md')
+      run('force-state', '--topic=ft3', '--phase=spec', '--status=drafting')
+      const before = readCtx().topics.ft3.updatedAt
+      run('force-state', '--topic=ft3', '--phase=spec', '--status=drafting')
+      const after = readCtx().topics.ft3.updatedAt
+      assert.equal(before, after)
+    })
+
+    test('updatedAt이 갱신됨', async () => {
+      run('register-topic', '--topic=ft4', '--spec=spec.md')
+      run('update-state', '--topic=ft4', '--phase=spec', '--status=reviewing')
+      const before = readCtx().topics.ft4.updatedAt
+      await new Promise(r => setTimeout(r, 5))
+      // 역방향: reviewing → drafting
+      run('force-state', '--topic=ft4', '--phase=spec', '--status=drafting')
+      const after = readCtx().topics.ft4.updatedAt
+      assert.notEqual(before, after)
+    })
+
+    test('--topic 누락 → non-zero exit', async () => {
+      const err = await runExpectFail('force-state', '--phase=spec', '--status=drafting')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('--phase 누락 → non-zero exit', async () => {
+      run('register-topic', '--topic=ft5', '--spec=spec.md')
+      const err = await runExpectFail('force-state', '--topic=ft5', '--status=drafting')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('존재하지 않는 토픽 → non-zero exit', async () => {
+      const err = await runExpectFail('force-state', '--topic=ghost', '--phase=spec', '--status=drafting')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('알 수 없는 상태 값 → non-zero exit', async () => {
+      run('register-topic', '--topic=ft6', '--spec=spec.md')
+      const err = await runExpectFail('force-state', '--topic=ft6', '--phase=garbage', '--status=junk')
+      assert.notEqual(err.code, 0)
+      assert.match(err.stderr, /알 수 없는 상태/)
+    })
+
+    test('--status 누락 → non-zero exit', async () => {
+      run('register-topic', '--topic=ft8', '--spec=spec.md')
+      const err = await runExpectFail('force-state', '--topic=ft8', '--phase=spec')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('__proto__ 토픽 이름 → non-zero exit', async () => {
+      const err = await runExpectFail('force-state', '--topic=__proto__', '--phase=spec', '--status=drafting')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('constructor 토픽 이름 → non-zero exit', async () => {
+      const err = await runExpectFail('force-state', '--topic=constructor', '--phase=spec', '--status=drafting')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('prototype 토픽 이름 → non-zero exit', async () => {
+      const err = await runExpectFail('force-state', '--topic=prototype', '--phase=spec', '--status=drafting')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('update-state는 여전히 VALID_TRANSITIONS 강제 (force-state와 독립)', async () => {
+      run('register-topic', '--topic=ft7', '--spec=spec.md')
+      const err = await runExpectFail('update-state', '--topic=ft7', '--phase=plan', '--status=ready')
+      assert.notEqual(err.code, 0)
+      assert.match(err.stderr, /유효하지 않은 전환/)
+    })
+  })
 })

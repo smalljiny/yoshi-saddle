@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 description: Push the current branch and create a GitHub Pull Request. Publish-only — run after /dev:docs so the reference document is included.
 category: dev-workflow
 ---
@@ -69,6 +69,14 @@ If output is non-empty, stop:
 ```
 ⚠ 커밋되지 않은 변경사항이 있습니다.
 git status를 확인하고 모든 변경사항을 commit한 후 다시 실행하세요.
+
+삭제된 파일이 unstaged 상태인 경우:
+  1. git status 로 삭제된 파일 목록 확인
+  2. git rm <path>  또는  git add -u  로 삭제를 stage
+  3. git commit -m "chore: remove <파일명>"
+  4. /dev:pr 재실행
+
+(세션 시작 전부터 존재하던 미커밋 파일 삭제도 동일한 방법으로 처리합니다.)
 ```
 
 Read branch name:

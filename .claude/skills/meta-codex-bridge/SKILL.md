@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 7
 name: meta-codex-bridge
 description: Prototype feasibility spike — do NOT load this skill for general use. This skill should be used only when explicitly testing whether Claude can invoke Codex spec-review or plan-review via the codex exec non-interactive CLI and read the resulting review files. Use it to run the bridge experiment or verify codex exec availability. Do not trigger for normal spec or plan authoring tasks.
 origin: harness
@@ -28,10 +28,11 @@ The following are explicitly **out of scope** for this skill:
 
 ## Prerequisites
 
-- **GNU coreutils** required for `timeout` on macOS: `brew install coreutils`
-  (provides `gtimeout`; set `alias timeout=gtimeout` or use `gtimeout` directly)
-- Alternative: omit `timeout` and rely on Codex's own execution limits, or use a
-  Node.js-based timeout wrapper
+- **`greadlink`** (GNU `realpath` 대안): `brew install coreutils` 로 설치 가능.
+  미설치 시 `python3` 폴백이 자동 사용되므로 macOS 기본 설치에서도 동작한다.
+- **`gtimeout`** (GNU `timeout` 대안): `brew install coreutils` 로 설치 가능.
+  미설치 시 `timeout`(Linux 기본) 또는 no-op 폴백으로 자동 선택된다.
+  timeout 없이 실행하면 Codex 자체 실행 제한에 의존한다.
 
 ---
 
@@ -68,7 +69,15 @@ if [ -z "$SPEC_PATH" ] || \
 fi
 
 # Canonicalize and confirm it stays inside the repo root
-CANON_PATH="$(realpath --no-symlinks "$REPO_ROOT/$SPEC_PATH" 2>/dev/null)"
+# macOS: greadlink -f (brew coreutils) preferred; python3 fallback for default installs
+# Note: both greadlink and python3 resolve symlinks (stricter than --no-symlinks)
+if command -v greadlink >/dev/null 2>&1; then
+  CANON_PATH="$(greadlink -f "$REPO_ROOT/$SPEC_PATH" 2>/dev/null)"
+elif command -v python3 >/dev/null 2>&1; then
+  CANON_PATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$REPO_ROOT/$SPEC_PATH")"
+else
+  echo "Neither greadlink nor python3 available for path canonicalization" >&2; exit 1
+fi
 case "$CANON_PATH" in
   "$REPO_ROOT"/*) ;;   # OK: inside repo
   *) echo "Path escapes repo root: $SPEC_PATH" >&2; exit 1 ;;
@@ -78,7 +87,10 @@ esac
 This prevents:
 - Absolute paths (e.g. `/tmp/spec.md`)
 - Directory traversal (e.g. `../../outside`)
-- Shell metacharacter injection (`"`, `$`, `` ` ``, `;`)
+- Control characters and leading dash
+
+Note: shell metacharacter injection (`"`, `$`, `` ` ``, `;`) is mitigated by double-quoting
+at all call sites, not by this regex.
 
 Use `$CANON_PATH` in subsequent `codex exec` and `find` calls.
 
@@ -91,13 +103,26 @@ Use `$CANON_PATH` in subsequent `codex exec` and `find` calls.
 ```bash
 # Validate path first (see "Path Validation" above)
 SPEC_PATH="docs/_local/active/my-topic/spec.md"
-timeout 120 codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
+
+# macOS: gtimeout (brew coreutils) preferred; falls back to timeout (Linux); no-op if absent
+# Use explicit if/else — ${VAR:+...} word-splitting is unreliable in zsh
+TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+if [ -n "$TIMEOUT_BIN" ]; then
+  "$TIMEOUT_BIN" 120 codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+else
+  codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+fi
 ```
 
 ### plan-review
 
 ```bash
-timeout 120 codex exec "plan-review 스킬을 실행해줘"
+TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+if [ -n "$TIMEOUT_BIN" ]; then
+  "$TIMEOUT_BIN" 120 codex exec "plan-review 스킬을 실행해줘"
+else
+  codex exec "plan-review 스킬을 실행해줘"
+fi
 ```
 
 `plan-review` reads `current_topic` and `plan` from `dev-context.json` (or `DEV_CONTEXT_PATH`
@@ -111,7 +136,12 @@ to a fixture dev-context file inside the repo (e.g. `docs/_local/.../fixture/`):
 ```bash
 # Validate fixture path before use
 DEV_CONTEXT_PATH="docs/_local/active/codex-skill-bridge/fixture/fixture-dev-context.json"
-DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" timeout 120 codex exec "..."
+TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+if [ -n "$TIMEOUT_BIN" ]; then
+  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" "$TIMEOUT_BIN" 120 codex exec "..."
+else
+  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" codex exec "..."
+fi
 ```
 
 The fixture `dev-context.json` must contain:
@@ -182,7 +212,7 @@ Decision line format (from existing review files): `- Decision: READY` / `- Deci
 |---|---|
 | `config.codex.available != "true"` | Print warning, show manual fallback, exit |
 | `config.codex.authenticated != "true"` | Print warning, show manual fallback, exit |
-| `timeout` not found (macOS) | Install GNU coreutils or use `gtimeout` |
+| `timeout` not found (macOS) | `TIMEOUT_BIN` 선택 로직이 자동 폴백 처리. `gtimeout`(brew coreutils) 또는 `timeout`(Linux) 순으로 탐색; 둘 다 없으면 timeout 없이 실행 |
 | `codex exec ...` exits non-zero | Record exit code, show manual fallback |
 | `codex exec` exits 0 but no review file generated | Record observation (sandbox policy may block write), show manual fallback |
 | Timeout (120s elapsed) | Record timeout, consider increasing threshold or checking sandbox settings |
