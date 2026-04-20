@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 description: Run a deterministic harness health audit and return a prioritized scorecard.
 category: harness-management
 ---
@@ -63,6 +63,6 @@ Harness Audit (repo): 54/70  [77%]
 
 Top Actions:
   1. [Cost Efficiency] Add .claude/rules/common/performance.md
-  2. [Context Efficiency] Add .claude/skills/strategic-compact/SKILL.md
+  2. [Context Efficiency] Add .claude/skills/wf-compact/SKILL.md
   3. [Cost Efficiency] Mark session-logger hook as async
 ```

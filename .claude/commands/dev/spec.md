@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 description: Write a spec for a new topic. Registers the topic in dev-context.json, writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 category: dev-workflow
 ---
@@ -59,7 +59,7 @@ If no argument:
 
 ### 3. Write spec draft
 
-Load `.claude/skills/brainstorming/SKILL.md` and `.harness/contracts/spec.md`, then follow the brainstorming process using the contract as the spec document format.
+Load `.claude/skills/wf-brainstorming/SKILL.md` and `.harness/contracts/spec.md`, then follow the brainstorming process using the contract as the spec document format.
 When brainstorming announces completion, save the presented spec to `docs/_local/backlog/<topic>/spec.md`.
 
 Then register the topic in `dev-context.json`:

@@ -1,6 +1,6 @@
 ---
-version: 6
-name: brainstorming
+version: 7
+name: wf-brainstorming
 description: Format-agnostic conversational skill for refining ideas through collaborative dialogue. Use when writing a spec draft or exploring problems in depth. Loaded by /dev:spec during spec draft writing.
 origin: sample-claude-env
 ---

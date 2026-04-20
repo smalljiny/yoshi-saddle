@@ -1,6 +1,6 @@
 ---
-version: 1
-name: dev-context
+version: 2
+name: meta-dev-context
 description: Shared contract for reading and writing dev-context.json via the dev-context.js CLI. Load this skill whenever a command needs to inspect or mutate topic lifecycle state.
 origin: harness
 ---

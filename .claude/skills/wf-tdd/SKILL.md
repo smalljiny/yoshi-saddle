@@ -1,6 +1,6 @@
 ---
-version: 2
-name: tdd-workflow
+version: 3
+name: wf-tdd
 description: Follow the RED-GREEN-REFACTOR cycle of writing tests first when implementing new features, fixing bugs, or refactoring.
 origin: harness
 category: dev-process

@@ -1,6 +1,6 @@
 ---
-version: 4
-name: codex-skill-bridge
+version: 5
+name: meta-codex-bridge
 description: Prototype feasibility spike — do NOT load this skill for general use. This skill should be used only when explicitly testing whether Claude can invoke Codex spec-review or plan-review via the codex exec non-interactive CLI and read the resulting review files. Use it to run the bridge experiment or verify codex exec availability. Do not trigger for normal spec or plan authoring tasks.
 origin: harness
 ---

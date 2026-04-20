@@ -1,6 +1,6 @@
 ---
-version: 2
-name: verification-loop
+version: 3
+name: wf-verification
 description: Pass code quality gates in sequence before a PR or after feature completion. Used with the /dev:verify command.
 origin: harness
 category: dev-process

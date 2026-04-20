@@ -1,6 +1,6 @@
 ---
-version: 2
-name: strategic-compact
+version: 3
+name: wf-compact
 description: Use when approaching context limits or between workflow phases. Defines safe compaction points so /compact runs at logical boundaries, not arbitrary mid-task interruptions.
 origin: harness
 category: session-management

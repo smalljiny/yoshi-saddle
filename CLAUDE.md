@@ -26,9 +26,9 @@ This repository is a **harness for Claude Code-based development**. It functions
 │   └── hooks/
 ├── sessions/        Session logs (git-ignored, .jsonl format)
 ├── skills/          Workflow skills
-│   ├── brainstorming/   Loaded by /dev:spec during spec draft writing
-│   ├── tdd-workflow/
-│   ├── verification-loop/
+│   ├── wf-brainstorming/   Loaded by /dev:spec during spec draft writing
+│   ├── wf-tdd/
+│   ├── wf-verification/
 │   └── learned/     Patterns auto-saved by /harness:learn command
 └── settings.json    Permissions + hook configuration
 ```

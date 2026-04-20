@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 ---
 # Component Boundaries: Commands vs Skills
 
@@ -26,7 +26,7 @@ When a command needs skill logic:
 Load `.claude/skills/<name>/SKILL.md` and follow its process.
 ```
 
-Reference case: `dev/spec.md` → `brainstorming/SKILL.md`
+Reference case: `dev/spec.md` → `wf-brainstorming/SKILL.md`
 
 ## Violation Criteria
 

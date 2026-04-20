@@ -1,6 +1,6 @@
 ---
-version: 4
-name: continuous-learning
+version: 5
+name: wf-continuous-learning
 description: Use after long sessions or when you notice a recurring pattern. Guides how to extract high-quality reusable patterns from sessions and save them to skills/learned/.
 origin: harness
 category: session-management
