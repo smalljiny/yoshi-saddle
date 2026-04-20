@@ -73,7 +73,10 @@ plugin `/codex:setup`을 shadow하는 harness-local command:
 1. companion을 직접 실행하여 기존 setup 출력(설치 상태·인증·review gate) 표시
 2. `detect-and-cache.js --force`를 실행하여 캐시를 강제 갱신
 
-소비자(예: `/dev:review`)는 `config.codex.available`과 `config.codex.authenticated`를 읽어 adversarial-review 실행 여부를 판단한다.
+소비자는 `config.codex.available`과 `config.codex.authenticated`를 읽어 실행 여부를 판단한다:
+
+- `/dev:review` — adversarial-review 활성화 조건 확인 (상세: `review-adversarial-workflow.md`)
+- `codex-skill-bridge` 스킬 — `codex exec` 호출 전 가용성 게이트 (상세: `codex-skill-bridge.md`)
 
 ## 제약사항
 

@@ -4,9 +4,13 @@
 
 ## 개요
 
-`skill-creator`는 harness에 새 스킬을 추가하거나 기존 스킬을 개선할 때 품질·일관성 기준을 제공하는 메타가이드 스킬이다. 스킬 구조(SKILL.md + bundled resources), description 작성 원칙, eval 루프 개념, harness 컨벤션을 통합 제공한다.
+`skill-creator`는 harness에 새 스킬을 추가하거나 기존 스킬을 개선할 때 품질·일관성 기준을 제공하는 메타가이드 스킬이다.
 
-기반 소스는 `sample-claude-env`(Apache 2.0)이며, Anthropic 공식 `skill-creator` 플러그인의 핵심 개념(description "pushiness" 권고, eval 루프 with-skill vs baseline 비교)을 개념 수준에서 흡수했다. 공식 플러그인의 Python 스크립트(`package_skill.py`, `run_loop.py` 등)는 번들하지 않으며 참조 링크만 제공한다.
+**이 harness의 스킬 구조**: `SKILL.md + bundled resources` 구성, frontmatter 필수 필드, harness 컨벤션(경로·언어·버전) 등 harness 로컬 규칙이 핵심 내용이다.
+
+**공식 플러그인 참조**: Anthropic 공식 `skill-creator` 플러그인의 핵심 개념(description "pushiness" 권고, eval 루프 with-skill vs baseline 비교)을 개념 수준에서 흡수했다. 공식 플러그인의 Python 스크립트(`package_skill.py`, `run_loop.py` 등)는 번들하지 않으며 참조 링크만 SKILL.md에 포함한다.
+
+기반 소스는 `sample-claude-env`(Apache 2.0)이다.
 
 ## 구조
 

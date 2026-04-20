@@ -10,6 +10,14 @@
 
 **프로토타입 전용**: 이 스킬은 `/dev:spec`·`/dev:plan` 통합 전 검증 단계 산출물이다. 커맨드 통합은 별도 토픽에서 진행한다.
 
+## 상태
+
+| 항목 | 내용 |
+|------|------|
+| 실험 | 완료 (2026-04-20 검증 통과) |
+| 현재 | 프로토타입 — 프로덕션 워크플로우 미사용 |
+| 예정 | `/dev:spec`·`/dev:plan` 커맨드 통합 (별도 토픽에서 진행) |
+
 ## 동작
 
 ### 가용성 게이트
@@ -22,6 +30,8 @@ node .harness/scripts/dev-context.js read --field=config.codex.authenticated
 ```
 
 둘 중 하나라도 `"true"`가 아니면 경고를 출력하고 수동 폴백 안내 후 스킬을 종료한다. 워크플로우를 차단하지 않는다.
+
+`config.codex.*` 값은 `codex-session-detection` 시스템이 세션 시작 시 자동으로 캐싱한다. 캐시 구조·TTL·갱신 방법은 `codex-session-detection.md` 참조.
 
 ### Path Validation
 
