@@ -1,4 +1,4 @@
-# codex-skill-bridge 스킬
+# meta-codex-bridge 스킬
 
 > Claude가 `codex exec`으로 Codex spec-review·plan-review를 직접 호출할 수 있는지 검증한 실험용(feasibility spike) 스킬. 프로덕션 용도가 아니며 일반 워크플로우에서 로드하지 않는다.
 
@@ -80,7 +80,7 @@ gtimeout 180 codex exec "plan-review 스킬을 실행해줘"
 실험 실행 시 `DEV_CONTEXT_PATH` 환경변수를 픽스처 파일로 지정하면 활성 개발 토픽을 변경하지 않고 격리 실행할 수 있다:
 
 ```bash
-DEV_CONTEXT_PATH=docs/_local/active/codex-skill-bridge/fixture/fixture-dev-context.json \
+DEV_CONTEXT_PATH=docs/_local/active/meta-codex-bridge/fixture/fixture-dev-context.json \
   gtimeout 180 codex exec "..."
 ```
 

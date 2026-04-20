@@ -1,10 +1,10 @@
 # Spec Workflow
 
-> `/dev:spec`은 brainstorming 스킬과 협력하여 스펙 초안을 작성하고, 토픽을 `dev-context.json`에 등록하며, Codex 리뷰 루프를 통해 스펙을 확정하고 분할 필요성을 추천한다.
+> `/dev:spec`은 wf-brainstorming 스킬과 협력하여 스펙 초안을 작성하고, 토픽을 `dev-context.json`에 등록하며, Codex 리뷰 루프를 통해 스펙을 확정하고 분할 필요성을 추천한다.
 
 ## 개요
 
-스펙 작성 흐름은 두 구성 요소가 협력한다. **brainstorming 스킬**은 대화를 통해 스펙 내용을 완성하고, **`/dev:spec` 커맨드**는 파일 영속성, 토픽 등록, 상태 전환, Codex 리뷰 루프, 분할 추천을 담당한다. 스펙이 확정되면 `/dev:plan`으로 넘어가 구현 계획을 수립한다.
+스펙 작성 흐름은 두 구성 요소가 협력한다. **wf-brainstorming 스킬**은 대화를 통해 스펙 내용을 완성하고, **`/dev:spec` 커맨드**는 파일 영속성, 토픽 등록, 상태 전환, Codex 리뷰 루프, 분할 추천을 담당한다. 스펙이 확정되면 `/dev:plan`으로 넘어가 구현 계획을 수립한다.
 
 ## 구조 / 스키마
 
@@ -44,7 +44,7 @@ docs/_local/backlog/<topic>/
 | 역할 | 담당 |
 |------|------|
 | 스펙 문서 형식 정의 | `.harness/contracts/spec.md` |
-| 대화로 스펙 내용 완성 | brainstorming 스킬 (형식은 `/dev:spec`이 주입) |
+| 대화로 스펙 내용 완성 | wf-brainstorming 스킬 (형식은 `/dev:spec`이 주입) |
 | 완성된 스펙 파일 저장 | `/dev:spec` |
 | 토픽 등록 (`register-topic`) | `/dev:spec` |
 | 상태 전환 (`spec:drafting` → `spec:reviewing` → `spec:confirmed`) | `/dev:spec` |
@@ -52,7 +52,7 @@ docs/_local/backlog/<topic>/
 | `specReview` 필드 업데이트 | Codex `spec-review` 스킬 |
 | 분할 추천 (기준: `contracts/spec.md`) | `/dev:spec` (Step 7) |
 
-### brainstorming 스킬 동작
+### wf-brainstorming 스킬 동작
 
 **대화 프로세스**:
 - 한 번에 하나씩 질문하며 항상 `AskUserQuestion` 도구를 사용한다. 각 질문에 추천안(`(Recommended)`)을 포함한다
@@ -66,13 +66,13 @@ docs/_local/backlog/<topic>/
 
 **출력 형식**:
 - 스펙 문서 형식은 `.harness/contracts/spec.md`가 정의하며, `/dev:spec`이 브레인스토밍 호출 시 이를 주입한다
-- brainstorming 스킬 자체는 형식 비종속 — 주입된 형식을 따르며 주입이 없으면 맥락에 맞는 형식을 자유롭게 사용한다
+- wf-brainstorming 스킬 자체는 형식 비종속 — 주입된 형식을 따르며 주입이 없으면 맥락에 맞는 형식을 자유롭게 사용한다
 
 ### `/dev:spec` 실행 흐름
 
 1. **토픽 해석** — 인수 또는 `current_topic` · `backlog/` 스캔으로 토픽 결정. 기존 `phase:status`에 따라 재진입 지점을 자동 결정
 2. **작업 디렉토리 준비** — `docs/_local/backlog/<topic>/` 생성
-3. **초안 작성 및 등록** — `brainstorming/SKILL.md` 로드 → 완성 선언 후 `backlog/<topic>/spec.md` 저장 → `register-topic`으로 `topics[<topic>]`을 `spec:drafting` 상태로 등록
+3. **초안 작성 및 등록** — `wf-brainstorming/SKILL.md` 로드 → 완성 선언 후 `backlog/<topic>/spec.md` 저장 → `register-topic`으로 `topics[<topic>]`을 `spec:drafting` 상태로 등록
 4. **Codex 리뷰 요청** — `spec:reviewing`으로 전환 후 사용자에게 `codex` 명령 안내, 대기
 5. **리뷰 반영** —
    - `NOT READY` → Required Fixes 반영 후 `spec:drafting`으로 롤백 → Step 4 재요청
@@ -111,7 +111,7 @@ Codex `spec-review` 체크리스트 항목 3(아키텍처 충분성)은 코드 �
 
 - **Codex 핸드오프는 수동** — Claude Code는 `codex` 명령을 직접 호출할 수 없다. 사용자가 터미널에서 실행한다
 - **`specReview` 필드는 Codex 소유** — `/dev:spec`은 이 필드를 쓰지 않는다
-- **brainstorming 스킬은 `dev-context.json`을 읽거나 쓰지 않는다** — 스킬은 대화·초안 내용만 담당하고, 모든 상태 기록·토픽 등록·상태 전환은 `/dev:spec`이 수행한다
+- **wf-brainstorming 스킬은 `dev-context.json`을 읽거나 쓰지 않는다** — 스킬은 대화·초안 내용만 담당하고, 모든 상태 기록·토픽 등록·상태 전환은 `/dev:spec`이 수행한다
 - **분할 알고리즘은 판단형** — 엄격한 의사결정 트리가 아닌 Claude의 스펙 분석 기반 추천. 사용자 승인이 최종 결정
 - **NOT READY에서 확정 불가** — 리뷰 루프는 `READY` 또는 `READY WITH NOTE`가 나올 때까지 반복한다
 - **스타일 Notes·범위 확장 Notes는 반영 금지** — 사실 오류·누락 컨텍스트·누락 Open Questions에 해당하는 Notes만 반영

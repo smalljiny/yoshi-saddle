@@ -11,7 +11,7 @@
 - `config.dev_impl` — `/dev:impl` 실행 동작 제어
 - `config.git` — `/dev:docs`·`/dev:pr` 에서 참조하는 git 원격 설정
 - `config.review` — `/dev:review` 옵션 설정 (adversarial-review opt-in)
-- `config.codex` — Codex CLI 감지 캐시 (쓰기 전용: `codex-session-detection` 시스템 소유. 소비: `/dev:review`·`codex-skill-bridge`)
+- `config.codex` — Codex CLI 감지 캐시 (쓰기 전용: `codex-session-detection` 시스템 소유. 소비: `/dev:review`·`meta-codex-bridge`)
 
 ## 구조 / 스키마
 
@@ -108,7 +108,7 @@ adversarial-review 전체 실행 흐름과 조건 평가 순서는 `review-adver
 | `version` | string | codex CLI 버전 문자열 |
 | `checked_at` | ISO 8601 | 마지막 감지 시각 (TTL 1시간 기준) |
 
-**소비**: `/dev:review`(adversarial-review 활성화 조건), `codex-skill-bridge` 스킬(가용성 게이트). 두 소비처 모두 `available`과 `authenticated` 두 필드를 순서대로 확인한다.
+**소비**: `/dev:review`(adversarial-review 활성화 조건), `meta-codex-bridge` 스킬(가용성 게이트). 두 소비처 모두 `available`과 `authenticated` 두 필드를 순서대로 확인한다.
 
 캐시 갱신 방법: `/codex:setup` 실행 또는 세션 재시작. 상세 동작은 `codex-session-detection.md` 참조.
 

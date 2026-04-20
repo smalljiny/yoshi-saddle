@@ -1,10 +1,10 @@
-# skill-creator 스킬
+# meta-skill-creator 스킬
 
 > 새 스킬 작성 및 기존 스킬 개선을 위한 메타가이드 스킬로, 스킬 해부학·Progressive Disclosure·description 작성 지침·eval 루프 개념·harness 컨벤션을 단일 SKILL.md에 담는다.
 
 ## 개요
 
-`skill-creator`는 harness에 새 스킬을 추가하거나 기존 스킬을 개선할 때 품질·일관성 기준을 제공하는 메타가이드 스킬이다.
+`meta-skill-creator`는 harness에 새 스킬을 추가하거나 기존 스킬을 개선할 때 품질·일관성 기준을 제공하는 메타가이드 스킬이다.
 
 **이 harness의 스킬 구조**: `SKILL.md + bundled resources` 구성, frontmatter 필수 필드, harness 컨벤션(경로·언어·버전) 등 harness 로컬 규칙이 핵심 내용이다.
 
@@ -15,7 +15,7 @@
 ## 구조
 
 ```
-.claude/skills/skill-creator/
+.claude/skills/meta-skill-creator/
 └── SKILL.md          # 메타가이드 본체 (bundled resources 없음)
 ```
 
@@ -24,7 +24,7 @@
 | 필드 | 값 |
 |------|----|
 | `version` | `1` |
-| `name` | `skill-creator` |
+| `name` | `meta-skill-creator` |
 | `description` | 트리거 신호 — 사용자가 스킬 작성·수정·구조 이해·description/eval 품질 개선을 요청할 때 로드 |
 | `origin` | `sample-claude-env+anthropic-official` |
 
