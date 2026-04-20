@@ -30,12 +30,12 @@ node .claude/scripts/harness-audit.js [scope] [--format text|json]
 | # | Category | What it checks |
 |---|----------|---------------|
 | 1 | Tool Coverage | agents, skills, hook scripts, settings.json |
-| 2 | Context Efficiency | CLAUDE.md, performance rules, strategic-compact |
+| 2 | Context Efficiency | CLAUDE.md, performance rules, wf-compact |
 | 3 | Quality Gates | verify/review/checkpoint commands, testing rules |
 | 4 | Memory Persistence | session-start hook, session-logger, sessions/ dir |
-| 5 | Eval Coverage | tdd-workflow skill, verification-loop skill, /learn |
+| 5 | Eval Coverage | wf-tdd skill, wf-verification skill, /learn |
 | 6 | Security Guardrails | security-reviewer agent, security rules, hook guards |
-| 7 | Cost Efficiency | performance rules, async hooks, strategic-compact |
+| 7 | Cost Efficiency | performance rules, async hooks, wf-compact |
 
 ## Output
 
