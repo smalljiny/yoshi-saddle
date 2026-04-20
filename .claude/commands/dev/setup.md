@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Configure project-level settings in dev-context.json. Subcommand `git` auto-detects git remotes and saves config.git.* fields used by /dev:pr, /dev:docs, and /dev:review.
 category: dev-workflow
 ---
@@ -69,10 +69,16 @@ If `upstream` exists but is unreachable, warn and downgrade to Non-fork:
 ### 4. Detect baseBranch (best-effort)
 
 ```bash
-git remote show <pullRemote> 2>/dev/null | grep "HEAD branch" | sed 's/.*HEAD branch: //'
+# Try cached ref first (no network)
+git symbolic-ref refs/remotes/<pullRemote>/HEAD 2>/dev/null | sed 's|.*/||'
 ```
 
-If the command succeeds and returns a non-empty value, use it as the proposed `baseBranch`. Otherwise propose `main`.
+If the cached ref is present, use it. Otherwise try the network (may be slow on poor connections):
+```bash
+LC_ALL=C git remote show <pullRemote> 2>/dev/null | grep "HEAD branch" | sed 's/.*HEAD branch: //'
+```
+
+If either command succeeds and returns a non-empty value, use it as the proposed `baseBranch`. Otherwise propose `main`.
 
 ### 5. Propose branchPattern
 
@@ -88,6 +94,7 @@ Before presenting to the user, validate each value:
 
 **Branch name** (`baseBranch`):
 - Must match `^[a-zA-Z0-9][a-zA-Z0-9_/.-]*$` (leading `-` rejected)
+- Must NOT contain `..` (path traversal) — reject before any git command
 - Must exist on the remote: `git rev-parse --verify -- refs/remotes/<pullRemote>/<baseBranch>` must exit 0
 - If the ref is not cached locally, fetch first:
   ```bash
@@ -100,11 +107,9 @@ Before presenting to the user, validate each value:
 
 **branchPattern** (regex string):
 - Must not be empty
-- Must be a valid regular expression:
-  ```bash
-  node -e "new RegExp(process.argv[1])" "<branchPattern>"
-  ```
-  If the node command exits non-zero, show the value and an error, then stop without calling `set-field`.
+- Must NOT be exactly `true`, `false`, or a bare integer string — these would be coerced to boolean/number by `set-field` (via `dev-context.js coerceConfigValue`)
+- Must be a valid regular expression. Claude validates this internally without shell interpolation: attempt `new RegExp(<branchPattern>)` as a JS expression. If it throws, show the error and stop without calling `set-field`. Do NOT use shell commands to validate regex — avoids shell metacharacter injection from user-provided pattern values.
+- Note: ReDoS-vulnerable patterns (e.g. `^(a+)+$`) pass syntactic validation. Document scope is branch-name patterns — guide users toward simple anchored patterns like `^(feature|fix|chore)/`.
 
 If any validation fails, show the invalid value and expected format, then stop without calling `set-field`.
 
@@ -117,6 +122,8 @@ node .harness/scripts/dev-context.js read --field=config.git.pullRemote
 node .harness/scripts/dev-context.js read --field=config.git.baseBranch
 node .harness/scripts/dev-context.js read --field=config.git.branchPattern
 ```
+
+When reading each field, an empty line from `dev-context.js read` (trimmed to `""`) means the field is unset — render as `(미설정)`. "All four are empty" means all four reads returned empty strings.
 
 If any of the four values is non-empty, show the current block (unset fields display as `(미설정)`):
 ```
@@ -155,7 +162,7 @@ Show the proposed values and ask for confirmation:
 - Parse on the **first `=`** only — everything after the first `=` is the value. This handles `branchPattern=^(feature|fix)/` correctly (value contains `=` and `(`)
 - Example: `branchPattern=^(feature|fix|chore)/` → field=`branchPattern`, value=`^(feature|fix|chore)/`
 - Unknown field name (not in whitelist): show `알 수 없는 필드입니다. 허용 필드: pushRemote, pullRemote, baseBranch, branchPattern` and re-prompt
-- Re-validate the updated value using the same rules from Step 6 before accepting
+- Re-validate the updated value using the same rules from Step 6 before accepting. If validation fails, keep the previous proposed value unchanged and re-prompt
 
 ### 9. Save to dev-context.json
 
