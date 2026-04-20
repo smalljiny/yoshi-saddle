@@ -264,6 +264,39 @@ switch (subcommand) {
     break
   }
 
+  case 'force-state': {
+    const { topic, phase, status } = args
+    if (!topic) die('force-state: --topic 필요')
+    if (!phase) die('force-state: --phase 필요')
+    if (!status) die('force-state: --status 필요')
+
+    // 예약어 토픽 이름 거부 (prototype pollution 방지)
+    if (topic === '__proto__' || topic === 'constructor' || topic === 'prototype') {
+      die(`force-state: '${topic}' 토픽 이름은 사용할 수 없습니다`)
+    }
+
+    const KNOWN_STATES = new Set(Object.keys(VALID_TRANSITIONS))
+    const to = `${phase}:${status}`
+    if (!KNOWN_STATES.has(to)) {
+      die(`force-state: 알 수 없는 상태 '${to}'\n허용: ${[...KNOWN_STATES].join(', ')}`)
+    }
+
+    const ctx = readContext()
+    const t = ctx.topics[topic]
+    if (!t) die(`force-state: 토픽 '${topic}' 미존재`)
+
+    const from = `${t.phase}:${t.status}`
+    if (from === to) break  // idempotent: 동일 상태는 무시
+
+    process.stderr.write(`force-state: VALID_TRANSITIONS를 우회해 ${from} → ${to}로 강제 전환했습니다 (관리자 용도).\n`)
+
+    t.phase = phase
+    t.status = status
+    t.updatedAt = new Date().toISOString()
+    writeContext(ctx)
+    break
+  }
+
   default:
-    die(`알 수 없는 서브커맨드: ${subcommand}\n사용 가능: register-topic, update-state, set-field, remove-topic, read`)
+    die(`알 수 없는 서브커맨드: ${subcommand}\n사용 가능: register-topic, update-state, set-field, remove-topic, read, force-state`)
 }
