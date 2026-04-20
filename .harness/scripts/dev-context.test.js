@@ -541,23 +541,41 @@ describe('dev-context.js', () => {
   })
 
   describe('force-state', () => {
-    test('VALID_TRANSITIONS 우회하여 임의 상태로 강제 전환 성공', () => {
+    test('역방향 복구: VALID_TRANSITIONS 없는 경로도 플래그 없이 성공', () => {
       run('register-topic', '--topic=ft', '--spec=spec.md')
-      // spec:drafting → plan:ready (VALID_TRANSITIONS에 없는 경로)
-      run('force-state', '--topic=ft', '--phase=plan', '--status=ready')
+      run('update-state', '--topic=ft', '--phase=spec', '--status=reviewing')
+      // spec:reviewing → spec:drafting (역방향, E03/E04 사용 사례)
+      run('force-state', '--topic=ft', '--phase=spec', '--status=drafting')
       const ctx = readCtx()
-      assert.equal(ctx.topics.ft.phase, 'plan')
-      assert.equal(ctx.topics.ft.status, 'ready')
+      assert.equal(ctx.topics.ft.phase, 'spec')
+      assert.equal(ctx.topics.ft.status, 'drafting')
     })
 
-    test('force-state 성공 시 stderr에 경고 출력', async () => {
+    test('역방향 복구 시 stderr에 경고 출력', async () => {
       run('register-topic', '--topic=ft2', '--spec=spec.md')
-      const result = await execFileAsync('node', [SCRIPT, 'force-state', '--topic=ft2', '--phase=plan', '--status=ready'], {
+      run('update-state', '--topic=ft2', '--phase=spec', '--status=reviewing')
+      const result = await execFileAsync('node', [SCRIPT, 'force-state', '--topic=ft2', '--phase=spec', '--status=drafting'], {
         encoding: 'utf8',
         env: { ...process.env, DEV_CONTEXT_PATH: CTX_PATH },
       })
       assert.match(result.stderr, /VALID_TRANSITIONS를 우회해/)
       assert.match(result.stderr, /관리자 용도/)
+    })
+
+    test('순방향 점프는 --allow-unsafe-force 없으면 non-zero exit', async () => {
+      run('register-topic', '--topic=ft2b', '--spec=spec.md')
+      const err = await runExpectFail('force-state', '--topic=ft2b', '--phase=plan', '--status=ready')
+      assert.notEqual(err.code, 0)
+      assert.match(err.stderr, /순방향 점프/)
+      assert.match(err.stderr, /allow-unsafe-force/)
+    })
+
+    test('순방향 점프는 --allow-unsafe-force 있으면 성공', () => {
+      run('register-topic', '--topic=ft2c', '--spec=spec.md')
+      run('force-state', '--topic=ft2c', '--phase=plan', '--status=ready', '--allow-unsafe-force')
+      const ctx = readCtx()
+      assert.equal(ctx.topics.ft2c.phase, 'plan')
+      assert.equal(ctx.topics.ft2c.status, 'ready')
     })
 
     test('동일 상태는 no-op (idempotent)', () => {
@@ -571,9 +589,11 @@ describe('dev-context.js', () => {
 
     test('updatedAt이 갱신됨', async () => {
       run('register-topic', '--topic=ft4', '--spec=spec.md')
+      run('update-state', '--topic=ft4', '--phase=spec', '--status=reviewing')
       const before = readCtx().topics.ft4.updatedAt
       await new Promise(r => setTimeout(r, 5))
-      run('force-state', '--topic=ft4', '--phase=plan', '--status=ready')
+      // 역방향: reviewing → drafting
+      run('force-state', '--topic=ft4', '--phase=spec', '--status=drafting')
       const after = readCtx().topics.ft4.updatedAt
       assert.notEqual(before, after)
     })
