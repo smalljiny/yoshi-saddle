@@ -183,7 +183,7 @@ function getChecks(root) {
       fix: 'Add .claude/rules/common/performance.md with model routing and context guidance.',
     },
     {
-      id: 'context-strategic-compact',
+      id: 'context-wf-compact',
       category: 'Context Efficiency',
       points: 2,
       scopes: ['repo', 'skills'],
@@ -394,7 +394,7 @@ function getChecks(root) {
       fix: 'Mark the session-logger hook as async in hooks.json to avoid blocking tool use.',
     },
     {
-      id: 'cost-strategic-compact',
+      id: 'cost-wf-compact',
       category: 'Cost Efficiency',
       points: 3,
       scopes: ['repo', 'skills'],
