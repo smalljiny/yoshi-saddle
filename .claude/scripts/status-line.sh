@@ -17,7 +17,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # --- Model extraction ---
 if command -v jq &>/dev/null; then
-    model=$(printf '%s' "$input" | jq -r '.model.display_name // .model.id // "?"')
+    model=$(printf '%s' "$input" | jq -r '.model.display_name // .model.id // "?"' 2>/dev/null)
 else
     # jq not available — fallback: try python3, then grep/sed, then "?"
     model=$(printf '%s' "$input" | python3 -c \
@@ -27,8 +27,9 @@ else
         model=$(printf '%s' "$input" | grep -o '"display_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
             | sed 's/.*"display_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
     fi
-    [ -z "$model" ] && model="?"
 fi
+# fallback applies regardless of jq availability
+[ -z "$model" ] && model="?"
 
 # --- Current topic (cwd-independent path) ---
 topic=$(node "$PROJECT_ROOT/.harness/scripts/dev-context.js" read --field=current_topic 2>/dev/null)
@@ -42,14 +43,18 @@ if ! command -v jq &>/dev/null; then
 fi
 
 # --- Transcript path ---
-transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty')
+transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null)
 
 # --- Context bar ---
 # max_context: 1M default (Opus 4.x). Set STATUSLINE_MAX_CONTEXT for other models.
 max_context="${STATUSLINE_MAX_CONTEXT:-1000000}"
+# Validate to prevent bash arithmetic injection (e.g. STATUSLINE_MAX_CONTEXT='a[$(cmd)]')
+[[ "$max_context" =~ ^[0-9]+$ ]] || max_context=1000000
 bar_width=10
 
 if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
+    # NOTE: jq -s slurps the full transcript — O(n) per statusline refresh.
+    # Acceptable for typical session sizes; optimize if needed for very long sessions.
     context_length=$(jq -s '
         map(select(.message.usage and .isSidechain != true and .isApiErrorMessage != true)) |
         last |
@@ -61,7 +66,9 @@ if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
     ' < "$transcript_path" 2>/dev/null)
 
     context_length="${context_length:-0}"
-    if [[ "$context_length" -gt 0 ]] 2>/dev/null; then
+    # Validate integer to prevent bash arithmetic injection
+    [[ "$context_length" =~ ^[0-9]+$ ]] || context_length=0
+    if [[ "$context_length" -gt 0 ]]; then
         pct=$((context_length * 100 / max_context))
     else
         pct=0
