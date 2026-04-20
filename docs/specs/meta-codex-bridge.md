@@ -48,14 +48,23 @@ if [ -z "$SPEC_PATH" ] || \
 fi
 
 # 정규화 후 repo 루트 내부인지 확인
-CANON_PATH="$(realpath --no-symlinks "$REPO_ROOT/$SPEC_PATH" 2>/dev/null)"
+# macOS: greadlink -f (brew coreutils) 우선; 미설치 시 python3 폴백
+if command -v greadlink >/dev/null 2>&1; then
+  CANON_PATH="$(greadlink -f "$REPO_ROOT/$SPEC_PATH" 2>/dev/null)"
+elif command -v python3 >/dev/null 2>&1; then
+  CANON_PATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$REPO_ROOT/$SPEC_PATH")"
+else
+  echo "Neither greadlink nor python3 available" >&2; exit 1
+fi
 case "$CANON_PATH" in
   "$REPO_ROOT"/*) ;;
   *) echo "Path escapes repo root: $SPEC_PATH" >&2; exit 1 ;;
 esac
 ```
 
-이 단계는 절대 경로 주입, 디렉토리 순회, 셸 메타문자 주입을 차단한다.
+이 단계는 절대 경로 주입, 디렉토리 순회, 심볼릭 링크 탈출을 차단한다. 셸 메타문자 주입은 모든 호출부에서 이중 인용부호로 별도 방어한다.
+
+`greadlink`·`python3`는 모두 심볼릭 링크를 실제 경로로 해석하므로, 리포 내부의 심볼릭 링크가 외부를 가리키는 경우도 거부된다 (구 `realpath --no-symlinks`보다 엄격).
 
 ### 호출 패턴
 
@@ -64,13 +73,25 @@ esac
 **spec-review** (경로 인자 필요):
 
 ```bash
-gtimeout 180 codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
+# macOS: gtimeout (brew coreutils) 우선; timeout(Linux) 폴백; 없으면 no-op
+# ${VAR:+...} 패턴은 zsh에서 단어 분리가 안 되므로 명시적 if/else 사용
+TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+if [ -n "$TIMEOUT_BIN" ]; then
+  "$TIMEOUT_BIN" 180 codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+else
+  codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+fi
 ```
 
 **plan-review** (경로 인자 불필요):
 
 ```bash
-gtimeout 180 codex exec "plan-review 스킬을 실행해줘"
+TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+if [ -n "$TIMEOUT_BIN" ]; then
+  "$TIMEOUT_BIN" 180 codex exec "plan-review 스킬을 실행해줘"
+else
+  codex exec "plan-review 스킬을 실행해줘"
+fi
 ```
 
 `plan-review`는 `DEV_CONTEXT_PATH`(또는 기본 경로의 `dev-context.json`)에서 `current_topic`과 `plan` 필드를 읽어 대상 파일을 결정한다.
@@ -80,8 +101,13 @@ gtimeout 180 codex exec "plan-review 스킬을 실행해줘"
 실험 실행 시 `DEV_CONTEXT_PATH` 환경변수를 픽스처 파일로 지정하면 활성 개발 토픽을 변경하지 않고 격리 실행할 수 있다:
 
 ```bash
-DEV_CONTEXT_PATH=docs/_local/active/meta-codex-bridge/fixture/fixture-dev-context.json \
-  gtimeout 180 codex exec "..."
+TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+DEV_CONTEXT_PATH=docs/_local/active/meta-codex-bridge/fixture/fixture-dev-context.json
+if [ -n "$TIMEOUT_BIN" ]; then
+  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" "$TIMEOUT_BIN" 180 codex exec "..."
+else
+  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" codex exec "..."
+fi
 ```
 
 픽스처 `dev-context.json`은 `current_topic`, `spec`, `plan` 경로, `phase: "plan"`, `status: "reviewing"` 필드를 포함해야 한다.
@@ -143,7 +169,7 @@ codex "plan-review 스킬을 실행해줘"
 
 - **프로토타입 전용**: `/dev:spec`·`/dev:plan` 커맨드 통합 전 검증용 스킬이다. 일반 워크플로우에서 로드하지 않는다.
 - **`codex exec` 사용 필수**: `codex -p`는 `--profile` 플래그(`config.toml` 프로파일 선택)이며 비인터랙티브 실행과 무관하다.
-- **GNU coreutils 필요 (macOS)**: `timeout`/`gtimeout` 사용 시 `brew install coreutils` 필요. 미설치 시 `codex exec` 자체 제한에 의존하거나 `gtimeout`을 명시적으로 사용한다.
+- **macOS 호환성**: path 정규화는 `greadlink -f`(brew coreutils) → `python3 os.path.realpath` 순으로 폴백. timeout은 `gtimeout`(brew) → `timeout`(Linux) → no-op(timeout 없이 실행) 순으로 자동 선택. `brew install coreutils`는 선택사항.
 - **브리지는 읽기 전용**: 결과 파일 쓰기 및 `dev-context.json` 상태 전환은 Codex 리뷰 스킬이 담당한다. 브리지는 생성된 파일을 읽기만 한다.
 - **`-a always` 금지**: `codex exec -a always`는 모든 작업을 자동 승인하여 sandbox 보호를 무력화한다. 프로덕션 코드에 사용 금지.
 - **sandbox 정책**: 기본 `workspace-write` 정책(workdir, /tmp, $TMPDIR, ~/.codex/memories)으로 결과 파일 쓰기가 허용된다. 추가 옵션 불필요.
