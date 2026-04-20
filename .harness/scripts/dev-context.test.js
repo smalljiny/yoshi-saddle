@@ -601,8 +601,24 @@ describe('dev-context.js', () => {
       assert.match(err.stderr, /알 수 없는 상태/)
     })
 
+    test('--status 누락 → non-zero exit', async () => {
+      run('register-topic', '--topic=ft8', '--spec=spec.md')
+      const err = await runExpectFail('force-state', '--topic=ft8', '--phase=spec')
+      assert.notEqual(err.code, 0)
+    })
+
     test('__proto__ 토픽 이름 → non-zero exit', async () => {
       const err = await runExpectFail('force-state', '--topic=__proto__', '--phase=spec', '--status=drafting')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('constructor 토픽 이름 → non-zero exit', async () => {
+      const err = await runExpectFail('force-state', '--topic=constructor', '--phase=spec', '--status=drafting')
+      assert.notEqual(err.code, 0)
+    })
+
+    test('prototype 토픽 이름 → non-zero exit', async () => {
+      const err = await runExpectFail('force-state', '--topic=prototype', '--phase=spec', '--status=drafting')
       assert.notEqual(err.code, 0)
     })
 

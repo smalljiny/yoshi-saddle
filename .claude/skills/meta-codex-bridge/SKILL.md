@@ -87,7 +87,10 @@ esac
 This prevents:
 - Absolute paths (e.g. `/tmp/spec.md`)
 - Directory traversal (e.g. `../../outside`)
-- Shell metacharacter injection (`"`, `$`, `` ` ``, `;`)
+- Control characters and leading dash
+
+Note: shell metacharacter injection (`"`, `$`, `` ` ``, `;`) is mitigated by double-quoting
+at all call sites, not by this regex.
 
 Use `$CANON_PATH` in subsequent `codex exec` and `find` calls.
 
@@ -105,9 +108,9 @@ SPEC_PATH="docs/_local/active/my-topic/spec.md"
 # Use explicit if/else — ${VAR:+...} word-splitting is unreliable in zsh
 TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
 if [ -n "$TIMEOUT_BIN" ]; then
-  "$TIMEOUT_BIN" 120 codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
+  "$TIMEOUT_BIN" 120 codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
 else
-  codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
+  codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
 fi
 ```
 
