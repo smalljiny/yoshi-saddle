@@ -12,7 +12,7 @@
 
 | 파일 | 역할 |
 |---|---|
-| `.claude/commands/dev/review.md` | `/dev:review` 실행 흐름 정의 (version 7) |
+| `.claude/commands/dev/review.md` | `/dev:review` 실행 흐름 정의 (version 8) |
 | `.harness/contracts/review-report.md` | review-report 파일 포맷 계약 |
 | `.claude/commands/dev/done.md` | 아카이브 대상 목록에 `review-report-*.md` 포함 (version 5) |
 
@@ -35,7 +35,7 @@ docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 | 3 | `review:in-progress` 전환 + `SAVED_SHA = git rev-parse HEAD` 캡처 |
 | 4 | 변경 범위 식별 (`config.git.baseBranch`, `config.git.pullRemote`) |
 | 5 | code-reviewer + security-reviewer **병렬** 실행 |
-| 6 | 이슈 분류(CRITICAL/HIGH/MEDIUM) → CRITICAL·HIGH 수정 → review-fix commit |
+| 6 | 이슈 분류(CRITICAL/HIGH/MEDIUM/LOW) → CRITICAL·HIGH 수정 → review-fix commit |
 | 7 | adversarial-review **순차** 실행 (활성화 조건 충족 시) |
 | 8 | 처리 내역 산출 (`git log SAVED_SHA..HEAD`) |
 | 9 | review-report 파일 저장 |
@@ -65,7 +65,7 @@ node .harness/scripts/dev-context.js set-field \
 
 `SAVED_SHA`(Step 3 캡처)부터 현재 HEAD까지 신규 commit 존재 여부로 분류한다.
 
-- **신규 commit 있음**: CRITICAL·HIGH → `fixed`, MEDIUM → `deferred`
+- **신규 commit 있음**: CRITICAL·HIGH → `fixed`, MEDIUM·LOW → `deferred`
 - **신규 commit 없음**: 모든 이슈 → `deferred`
 
 severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)는 처리 내역 표에서 제외하고 `## Adversarial Review` 원문 섹션에 보존한다.
