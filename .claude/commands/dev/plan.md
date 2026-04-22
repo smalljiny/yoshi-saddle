@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 category: dev-workflow
 ---
@@ -82,6 +82,20 @@ node .harness/scripts/dev-context.js set-field \
   --topic=<topic> --field=specReview \
   --value=docs/_local/active/<topic>/spec-review-<latest-timestamp>.md
 ```
+
+### 3.5. Load dependency analysis (JS/TS projects only)
+
+Before invoking the planner, check if the project is JS/TS and load dependency analysis:
+
+```
+프로젝트 루트에 package.json이 존재하면:
+  → wf-dependency-analysis 스킬 로드 지침을 planner 프롬프트에 포함한다
+  → planner는 의존성 분석 결과를 참고하여 더 정확한 계획을 수립한다
+package.json이 없으면:
+  → 이 단계를 스킵한다 (비JS/TS 프로젝트)
+```
+
+> **Note**: 의존성 분석은 JS/TS 프로젝트에서만 로드된다. Python, Go 등 비JS/TS 프로젝트는 이 단계를 건너뛴다.
 
 ### 4. Invoke the planner agent
 
