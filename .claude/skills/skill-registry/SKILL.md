@@ -114,8 +114,9 @@ capabilities: [group-tag, specific-tag, ...]
 1. Values are lowercase kebab-case strings.
 2. Every skill that declares capabilities **must** include at least one group tag from the taxonomy below.
 3. Specific tags narrow the skill within its group — include as many as relevant.
-4. Order within the array does not matter.
-5. `wf-*` and `meta-*` skills intentionally omit this field; they use the direct-load pattern.
+4. Specific tags may appear in multiple groups (e.g. `typescript` in both `language-patterns` and `analysis`). Use the group tag in your query to disambiguate: `[language-patterns, typescript]` returns language skills; `[analysis, typescript]` returns analysis tools.
+5. Order within the array does not matter.
+6. `wf-*` and `meta-*` skills intentionally omit this field; they use the direct-load pattern.
 
 ### Taxonomy
 
@@ -147,17 +148,17 @@ This allows `wf-*`, `meta-*`, and any other direct-load-only skills to coexist i
 ### Pattern 1 — Language / framework lookup
 
 ```
-Query capabilities: [language-patterns, python]
+Query capabilities: [language-patterns, fastify]
 
-Resolves to: stack-python/SKILL.md
-Use case: "I need Python implementation patterns"
+Resolves to: stack-fastify/SKILL.md
+Use case: "I need Fastify implementation patterns"
 ```
 
 Steps:
 1. Glob `.claude/skills/*/SKILL.md`
 2. Read each — extract `capabilities`
-3. Filter: must contain both `language-patterns` AND `python`
-4. Return `stack-python` (single match)
+3. Filter: must contain both `language-patterns` AND `fastify`
+4. Return `stack-fastify` (single match)
 
 ### Pattern 2 — Search adapter selection
 
