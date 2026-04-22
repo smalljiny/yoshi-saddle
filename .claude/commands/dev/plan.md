@@ -64,6 +64,22 @@ spec:confirmed 상태여야 합니다.
 먼저 /dev:spec <topic>을 실행하여 Codex 리뷰를 통과하세요.
 ```
 
+### 2.5. Load dependency analysis (JS/TS projects only, best-effort)
+
+**디렉토리 이동 전에** 실행한다. 실패해도 플랜 진행을 막지 않는다.
+
+프로젝트 루트에 `package.json`이 존재하면:
+
+```
+Load `.claude/skills/wf-dependency-analysis/SKILL.md` and follow its process.
+성공 시 결과를 DEPENDENCY_ANALYSIS 변수로 보관한다.
+실패(도구 미설치, 스크립트 없음 등) 시 DEPENDENCY_ANALYSIS = "dependency analysis skipped: <reason>"으로 설정하고 계속 진행한다.
+```
+
+`package.json`이 없으면 이 단계를 스킵한다. `DEPENDENCY_ANALYSIS`는 빈 문자열로 유지.
+
+> **Note**: 의존성 분석은 best-effort다 — 실패해도 플랜 수립을 중단하지 않는다. JS/TS 외 프로젝트는 건너뛴다.
+
 ### 3. Move to active
 
 Move the topic directory from backlog to active:
@@ -82,19 +98,6 @@ node .harness/scripts/dev-context.js set-field \
   --topic=<topic> --field=specReview \
   --value=docs/_local/active/<topic>/spec-review-<latest-timestamp>.md
 ```
-
-### 3.5. Load dependency analysis (JS/TS projects only)
-
-프로젝트 루트에 `package.json`이 존재하면:
-
-```
-Load `.claude/skills/wf-dependency-analysis/SKILL.md` and follow its process.
-실행 결과(knip + dependency-cruiser 출력)를 DEPENDENCY_ANALYSIS 변수로 보관한다.
-```
-
-`package.json`이 없으면 이 단계를 스킵한다. `DEPENDENCY_ANALYSIS`는 빈 문자열로 유지.
-
-> **Note**: 의존성 분석은 JS/TS 프로젝트에서만 실행된다. Python, Go 등 비JS/TS 프로젝트는 이 단계를 건너뛴다.
 
 ### 4. Invoke the planner agent
 
