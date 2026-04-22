@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 description: Generate and run Playwright E2E tests for a target flow. Loads stack-e2e-testing skill. Independent of /dev:verify.
 category: dev-workflow
 ---
@@ -23,7 +23,7 @@ Generate and run Playwright E2E tests for a specific user flow or feature.
 /dev:e2e market-search
 ```
 
-If `$ARGUMENTS` is empty, ask the user which flow or feature to test before proceeding.
+If `$ARGUMENTS` is empty, use `AskUserQuestion` to ask which flow or feature to test before proceeding.
 
 ## Execution Flow
 
@@ -31,10 +31,10 @@ If `$ARGUMENTS` is empty, ask the user which flow or feature to test before proc
 
 Read `$ARGUMENTS` to determine the target flow or feature name.
 
-If no argument was provided, ask:
-```
-어떤 플로우 또는 기능에 대한 E2E 테스트를 작성할까요?
-```
+If no argument was provided, use `AskUserQuestion` to ask "어떤 플로우 또는 기능에 대한 E2E 테스트를 작성할까요?" with options such as:
+- login (Recommended) — 로그인 플로우
+- checkout — 결제/구매 플로우
+- 직접 입력 — 다른 플로우 이름 입력
 
 ### 2. Load E2E Skill
 

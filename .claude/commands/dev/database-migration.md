@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 description: Guide DB schema/data migrations via stack-db-migrations skill. Interactive: identifies change type, runs safety checklist, applies ORM-specific patterns.
 category: dev-workflow
 ---
@@ -24,14 +24,14 @@ Load `.claude/skills/stack-db-migrations/SKILL.md` and follow its process.
 
 ### 2. Identify Change Type
 
-Ask the user to describe the migration goal and determine the change type:
+Use `AskUserQuestion` to ask "어떤 DB 변경을 적용할까요?" with the following options:
 
-- **Column add**: adding a new column (nullable, default, or NOT NULL)
-- **Column rename / remove**: expand-contract pattern required
-- **Index creation**: concurrent vs. inline
-- **Data backfill**: separate migration from schema change
+- **Column add** (Recommended) — 컬럼 추가 (nullable / default / NOT NULL)
+- **Column rename or remove** — expand-contract 패턴 필요
+- **Index creation** — concurrent vs. inline
+- **Data backfill** — 스키마 변경과 분리
 - **Table create / drop**
-- **Other**: describe the change
+- **Other** — 사용자가 직접 설명
 
 ### 3. Run Safety Checklist
 

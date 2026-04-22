@@ -1,6 +1,7 @@
 ---
-version: 1
+version: 2
 description: Scaffold language-specific rule files (coding-style/security/testing) under .harness/rules/<language>/. Generative, not template copy.
+category: harness-management
 ---
 
 # /add-language-rules
@@ -23,7 +24,11 @@ Add new language or framework rules to the harness by generating three rule file
 /add-language-rules python
 ```
 
-If `$ARGUMENTS` is empty, ask the user for the target language before proceeding.
+If `$ARGUMENTS` is empty, use `AskUserQuestion` to ask "어떤 언어 또는 프레임워크의 규칙을 추가할까요?" with options such as:
+- rust (Recommended) — Rust 규칙
+- go — Go 규칙
+- python — Python 규칙 (`stack-python` 스킬이 이미 있음)
+- 직접 입력 — 다른 언어 이름 입력
 
 ## Execution Flow
 
@@ -33,6 +38,12 @@ Read `$ARGUMENTS` and normalize to lowercase with hyphens:
 - `React Native` → `react-native`
 - `Go` → `go`
 - `C++` → `cpp`
+
+After normalization, verify the result contains only `[a-z0-9-]` characters.
+If the result contains `.`, `/`, `\`, `..`, or any character outside `[a-z0-9-]`, stop immediately and report:
+```
+유효하지 않은 언어 이름입니다. 영문 소문자, 숫자, 하이픈만 허용됩니다.
+```
 
 ### 2. Check for Existing Rules
 
