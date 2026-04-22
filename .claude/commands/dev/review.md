@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 category: dev-workflow
 ---
@@ -94,10 +94,11 @@ Invoke both agents simultaneously:
 
 ### 6. Consolidate and Fix Issues
 
-**이슈 분류**:
+**이슈 분류** (critical > high > medium > low 심각도 순):
 - **CRITICAL**: Requires immediate fix. Cannot proceed before fixing.
 - **HIGH**: Requires prompt fix.
 - **MEDIUM**: Plan a fix.
+- **LOW**: Informational — note but do not block. Suggest fixes without requiring resolution.
 
 **수정 및 재리뷰**: Fix CRITICAL and HIGH issues, then re-review.
 
