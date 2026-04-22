@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-python
 description: Pythonic idioms, PEP 8 standards, type hints, and best practices for building robust, efficient, and maintainable Python applications.
 origin: ECC
+capabilities: [language-patterns, python]
 ---
 
 # Python Development Patterns

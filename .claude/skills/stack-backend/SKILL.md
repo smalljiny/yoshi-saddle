@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-backend
 description: Backend architecture patterns for Node.js/Fastify: API design, repository pattern, rate limiting, background jobs, and logging.
 origin: ECC+SCE
+capabilities: [language-patterns, typescript, backend]
 ---
 
 # Backend Development Patterns

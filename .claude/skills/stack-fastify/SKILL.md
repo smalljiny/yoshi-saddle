@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-fastify
 description: Fastify backend implementation guide. Use when developing backends with Fastify, implementing routes/plugins/hooks/validation logic. Includes reference documentation for Fastify patterns with TypeScript, error handling, and testing.
 origin: SCE
+capabilities: [language-patterns, typescript, fastify]
 ---
 
 # Fastify Backend Implementation Guide

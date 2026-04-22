@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-nextjs
 description: Next.js 16+ and Turbopack patterns — incremental bundling, FS caching, dev speed, and when to use Turbopack vs webpack. Use when developing, debugging, or optimizing Next.js 16+ applications.
 origin: ECC
+capabilities: [language-patterns, typescript, nextjs]
 ---
 
 # Next.js and Turbopack
