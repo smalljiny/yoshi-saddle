@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Guide DB schema/data migrations via stack-db-migrations skill. Interactive: identifies change type, runs safety checklist, applies ORM-specific patterns.
 category: dev-workflow
 ---
@@ -33,7 +33,24 @@ Use `AskUserQuestion` to ask "어떤 DB 변경을 적용할까요?" with the fol
 - **Table create / drop**
 - **Other** — 사용자가 직접 설명
 
-### 3. Run Safety Checklist
+### 3. Capture Migration Plan
+
+Before running the checklist, gather the following information from the user and the codebase:
+
+- **Target**: exact table name, column name(s), or index to be changed
+- **DB engine + version**: e.g. PostgreSQL 15, MySQL 8
+- **Migration tool / ORM**: e.g. Prisma, Drizzle, Kysely, Django, golang-migrate
+- **Data volume**: estimated row count in the target table (check with `SELECT COUNT(*) FROM <table>` if accessible)
+- **Backfill strategy** (if adding a column or migrating data): batch size, frequency, rollback approach
+- **Rollback plan**: how to revert if the migration fails in production
+
+Present a summary of the collected plan and use `AskUserQuestion` to get explicit confirmation before proceeding:
+- (Recommended) 계획 확인 — 위 내용으로 진행
+- 수정 필요 — 계획 내용을 변경
+
+If user selects 수정 필요, revisit the relevant items before continuing.
+
+### 4. Run Safety Checklist
 
 Walk through the **Migration Safety Checklist** from `.claude/skills/stack-db-migrations/SKILL.md` (section "Migration Safety Checklist").
 
