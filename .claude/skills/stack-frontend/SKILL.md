@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-frontend
 description: Frontend development patterns for React, Next.js, state management, performance optimization, and UI best practices.
 origin: ECC
+capabilities: [language-patterns, typescript, react]
 ---
 
 # Frontend Development Patterns

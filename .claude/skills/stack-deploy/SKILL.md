@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-deploy
 description: Deployment workflows, CI/CD pipeline patterns, Docker containerization, health checks, rollback strategies, and production readiness checklists for web applications.
 origin: ECC
+capabilities: [deployment]
 ---
 
 # Deployment Patterns

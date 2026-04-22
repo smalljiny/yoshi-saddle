@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-db-migrations
 description: Database migration best practices for schema changes, data migrations, rollbacks, and zero-downtime deployments across PostgreSQL, MySQL, and common ORMs (Prisma, Drizzle, Kysely, Django, TypeORM, golang-migrate).
 origin: ECC
+capabilities: [database, migrations]
 ---
 
 # Database Migration Patterns

@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-claude-api
 description: Anthropic Claude API patterns for Python and TypeScript. Covers Messages API, streaming, tool use, vision, extended thinking, batches, prompt caching, and Claude Agent SDK. Use when building applications with the Claude API or Anthropic SDKs. Trigger when code imports `anthropic` or `@anthropic-ai/sdk`.
 origin: ECC
+capabilities: [language-patterns, python, typescript, claude-api]
 ---
 
 # Claude API

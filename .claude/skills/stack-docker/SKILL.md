@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-docker
 description: Docker and Docker Compose patterns for local development, container security, networking, volume strategies, and multi-service orchestration.
 origin: ECC
+capabilities: [deployment, docker]
 ---
 
 # Docker Patterns

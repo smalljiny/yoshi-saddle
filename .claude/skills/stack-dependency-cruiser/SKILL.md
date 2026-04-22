@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 3
 name: stack-dependency-cruiser
 description: Architecture and dependency analysis for JavaScript/TypeScript projects using dependency-cruiser. Detects circular dependencies, layer violations, orphan modules, and generates dependency graphs. Activate when package.json exists and circular deps or architecture validation is needed.
 origin: SCE
+capabilities: [analysis, typescript, dependency-cruiser]
 ---
 
 # dependency-cruiser — Architecture & Dependency Analysis

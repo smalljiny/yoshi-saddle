@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-langchain
 description: LangChain and LangGraph TypeScript 1.0 implementation guide. This skill should be used when building AI agents, workflows, RAG systems, or multi-agent applications using LangChain/LangGraph in TypeScript. Covers agent patterns, memory management, streaming, tools, integrations, and Deep Agents.
 origin: SCE
+capabilities: [language-patterns, typescript, langchain]
 ---
 
 # LangChain/LangGraph TypeScript

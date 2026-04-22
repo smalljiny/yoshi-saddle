@@ -1,8 +1,9 @@
 ---
-version: 1
+version: 2
 name: stack-postgres
 description: PostgreSQL database patterns for query optimization, schema design, indexing, and security. Use when writing SQL queries or migrations, designing schemas, troubleshooting slow queries, implementing RLS, or working with *.sql, migrations/, schema.* files. Pairs with database-reviewer agent.
 origin: ECC
+capabilities: [database, postgres]
 ---
 
 # PostgreSQL Patterns
