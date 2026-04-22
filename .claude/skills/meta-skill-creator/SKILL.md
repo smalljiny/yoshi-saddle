@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: meta-skill-creator
 description: This skill should be used whenever a user wants to create a new skill from scratch, update or refine an existing skill, understand how skills are structured in this harness, or learn best practices for writing effective skill descriptions and eval loops. Use it for any question about skill anatomy, skill authorship, or skill quality — even if the user doesn't explicitly say "create a skill."
 origin: sample-claude-env+anthropic-official
@@ -36,7 +36,8 @@ skill-name/
 │   │   ├── version:          integer, starts at 1
 │   │   ├── name:             skill identifier
 │   │   ├── description:      triggering signal — see "Writing Effective Descriptions"
-│   │   └── origin:           source reference (e.g. "sample-claude-env")
+│   │   ├── origin:           source reference (e.g. "sample-claude-env")
+│   │   └── capabilities:     optional array, see skill-registry
 │   └── Markdown instructions (required)
 └── Bundled Resources         (optional)
     ├── scripts/              Executable code (Python/Bash/etc.)
@@ -222,13 +223,15 @@ When adding a skill to this harness:
 | Convention | Rule |
 |------------|------|
 | **Path** | `.claude/skills/<name>/SKILL.md` |
-| **Frontmatter fields** | `version` (int), `name`, `description`, `origin` — required; `category` optional (e.g. `dev-process`, `session-management`) |
+| **Frontmatter fields** | `version` (int), `name`, `description`, `origin` — required; `capabilities` — optional array for registry discovery (see `.claude/skills/skill-registry/SKILL.md` for spec and taxonomy); `category` optional (e.g. `dev-process`, `session-management`) |
 | **Version** | Starts at `1`, increments by 1 on each edit |
 | **Instruction language** | English (harness component files rule) |
 | **Style reference** | See `.claude/skills/wf-brainstorming/SKILL.md` for a well-formed example |
 
 **Do not** add `scripts/`, `references/`, or `assets/` unless there is a concrete reason
 (repeated code, large reference docs, template files). Most meta-guide skills need only SKILL.md.
+
+**`wf-*` and `meta-*` skills intentionally omit `capabilities:`.** They follow the direct-load pattern and are not intended for registry-based discovery.
 
 ---
 
