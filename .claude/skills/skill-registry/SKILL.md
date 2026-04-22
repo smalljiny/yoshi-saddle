@@ -160,7 +160,25 @@ Steps:
 3. Filter: must contain both `language-patterns` AND `fastify`
 4. Return `stack-fastify` (single match)
 
-### Pattern 2 — Search adapter selection
+### Pattern 2 — Analysis tool lookup (specific tag)
+
+```
+Query capabilities: [analysis, knip]
+
+Resolves to: stack-knip/SKILL.md
+Use case: "Find the dead-code analysis skill"
+```
+
+Steps:
+1. Glob `.claude/skills/*/SKILL.md`
+2. Read each — extract `capabilities`
+3. Filter: must contain both `analysis` AND `knip`
+4. Return `stack-knip` (single match)
+
+> Tip: `[analysis, typescript]` returns both `stack-knip` and `stack-dependency-cruiser`
+> (multi-match). Add the tool-specific tag (`knip` or `dependency-cruiser`) to pin to one.
+
+### Pattern 3 — Search adapter selection
 
 ```
 Query capabilities: [search-adapter]
@@ -174,6 +192,17 @@ Steps:
 2. Read each — extract `capabilities`
 3. Filter: must contain `search-adapter`
 4. Return all matches — the calling command picks one (e.g. first found, or user preference)
+
+### Multi-match note
+
+Some queries intentionally return multiple skills. For example:
+
+- `[language-patterns, python]` matches both `stack-python` and `stack-claude-api`
+  (the Claude API skill includes Python SDK patterns). Use `[language-patterns, python, claude-api]`
+  to target the Claude API skill specifically, or `[language-patterns, python]` and pick the
+  first non-claude-api result for general Python patterns.
+- `[language-patterns, typescript]` matches 6+ skills. Add a framework tag to narrow:
+  `[language-patterns, typescript, fastify]`, `[language-patterns, typescript, react]`, etc.
 
 ---
 

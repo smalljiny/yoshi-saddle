@@ -1,9 +1,9 @@
 ---
-version: 2
+version: 3
 name: stack-knip
 description: Dead code analysis for JavaScript/TypeScript projects using knip. Detects unused files, exports, and npm dependencies. Activate when package.json exists and unused code or dependency cleanup is needed.
 origin: SCE
-capabilities: [analysis, typescript]
+capabilities: [analysis, typescript, knip]
 ---
 
 # knip — Dead Code Analysis
