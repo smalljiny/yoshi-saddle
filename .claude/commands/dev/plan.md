@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 category: dev-workflow
 ---
@@ -64,6 +64,22 @@ spec:confirmed 상태여야 합니다.
 먼저 /dev:spec <topic>을 실행하여 Codex 리뷰를 통과하세요.
 ```
 
+### 2.5. Load dependency analysis (JS/TS projects only, best-effort)
+
+**디렉토리 이동 전에** 실행한다. 실패해도 플랜 진행을 막지 않는다.
+
+프로젝트 루트에 `package.json`이 존재하면:
+
+```
+Load `.claude/skills/wf-dependency-analysis/SKILL.md` and follow its process.
+성공 시 결과를 DEPENDENCY_ANALYSIS 변수로 보관한다.
+실패(도구 미설치, 스크립트 없음 등) 시 DEPENDENCY_ANALYSIS = "dependency analysis skipped: <reason>"으로 설정하고 계속 진행한다.
+```
+
+`package.json`이 없으면 이 단계를 스킵한다. `DEPENDENCY_ANALYSIS`는 빈 문자열로 유지.
+
+> **Note**: 의존성 분석은 best-effort다 — 실패해도 플랜 수립을 중단하지 않는다. JS/TS 외 프로젝트는 건너뛴다.
+
 ### 3. Move to active
 
 Move the topic directory from backlog to active:
@@ -104,6 +120,7 @@ If `current_topic` is already set to a different active topic, prompt:
 Pass the following to the planner agent:
 - Current topic name
 - Confirmed spec path: `docs/_local/active/<topic>/spec.md`
+- Dependency analysis result (JS/TS projects only): `<DEPENDENCY_ANALYSIS>` — empty string if skipped
 - Instruction: **use `.harness/contracts/implementation-plan.md` as the output format** and include a `**Commit**` field in every Task block (type/scope from `.harness/commit-scopes.md`, subject ≤ 72 chars)
 
 The planner agent produces **only**:

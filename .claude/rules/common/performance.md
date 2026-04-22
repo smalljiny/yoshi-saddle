@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 ---
 
 # Performance Optimization
@@ -12,7 +12,7 @@ Choose the model by task complexity, not habit. Default to the cheapest model th
 |-------|---------------|-------------|
 | **Haiku 4.5** | 3× cheaper than Sonnet | Frequent lightweight tasks, simple code generation, worker agents in parallel execution |
 | **Sonnet 4.6** | Best coding model | Main development, multi-agent orchestration, complex coding tasks |
-| **Opus 4.6** | Deepest reasoning | Architectural decisions, ambiguous requirements, research and analysis |
+| **Opus 4.7** | Deepest reasoning | Architectural decisions, ambiguous requirements, research and analysis |
 
 ### Harness Agent Model Rationale
 

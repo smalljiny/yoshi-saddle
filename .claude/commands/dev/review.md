@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 category: dev-workflow
 ---
@@ -94,10 +94,11 @@ Invoke both agents simultaneously:
 
 ### 6. Consolidate and Fix Issues
 
-**이슈 분류**:
+**이슈 분류** (critical > high > medium > low 심각도 순):
 - **CRITICAL**: Requires immediate fix. Cannot proceed before fixing.
 - **HIGH**: Requires prompt fix.
 - **MEDIUM**: Plan a fix.
+- **LOW**: Informational — note but do not block. Suggest fixes without requiring resolution.
 
 **수정 및 재리뷰**: Fix CRITICAL and HIGH issues, then re-review.
 
@@ -180,12 +181,12 @@ git log <SAVED_SHA>..HEAD --oneline
 ```
 
 신규 commit 존재 여부로 처리 결과를 분류한다:
-- **신규 commit 있음**: CRITICAL·HIGH → `fixed`, MEDIUM → `deferred`
+- **신규 commit 있음**: CRITICAL·HIGH → `fixed`, MEDIUM·LOW → `deferred`
 - **신규 commit 없음**: 모든 이슈 → `deferred`
 
 각 이슈를 다음 형식으로 정리한다:
 - `issueSummary`: 원문의 한 줄 요약, 80자 이내
-- `severity`: CRITICAL | HIGH | MEDIUM
+- `severity`: CRITICAL | HIGH | MEDIUM | LOW
 - `reviewer`: code-reviewer | security-reviewer | adversarial-review
 - `status`: fixed | deferred
 
@@ -239,6 +240,7 @@ Review complete
 CRITICAL: 0
 HIGH: 0
 MEDIUM: [N]
+LOW: [N]
 
 adversarial-review: [run | skipped (<skipReason>)]
 보고서: docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
