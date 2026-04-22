@@ -61,7 +61,7 @@ The latest review report is determined by descending filename sort.
 | 필드 | 값 | 설명 |
 |---|---|---|
 | `issue` | 문자열 | 원문 이슈의 한 줄 요약, 80자 이내 |
-| `severity` | `CRITICAL` \| `HIGH` \| `MEDIUM` | 리뷰어가 분류한 severity |
+| `severity` | `CRITICAL` \| `HIGH` \| `MEDIUM` \| `LOW` | 리뷰어가 분류한 severity |
 | `reviewer` | 리뷰어 식별자 | 이슈 출처 |
 | `status` | `fixed` \| `deferred` | 처리 결과 |
 
@@ -72,7 +72,7 @@ severity가 명시되지 않은 이슈(adversarial-review의 설계 challenge �
 
 1. `/dev:review` Step 3(Transition)에서 `SAVED_SHA = git rev-parse HEAD` 캡처
 2. review-fix commit 완료 후 `git log <SAVED_SHA>..HEAD --oneline` 실행
-3. 신규 commit **있음** → CRITICAL·HIGH: `fixed`, MEDIUM: `deferred`
+3. 신규 commit **있음** → CRITICAL·HIGH: `fixed`, MEDIUM·LOW: `deferred`
 4. 신규 commit **없음** → 모든 이슈: `deferred`
 
 ## skip 사유 목록

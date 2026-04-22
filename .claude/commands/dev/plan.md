@@ -85,17 +85,16 @@ node .harness/scripts/dev-context.js set-field \
 
 ### 3.5. Load dependency analysis (JS/TS projects only)
 
-Before invoking the planner, check if the project is JS/TS and load dependency analysis:
+프로젝트 루트에 `package.json`이 존재하면:
 
 ```
-프로젝트 루트에 package.json이 존재하면:
-  → wf-dependency-analysis 스킬 로드 지침을 planner 프롬프트에 포함한다
-  → planner는 의존성 분석 결과를 참고하여 더 정확한 계획을 수립한다
-package.json이 없으면:
-  → 이 단계를 스킵한다 (비JS/TS 프로젝트)
+Load `.claude/skills/wf-dependency-analysis/SKILL.md` and follow its process.
+실행 결과(knip + dependency-cruiser 출력)를 DEPENDENCY_ANALYSIS 변수로 보관한다.
 ```
 
-> **Note**: 의존성 분석은 JS/TS 프로젝트에서만 로드된다. Python, Go 등 비JS/TS 프로젝트는 이 단계를 건너뛴다.
+`package.json`이 없으면 이 단계를 스킵한다. `DEPENDENCY_ANALYSIS`는 빈 문자열로 유지.
+
+> **Note**: 의존성 분석은 JS/TS 프로젝트에서만 실행된다. Python, Go 등 비JS/TS 프로젝트는 이 단계를 건너뛴다.
 
 ### 4. Invoke the planner agent
 
@@ -118,6 +117,7 @@ If `current_topic` is already set to a different active topic, prompt:
 Pass the following to the planner agent:
 - Current topic name
 - Confirmed spec path: `docs/_local/active/<topic>/spec.md`
+- Dependency analysis result (JS/TS projects only): `<DEPENDENCY_ANALYSIS>` — empty string if skipped
 - Instruction: **use `.harness/contracts/implementation-plan.md` as the output format** and include a `**Commit**` field in every Task block (type/scope from `.harness/commit-scopes.md`, subject ≤ 72 chars)
 
 The planner agent produces **only**:

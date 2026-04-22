@@ -21,3 +21,7 @@ dist/
 *.p12
 credentials.json
 *.token
+
+# Dependency analysis reports
+.deps-report.txt
+.knip-report.json

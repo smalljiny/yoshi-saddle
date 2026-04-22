@@ -1,7 +1,7 @@
 ---
-version: 2
+version: 3
 name: database-reviewer
-description: PostgreSQL database specialist for query optimization, schema design, security, and performance. Use PROACTIVELY when writing SQL, creating migrations, designing schemas, or troubleshooting database performance. Incorporates Supabase best practices. Loads stack-postgres skill when *.sql, migrations/, or schema.* files are detected.
+description: PostgreSQL database specialist for query optimization, schema design, security, and performance. Use PROACTIVELY when writing SQL, creating migrations, designing schemas, or troubleshooting database performance. Incorporates Supabase best practices. When *.sql, migrations/, or schema.* files are present, load stack-postgres skill for index/schema/RLS pattern reference.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---
@@ -81,9 +81,13 @@ psql -c "SELECT indexrelname, idx_scan, idx_tup_read FROM pg_stat_user_indexes O
 - [ ] EXPLAIN ANALYZE run on complex queries
 - [ ] Transactions kept short
 
+## Skill Loading
+
+When reviewing files matching `*.sql`, `migrations/**`, or `schema.*`:
+Load `.claude/skills/stack-postgres/SKILL.md` and apply its index/schema/RLS patterns during review.
+
 ## Reference
 
-For PostgreSQL index patterns, schema design examples, and quick reference patterns, see skill: `stack-postgres`.
 For migration best practices, zero-downtime deployments, and rollback strategies, see skill: `stack-db-migrations`.
 
 ---
