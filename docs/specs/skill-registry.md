@@ -55,7 +55,7 @@
 | `database` | DB 쿼리·스키마·마이그레이션 | stack-postgres, stack-db-migrations |
 | `analysis` | 정적 분석·의존성 탐색 | stack-knip, stack-dependency-cruiser |
 | `deployment` | CI/CD·컨테이너·배포 | stack-deploy, stack-docker |
-| `search-adapter` | 외부 검색 API 어댑터 | (미구현 — 별도 토픽) |
+| `search-adapter` | 외부 검색 API 어댑터 | stack-firecrawl |
 
 ### 쿼리 패턴
 
@@ -93,7 +93,7 @@ capabilities: [search-adapter, <provider-tag>]
 { query, results: [{ title, url, snippet }], source }
 ```
 
-`firecrawl-search` 및 `exa-search` 스킬 본체는 **미구현** — 별도 토픽에서 구현 예정.
+`stack-firecrawl` 어댑터가 구현되었다(`capabilities: [search-adapter, firecrawl]`). `exa-search` 어댑터는 별도 토픽에서 구현 예정.
 
 ## stack-* 스킬 capabilities 매핑
 
@@ -114,10 +114,11 @@ capabilities: [search-adapter, <provider-tag>]
 | stack-dependency-cruiser | `[analysis, typescript, dependency-cruiser]` |
 | stack-deploy | `[deployment]` |
 | stack-docker | `[deployment, docker]` |
+| stack-firecrawl | `[search-adapter, firecrawl]` |
 
 ## 제약사항
 
 - **Node.js 스크립트 없음**: 탐색 절차는 Claude가 Glob/Read 도구로 직접 실행한다. `.harness/scripts/registry.js` 같은 스크립트는 구현하지 않음
 - **우선순위 정책 없음**: 다중 매치 시 선택 로직은 레지스트리 범위 밖 — 호출측 커맨드가 결정한다
-- **firecrawl-search / exa-search 미포함**: 어댑터 패턴 계약만 정의. 실제 어댑터 스킬 본체는 별도 토픽
+- **exa-search 미포함**: `stack-firecrawl`은 구현 완료. `exa-search` 어댑터는 별도 토픽
 - **wf-*/meta-* 미적용**: 직접 로딩 패턴을 사용하는 스킬은 capabilities를 선언하지 않으므로 레지스트리 탐색 대상에서 제외됨
