@@ -110,6 +110,7 @@ for i in $(seq 1 5); do
     PARTIAL_DATA=$(echo "$STATUS_RESPONSE" | jq '.data // []')
     PARTIAL_COUNT=$(echo "$PARTIAL_DATA" | jq 'length')
     if [ "$PARTIAL_COUNT" -gt 0 ]; then
+      # Caller normalizes PARTIAL_DATA into standard schema with status:"partial"
       echo '{"status":"partial","data":'"$PARTIAL_DATA"'}'
     else
       echo '{"status":"timeout","data":[]}' >&2
@@ -124,3 +125,84 @@ done
 - `data[].metadata.sourceURL` — URL of each page
 - `data[].metadata.description` — meta description of each page
 - `data[].markdown` — Markdown body of each page
+
+## Response Format
+
+Normalize all operation results into the following standard schema:
+
+```json
+{
+  "query": "<original query or URL>",
+  "results": [
+    {
+      "title": "<page title>",
+      "url": "<page URL>",
+      "snippet": "<summary text>"
+    }
+  ],
+  "source": "firecrawl",
+  "operation": "search"
+}
+```
+
+`operation` is one of `"search"`, `"scrape"`, or `"crawl"`.
+
+For crawl polling outcomes, an additional `"status"` field is included: `"completed"`, `"partial"`, or `"timeout"`. Partial and timeout responses still conform to the above schema; `results` may be empty for `"timeout"`.
+
+### Snippet mapping rules
+
+| Operation | Raw field | Extraction |
+|-----------|-----------|------------|
+| `/search` | `data[].description` | Use `description` as-is |
+| `/scrape` | `data.markdown` | First 300 characters of `markdown` |
+| `/crawl` | `data[].metadata.description` or `data[].markdown` | Use `metadata.description` if present; otherwise first 300 characters of `markdown` |
+
+### Title fallback rule
+
+When `title` is missing or empty, extract the domain from the URL.  
+Example: `https://docs.example.com/guide` → `docs.example.com`
+
+## Rate Limits & Error Handling
+
+### Missing $FIRECRAWL_API_KEY
+
+Abort immediately and return an error message to the caller:
+
+```
+Error: $FIRECRAWL_API_KEY environment variable is not set.
+Run: export FIRECRAWL_API_KEY="your-api-key"  or add it to your .env file.
+```
+
+### HTTP 429 (Rate limit exceeded)
+
+Up to 3 attempts total (1 initial + 2 retries). Wait before each retry using exponential backoff: 2s before attempt 2, 4s before attempt 3.  
+If attempt 3 still returns 429, propagate the error to the caller.
+
+```bash
+for attempt in 1 2 3; do
+  RESP_FILE=$(mktemp)
+  HTTP_CODE=$(curl -s --max-time 30 -o "$RESP_FILE" -w "%{http_code}" ...)
+  RESPONSE=$(cat "$RESP_FILE"); rm -f "$RESP_FILE"
+  if [ "$HTTP_CODE" != "429" ]; then break; fi
+  if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
+done
+```
+
+### HTTP 401 / 403 (Authentication error)
+
+The API key is invalid or lacks permission. Do not retry — propagate immediately:
+
+```
+Error: Firecrawl API authentication failed (HTTP <401|403>).
+Check $FIRECRAWL_API_KEY and replace with a valid key.
+```
+
+### Network timeout
+
+`--max-time 30` is set on all curl calls. On timeout, return an error without retrying.
+
+### /crawl polling failure (5 attempts exhausted)
+
+After 5 polls (50 seconds) without `status == "completed"`:
+- If `data` array is non-empty → return partial results with `"status": "partial"`
+- If `data` is empty → propagate a timeout error to the caller
