@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: stack-firecrawl
 description: Search-adapter skill that calls Firecrawl REST API v1 via Bash curl. Loaded by skill-registry with [search-adapter, firecrawl] tags. Requires $FIRECRAWL_API_KEY. Provides /v1/search, /v1/scrape, and /v1/crawl operations.
 origin: harness
@@ -31,15 +31,15 @@ Use `jq -cn --arg val "$VALUE" '{field: $val}'` to safely escape user input befo
 ### /v1/search — Web Search
 
 **Input parameters:**
-- `query` (string, required): search query
-- `limit` (integer, optional, default 10): number of results to return
+- `QUERY` (string, required): search query
+- `LIMIT` (integer, optional, default 10): number of results to return
 
 **curl template:**
 ```bash
 curl -s --max-time 30 -X POST https://api.firecrawl.dev/v1/search \
   -H "Authorization: Bearer $FIRECRAWL_API_KEY" \
   -H "Content-Type: application/json" \
-  -d "$(jq -cn --arg q "$QUERY" '{"query": $q, "limit": 10}')"
+  -d "$(jq -cn --arg q "$QUERY" --argjson lim "${LIMIT:-10}" '{"query": $q, "limit": $lim}')"
 ```
 
 **Raw response fields:**
@@ -52,15 +52,16 @@ curl -s --max-time 30 -X POST https://api.firecrawl.dev/v1/search \
 ### /v1/scrape — Single URL Scraping
 
 **Input parameters:**
-- `url` (string, required): target URL to scrape
-- `formats` (array, optional, default `["markdown"]`): response formats
+- `URL` (string, required): target URL to scrape
+- `FORMATS_JSON` (JSON array string, optional, default `'["markdown"]'`): response formats
 
 **curl template:**
 ```bash
+FORMATS_JSON=${FORMATS_JSON:-'["markdown"]'}
 curl -s --max-time 30 -X POST https://api.firecrawl.dev/v1/scrape \
   -H "Authorization: Bearer $FIRECRAWL_API_KEY" \
   -H "Content-Type: application/json" \
-  -d "$(jq -cn --arg u "$URL" '{"url": $u, "formats": ["markdown"]}')"
+  -d "$(jq -cn --arg u "$URL" --argjson fmt "$FORMATS_JSON" '{"url": $u, "formats": $fmt}')"
 ```
 
 **Raw response fields:**
@@ -73,19 +74,34 @@ curl -s --max-time 30 -X POST https://api.firecrawl.dev/v1/scrape \
 ### /v1/crawl — Multi-page Crawl (2 steps)
 
 **Input parameters:**
-- `url` (string, required): crawl start URL
-- `limit` (integer, optional, default 10): max pages to crawl
-- `formats` (array, optional, default `["markdown"]`): response formats
+- `URL` (string, required): crawl start URL
+- `LIMIT` (integer, optional, default 10): max pages to crawl
+- `SCRAPE_FORMATS_JSON` (JSON array string, optional, default `'["markdown"]'`): passed as `scrapeOptions.formats` in the request body
+
+**Note:** Suited for small crawls (≤10 pages). The 5-poll / 50-second budget may be exhausted for larger sites; partial results are returned in that case.
 
 #### Step 1: Start job (POST)
 
 ```bash
-CRAWL_RESPONSE=$(curl -s --max-time 30 -X POST https://api.firecrawl.dev/v1/crawl \
+SCRAPE_FORMATS_JSON=${SCRAPE_FORMATS_JSON:-'["markdown"]'}
+CRAWL_RESP_FILE=$(mktemp)
+trap 'rm -f "$CRAWL_RESP_FILE"' EXIT
+HTTP_CODE=$(curl -s --max-time 30 -X POST https://api.firecrawl.dev/v1/crawl \
   -H "Authorization: Bearer $FIRECRAWL_API_KEY" \
   -H "Content-Type: application/json" \
-  -d "$(jq -cn --arg u "$URL" '{"url": $u, "limit": 10, "scrapeOptions": {"formats": ["markdown"]}}')")
+  -o "$CRAWL_RESP_FILE" -w "%{http_code}" \
+  -d "$(jq -cn --arg u "$URL" --argjson lim "${LIMIT:-10}" --argjson fmt "$SCRAPE_FORMATS_JSON" \
+        '{"url": $u, "limit": $lim, "scrapeOptions": {"formats": $fmt}}')")
 
-JOB_ID=$(echo "$CRAWL_RESPONSE" | jq -r '.id')
+if [ "$HTTP_CODE" -ge 400 ]; then
+  cat "$CRAWL_RESP_FILE" >&2
+  exit 1
+fi
+JOB_ID=$(jq -r '.id // empty' "$CRAWL_RESP_FILE")
+if [ -z "$JOB_ID" ]; then
+  echo "Error: Firecrawl did not return a job id" >&2
+  exit 1
+fi
 ```
 
 #### Step 2: Poll for completion (GET)
@@ -106,16 +122,15 @@ for i in $(seq 1 5); do
     echo "$STATUS_RESPONSE" >&2
     exit 1
   fi
-  if [ "$i" = "5" ]; then
-    PARTIAL_DATA=$(echo "$STATUS_RESPONSE" | jq '.data // []')
-    PARTIAL_COUNT=$(echo "$PARTIAL_DATA" | jq 'length')
+  if [ "$i" -eq 5 ]; then
+    PARTIAL_COUNT=$(echo "$STATUS_RESPONSE" | jq '.data // [] | length')
     if [ "$PARTIAL_COUNT" -gt 0 ]; then
-      # Caller normalizes PARTIAL_DATA into standard schema with status:"partial"
-      echo '{"status":"partial","data":'"$PARTIAL_DATA"'}'
+      echo "$STATUS_RESPONSE" | jq '{status:"partial", data:(.data // [])}'
     else
       echo '{"status":"timeout","data":[]}' >&2
       exit 1
     fi
+    break
   fi
 done
 ```
@@ -159,7 +174,13 @@ For crawl polling outcomes, an additional `"status"` field is included: `"comple
 
 ### Title fallback rule
 
-When `title` is missing or empty, extract the domain from the URL.  
+When `title` is missing or empty, extract the domain from the URL:
+
+```bash
+# Preserves subdomains, strips scheme / port / path
+jq -r '.url | capture("^[a-z]+://(?<host>[^/:]+)").host'
+```
+
 Example: `https://docs.example.com/guide` → `docs.example.com`
 
 ## Rate Limits & Error Handling
@@ -178,14 +199,23 @@ Run: export FIRECRAWL_API_KEY="your-api-key"  or add it to your .env file.
 Up to 3 attempts total (1 initial + 2 retries). Wait before each retry using exponential backoff: 2s before attempt 2, 4s before attempt 3.  
 If attempt 3 still returns 429, propagate the error to the caller.
 
+Apply this pattern to any operation (example shown for `/v1/search`):
+
 ```bash
+RESP_FILE=$(mktemp)
+trap 'rm -f "$RESP_FILE"' EXIT
+RESPONSE=""
 for attempt in 1 2 3; do
-  RESP_FILE=$(mktemp)
-  HTTP_CODE=$(curl -s --max-time 30 -o "$RESP_FILE" -w "%{http_code}" ...)
-  RESPONSE=$(cat "$RESP_FILE"); rm -f "$RESP_FILE"
+  HTTP_CODE=$(curl -s --max-time 30 -X POST https://api.firecrawl.dev/v1/search \
+    -H "Authorization: Bearer $FIRECRAWL_API_KEY" \
+    -H "Content-Type: application/json" \
+    -o "$RESP_FILE" -w "%{http_code}" \
+    -d "$(jq -cn --arg q "$QUERY" --argjson lim "${LIMIT:-10}" '{"query": $q, "limit": $lim}')")
+  RESPONSE=$(cat "$RESP_FILE")
   if [ "$HTTP_CODE" != "429" ]; then break; fi
   if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
 done
+# $RESPONSE and $HTTP_CODE are available after the loop
 ```
 
 ### HTTP 401 / 403 (Authentication error)
@@ -203,6 +233,6 @@ Check $FIRECRAWL_API_KEY and replace with a valid key.
 
 ### /crawl polling failure (5 attempts exhausted)
 
-After 5 polls (50 seconds) without `status == "completed"`:
+After 5 polls (50 seconds total) without `status == "completed"`:
 - If `data` array is non-empty → return partial results with `"status": "partial"`
 - If `data` is empty → propagate a timeout error to the caller
