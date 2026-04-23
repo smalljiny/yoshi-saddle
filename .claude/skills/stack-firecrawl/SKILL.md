@@ -109,11 +109,34 @@ fi
 Poll interval: **10 seconds**, max attempts: **5**
 
 ```bash
+POLL_FILE=$(mktemp)
+trap 'rm -f "$POLL_FILE"' EXIT
 for i in $(seq 1 5); do
   sleep 10
-  STATUS_RESPONSE=$(curl -s --max-time 30 -X GET "https://api.firecrawl.dev/v1/crawl/$JOB_ID" \
-    -H "Authorization: Bearer $FIRECRAWL_API_KEY")
-  STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status')
+  POLL_HTTP=$(curl -s --max-time 30 -X GET "https://api.firecrawl.dev/v1/crawl/$JOB_ID" \
+    -H "Authorization: Bearer $FIRECRAWL_API_KEY" \
+    -o "$POLL_FILE" -w "%{http_code}")
+  if [ "$POLL_HTTP" = "401" ] || [ "$POLL_HTTP" = "403" ]; then
+    echo "Error: Firecrawl API authentication failed (HTTP $POLL_HTTP)." >&2
+    exit 1
+  fi
+  if [ "$POLL_HTTP" = "429" ]; then
+    if [ "$i" -lt 5 ]; then sleep 4; continue; fi
+    echo "Error: Firecrawl rate limit exceeded during crawl polling." >&2
+    exit 1
+  fi
+  if [ "$POLL_HTTP" -ge 500 ] 2>/dev/null; then
+    if [ "$i" -lt 5 ]; then continue; fi
+    echo "Error: Firecrawl server error (HTTP $POLL_HTTP) during crawl polling." >&2
+    exit 1
+  fi
+  STATUS_RESPONSE=$(cat "$POLL_FILE")
+  STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status // empty' 2>/dev/null)
+  if [ -z "$STATUS" ]; then
+    if [ "$i" -lt 5 ]; then continue; fi
+    echo "Error: Firecrawl returned invalid JSON during crawl polling." >&2
+    exit 1
+  fi
   if [ "$STATUS" = "completed" ]; then
     echo "$STATUS_RESPONSE"
     break
