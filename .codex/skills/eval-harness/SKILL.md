@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: eval-harness
 description: >-
   Eval-Driven Development framework for Claude Code harness skills. Invoked as:
@@ -47,6 +47,14 @@ codex "eval-harness 스킬로 <skill-name>을 eval해줘"
 ```bash
 # 예: "eval-harness 스킬로 stack-exa를 eval해줘" → SKILL_NAME="stack-exa"
 SKILL_NAME="<user가 지정한 스킬 이름>"
+
+# 입력 검증: 영문자·숫자·하이픈·언더스코어만 허용 (경로 트라버설 차단)
+if ! echo "$SKILL_NAME" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9_-]*$'; then
+  echo "오류: 유효하지 않은 스킬 이름입니다: $SKILL_NAME"
+  echo "스킬 이름은 영문자·숫자·하이픈·언더스코어만 사용할 수 있습니다."
+  exit 1
+fi
+
 EVAL_CASE_FILE=".claude/evals/${SKILL_NAME}.md"
 ```
 
@@ -89,11 +97,16 @@ VERSION=${VERSION:-"unknown"}
 
 **Command 필드 추출:**
 각 케이스의 `- Command:` 줄에서 백틱으로 감싼 단일 Bash 명령을 추출한다.
+파일에 여러 케이스가 있을 경우 케이스 단위로 반복 실행한다 (아래는 단일 케이스 추출 예시).
 
 ```bash
-# 예시 파싱
-COMMAND=$(grep -A5 "\[CAPABILITY\]" "$EVAL_CASE_FILE" | grep "Command:" | head -1 | sed "s/.*\`\(.*\)\`.*/\1/")
+# 단일 케이스 Command 추출 예시 (실제 구현은 모든 케이스를 순회)
+COMMAND=$(grep -A5 "\[CAPABILITY\]" "$EVAL_CASE_FILE" | grep "Command:" | head -1 | sed 's/.*`\(.*\)`.*/\1/')
 ```
+
+**신뢰 모델**: `.claude/evals/*.md`의 `Command:` 필드는 `bash -c`로 직접 실행된다.
+eval 케이스 파일 추가·수정은 **셸 스크립트 커밋과 동등한 코드 리뷰 대상**이다.
+eval-harness는 프로덕션 API 키 등 민감 환경 변수가 있는 셸에서 실행하지 않는다.
 
 **baseline.json 미존재 처리 (부트스트랩):**
 - `.claude/evals/baseline.json`이 없으면 Regression eval을 전부 스킵
@@ -228,9 +241,10 @@ NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 BASELINE=".claude/evals/baseline.json"
 # baseline.json 없으면 신규 생성, 있으면 해당 키만 갱신 (jq 사용)
 if [ ! -f "$BASELINE" ]; then echo '{}' > "$BASELINE"; fi
-UPDATED=$(jq --arg skill "$SKILL_NAME" --arg ts "$NOW" --arg sha "$GIT_SHA" \
-  '.[$skill] = {"lastPass": $ts, "gitSHA": $sha}' "$BASELINE")
-echo "$UPDATED" > "$BASELINE"
+# 원자적 쓰기: jq 실패 시 기존 파일 보존
+jq --arg skill "$SKILL_NAME" --arg ts "$NOW" --arg sha "$GIT_SHA" \
+  '.[$skill] = {"lastPass": $ts, "gitSHA": $sha}' "$BASELINE" > "${BASELINE}.tmp" \
+  && mv "${BASELINE}.tmp" "$BASELINE"
 ```
 
 **baseline.json 쓰기 실패 시:**
