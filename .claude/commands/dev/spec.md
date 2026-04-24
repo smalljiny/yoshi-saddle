@@ -1,5 +1,5 @@
 ---
-version: 9
+version: 10
 description: Write a spec for a new topic. Registers the topic in dev-context.json, writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 category: dev-workflow
 ---
@@ -52,6 +52,8 @@ If no argument:
 | `spec:reviewing` + no review file yet | Jump to Step 4 (waiting for Codex) |
 | `spec:drafting` + spec file exists | Jump to Step 4 (request review) |
 | topic not yet registered | Continue to Step 2 (normal flow) |
+
+> **Step 2.5 re-entry (v1)**: Step 2.5 is not idempotent — on re-entry the research question is always asked again. If a `docs/research/research-<topic>-*.md` file exists from a previous run, Claude may offer to reuse it but must still ask before proceeding.
 
 ### 2. Prepare working directory
 
@@ -175,3 +177,4 @@ Present the recommendation with reasoning:
 - **Codex handoff is manual** — Claude cannot invoke Codex directly; the user runs the `codex` command
 - **`specReview` is owned by Codex** — `/dev:spec` does not write `specReview`; the Codex spec-review skill updates it via `set-field`
 - **Format injection** — spec document format is defined in `.harness/contracts/spec.md` and injected by `/dev:spec` when loading brainstorming; the brainstorming skill itself is format-agnostic
+- **Research is optional and additive** — Step 2.5 never blocks the brainstorming flow; failures fall back to context-free brainstorming
