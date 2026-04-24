@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: stack-exa
 description: Search-adapter skill that calls Exa REST API via Bash curl. Loaded by skill-registry with [search-adapter, exa] tags. Requires $EXA_API_KEY. Provides /search, /contents, /answer, and /findSimilar operations.
 origin: harness
@@ -109,6 +109,48 @@ done
 | `title` | `results[].title` | Fallback: extract domain from URL |
 | `url` | `results[].url` | As-is |
 | `snippet` | `results[].text` | First 300 chars (same pattern as firecrawl `/scrape`); fallback: `summary` |
+
+---
+
+### /answer — Grounded LLM Answer
+
+**Input parameters:**
+- `QUERY` (string, required): question or search query
+
+**Not supported in V1:** `outputSchema`, `systemPrompt` — outside scope; submit plain queries only.
+
+**curl template (with 429 retry loop):**
+```bash
+RESP_FILE=$(mktemp)
+trap 'rm -f "$RESP_FILE"' EXIT
+for attempt in 1 2 3; do
+  HTTP_CODE=$(curl -s --max-time 30 -X POST https://api.exa.ai/answer \
+    -H "x-api-key: $EXA_API_KEY" \
+    -H "Content-Type: application/json" \
+    -o "$RESP_FILE" -w "%{http_code}" \
+    -d "$(jq -cn --arg q "$QUERY" '{query: $q}')")
+  RESPONSE=$(cat "$RESP_FILE")
+  if [ "$HTTP_CODE" != "429" ]; then break; fi
+  if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
+done
+# $RESPONSE and $HTTP_CODE are available after the loop
+```
+
+**Raw response fields:**
+- `answer` — LLM-generated answer text
+- `citations[].title` — source page title
+- `citations[].url` — source page URL
+- `citations[].text` — source excerpt text
+- `citations[].highlights[]` — extracted highlight snippets from source
+
+**Normalize using the Answer schema (see `## Response Format`). Field mapping:**
+
+| Normalized field | Source field | Rule |
+|------------------|--------------|------|
+| `answer` | `answer` | Fallback: `""` (empty string) |
+| `citations[].title` | `citations[].title` | Fallback: extract domain from URL |
+| `citations[].url` | `citations[].url` | As-is |
+| `citations[].snippet` | `citations[].text` | First 300 chars; fallback: `citations[].highlights[0]` |
 
 ---
 
