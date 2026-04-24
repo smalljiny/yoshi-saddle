@@ -166,7 +166,7 @@ in both the report meta line and the Methodology section.
 
 ```markdown
 # [Topic]: Research Report
-*Generated: YYYY-MM-DD | Sources: N | Adapters: [adapter1, adapter2]*
+*Generated: YYYY-MM-DD | Sources: N | Adapters: [adapter1, adapter2] | Failed: [⚠️ adapter: reason]*
 
 ## Executive Summary
 [3-5 sentence overview of key findings]
