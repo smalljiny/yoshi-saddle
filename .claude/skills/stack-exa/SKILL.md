@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: stack-exa
 description: Search-adapter skill that calls Exa REST API via Bash curl. Loaded by skill-registry with [search-adapter, exa] tags. Requires $EXA_API_KEY. Provides /search, /contents, /answer, and /findSimilar operations.
 origin: harness
@@ -27,6 +27,52 @@ Targets Exa REST API at `https://api.exa.ai`.
 All requests use base URL `https://api.exa.ai`, authentication header `x-api-key: $EXA_API_KEY`, and default timeout `--max-time 30`. Timeout overrides are noted per-operation below.
 
 Use `jq -cn --arg val "$VALUE" '{field: $val}'` to safely escape user input before passing to curl.
+
+### /search — Web Search
+
+**Input parameters:**
+- `QUERY` (string, required): search query
+- `TYPE` (string, required): Exa search type (`neural`, `keyword`, `auto`, `deep`, `deep-reasoning`)
+- `NUM_RESULTS` (integer, optional, default 10): number of results to return
+
+**Timeout:** `--max-time 30` for standard types; `--max-time 90` for `deep` and `deep-reasoning`.
+
+**curl template (with 429 retry loop):**
+```bash
+case "$TYPE" in deep|deep-reasoning) TIMEOUT=90 ;; *) TIMEOUT=30 ;; esac
+
+RESP_FILE=$(mktemp)
+trap 'rm -f "$RESP_FILE"' EXIT
+for attempt in 1 2 3; do
+  HTTP_CODE=$(curl -s --max-time "$TIMEOUT" -X POST https://api.exa.ai/search \
+    -H "x-api-key: $EXA_API_KEY" \
+    -H "Content-Type: application/json" \
+    -o "$RESP_FILE" -w "%{http_code}" \
+    -d "$(jq -cn --arg q "$QUERY" --arg t "$TYPE" --argjson n "${NUM_RESULTS:-10}" \
+          '{query: $q, type: $t, numResults: $n}')")
+  RESPONSE=$(cat "$RESP_FILE")
+  if [ "$HTTP_CODE" != "429" ]; then break; fi
+  if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
+done
+# $RESPONSE and $HTTP_CODE are available after the loop
+```
+
+**Raw response fields:**
+- `results[].title` — page title
+- `results[].url` — page URL
+- `results[].highlights[]` — extracted relevant text snippets
+- `results[].text` — full page text
+- `results[].summary` — LLM-generated summary
+
+**Field mapping:**
+
+| Normalized field | Source field | Rule |
+|------------------|--------------|------|
+| `title` | `results[].title` | Fallback: extract domain from URL |
+| `url` | `results[].url` | As-is |
+| `snippet` | `results[].highlights[0]` | Fallback: first 300 chars of `text`; then `summary` |
+
+---
 
 ## Response Format
 
