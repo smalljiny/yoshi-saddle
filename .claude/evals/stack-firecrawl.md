@@ -17,4 +17,4 @@
 
 1. [REGRESSION] Response schema 표준 필드(query, results, source, operation)가 유지되어 있다
    - Baseline: 3ec4da7
-   - Command: `bash -c "for key in 'query:' 'results:' 'source:' 'operation:'; do grep -q \"\$key\" .claude/skills/stack-firecrawl/SKILL.md || exit 1; done"`
+   - Command: `bash -c "for key in '\"query\"' '\"results\"' '\"source\"' '\"operation\"'; do grep -q \"\$key\" .claude/skills/stack-firecrawl/SKILL.md || exit 1; done"`
