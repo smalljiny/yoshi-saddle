@@ -104,9 +104,14 @@ VERSION=${VERSION:-"unknown"}
 COMMAND=$(grep -A5 "\[CAPABILITY\]" "$EVAL_CASE_FILE" | grep "Command:" | head -1 | sed 's/.*`\(.*\)`.*/\1/')
 ```
 
-**신뢰 모델**: `.claude/evals/*.md`의 `Command:` 필드는 `bash -c`로 직접 실행된다.
-eval 케이스 파일 추가·수정은 **셸 스크립트 커밋과 동등한 코드 리뷰 대상**이다.
-eval-harness는 프로덕션 API 키 등 민감 환경 변수가 있는 셸에서 실행하지 않는다.
+**신뢰 모델 (중요)**: `.claude/evals/*.md`의 `Command:` 필드는 `bash -c`로 직접 실행된다.
+
+> ⚠️ **eval 케이스 파일은 실행 코드다.** 추가·수정은 셸 스크립트 커밋과 동등한
+> 코드 리뷰 대상이다. 검토되지 않은 eval 케이스 파일을 설치하지 말 것.
+>
+> eval-harness는 **프로덕션 API 키, 인증 토큰 등 민감 환경 변수가 있는 셸에서
+> 실행하지 않는다.** 환경 격리가 필요하면 별도 셸에서 `env -i HOME="$HOME"
+> PATH="$PATH" bash -c "..."` 패턴을 사용한다.
 
 **baseline.json 미존재 처리 (부트스트랩):**
 - `.claude/evals/baseline.json`이 없으면 Regression eval을 전부 스킵

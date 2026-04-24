@@ -41,6 +41,8 @@ The registry returns a list of matching skills. Each entry contains:
 
 Read each matched skill's `SKILL.md` to load its Search Procedure before Step 3.
 
+**Adapter Trust Model**: skill-registry는 `.claude/skills/*/SKILL.md`에서 `capabilities: [search-adapter]`로 등록된 스킬만 반환한다. 새 search-adapter 스킬을 추가하려면 코드 리뷰가 필요하며, 외부 API 키에 접근하는 커맨드를 실행한다. 신뢰할 수 없는 출처에서 받은 스킬 파일을 설치하지 말 것.
+
 **Adapter Selection Policy**
 
 | Adapters Found | Action |
