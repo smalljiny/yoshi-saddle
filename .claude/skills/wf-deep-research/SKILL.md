@@ -99,7 +99,7 @@ For EACH sub-question, call all discovered adapters sequentially. Follow each ad
 | Adapter | Search Operation | Params |
 |---------|-----------------|--------|
 | stack-firecrawl | `/v1/search` | `query`, `limit: 8` |
-| stack-exa | `/search` | `query`, `numResults: 8`, `type: "auto"` |
+| stack-exa | `/search` | `query`, `numResults: 8`, `type: "auto"` (default; deep/deep-reasoning out of scope — 90s timeout) |
 
 **Search strategy:**
 - Use 2-3 different keyword variations per sub-question
@@ -137,10 +137,11 @@ Follow the representative adapter's **Search Procedure** section for content fet
 
 | Adapter | Content Operation |
 |---------|-----------------|
-| stack-firecrawl | `/v1/scrape` |
-| stack-exa | `/contents` |
+| stack-firecrawl | `/v1/scrape` | Single-URL — loop per URL |
+| stack-exa | `/contents` | JSON array input — batch all target URLs in one call |
 
-Read 3-5 key sources in full for depth. Do not rely only on search snippets.
+Fetch all 5-8 selected URLs; read the 3-5 most relevant in depth, skim the rest.
+Do not rely only on search snippets.
 
 ### Step 5: Synthesize
 
@@ -205,6 +206,10 @@ Example: AI is transforming diagnostics ([Nature Medicine](https://...)).
 
 **Default save directory**: current working directory (`./`).
 Override with `$DEEP_RESEARCH_OUTPUT_DIR` environment variable.
+
+**Topic sanitization** — normalize `<topic>` before constructing the filename:
+replace `/`, `..`, and non-alphanumeric characters (except `-` and `_`) with `_`.
+Example: `"AI/healthcare"` → `research-AI_healthcare-20260424.md`
 
 ### Search Scope Target
 
