@@ -5,6 +5,9 @@
 # 로컬 작업 문서 (개발 중 임시 파일)
 docs/_local/
 
+# wf-deep-research 자동 생성 리서치 보고서 (재생성 가능, 민감 내용 포함 가능)
+docs/research/research-*.md
+
 # 참조 자료 (외부 프로젝트, read-only)
 /references/
 
