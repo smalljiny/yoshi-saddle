@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: stack-exa
 description: Search-adapter skill that calls Exa REST API via Bash curl. Loaded by skill-registry with [search-adapter, exa] tags. Requires $EXA_API_KEY. Provides /search, /contents, /answer, and /findSimilar operations.
 origin: harness
@@ -71,6 +71,44 @@ done
 | `title` | `results[].title` | Fallback: extract domain from URL |
 | `url` | `results[].url` | As-is |
 | `snippet` | `results[].highlights[0]` | Fallback: first 300 chars of `text`; then `summary` |
+
+---
+
+### /contents — URL Content Extraction
+
+**Input parameters:**
+- `URLS_JSON` (JSON array string, required): JSON array of URLs to fetch. Single URL must be wrapped in an array: `'["https://example.com"]'`
+
+**curl template (with 429 retry loop):**
+```bash
+RESP_FILE=$(mktemp)
+trap 'rm -f "$RESP_FILE"' EXIT
+for attempt in 1 2 3; do
+  HTTP_CODE=$(curl -s --max-time 30 -X POST https://api.exa.ai/contents \
+    -H "x-api-key: $EXA_API_KEY" \
+    -H "Content-Type: application/json" \
+    -o "$RESP_FILE" -w "%{http_code}" \
+    -d "$(jq -cn --argjson ids "$URLS_JSON" '{ids: $ids}')")
+  RESPONSE=$(cat "$RESP_FILE")
+  if [ "$HTTP_CODE" != "429" ]; then break; fi
+  if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
+done
+# $RESPONSE and $HTTP_CODE are available after the loop
+```
+
+**Raw response fields:**
+- `results[].title` — page title
+- `results[].url` — page URL
+- `results[].text` — full extracted page text
+- `results[].summary` — LLM-generated summary
+
+**Field mapping:**
+
+| Normalized field | Source field | Rule |
+|------------------|--------------|------|
+| `title` | `results[].title` | Fallback: extract domain from URL |
+| `url` | `results[].url` | As-is |
+| `snippet` | `results[].text` | First 300 chars (same pattern as firecrawl `/scrape`); fallback: `summary` |
 
 ---
 
