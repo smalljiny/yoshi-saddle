@@ -26,7 +26,7 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 | 파일 | 담당 커맨드 | 내용 |
 |------|------------|------|
 | [spec-workflow.md](spec-workflow.md) | `/dev:spec` | 스펙 작성 흐름. brainstorming 스킬 연동, 토픽 등록, Codex spec-review 루프 |
-| [commit-workflow.md](commit-workflow.md) | `/dev:impl` | Task 완료 시 커밋 실행 계약. 커밋 메시지 형식, auto_commit, review-fix 커밋 패턴, 공유 규칙 위치 |
+| [impl-workflow.md](impl-workflow.md) | `/dev:impl` | Task 실행·커밋 계약 및 배치 모드. 커밋 메시지 형식, auto_commit, `--all` 순차 자동 실행, 실패 중단 정책 |
 | [review-adversarial-workflow.md](review-adversarial-workflow.md) | `/dev:review` | 리뷰 워크플로우. code-reviewer·security-reviewer 병렬 실행, adversarial-review 활성화 조건, review-report 형식 |
 | [reference-docs-workflow.md](reference-docs-workflow.md) | `/dev:docs` | 참조 문서 생성 흐름. git diff 기반 파일 수집, `docs/specs/<name>.md` 저장, `refDoc` 필드 기록 |
 | [pr-workflow.md](pr-workflow.md) | `/dev:pr` | PR 발행 흐름. first-run(`gh pr create`)·re-entry(`gh pr edit`) 분기, PR body 템플릿, 브랜치 설정 |
@@ -42,7 +42,6 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 
 | 파일 | 내용 |
 |------|------|
-| [impl-batch-mode.md](impl-batch-mode.md) | `/dev:impl --all` 배치 모드. 전체 Task 순차 자동 실행 |
 | [statusline.md](statusline.md) | Claude Code 상태줄 설정. 토픽·phase 표시 |
 
 ### 설계 원칙
@@ -53,7 +52,6 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 | [codex-session-detection.md](codex-session-detection.md) | Codex CLI 감지·캐싱 시스템. `config.codex.*` 네임스페이스 단일 진실 원천. 1시간 TTL, session-start 훅 연동. 소비: `/dev:review`·`meta-codex-bridge` |
 | [meta-skill-creator.md](meta-skill-creator.md) | 스킬 작성 메타가이드. harness 스킬 구조·컨벤션(1차), 공식 플러그인 eval 루프 개념(참조) |
 | [meta-codex-bridge.md](meta-codex-bridge.md) | `codex exec` 기반 spec-review·plan-review 자동 호출 검증 스킬. 실험 완료(프로토타입). `/dev:spec`·`/dev:plan` 통합 예정 |
-| [phase1-skill-adoption.md](phase1-skill-adoption.md) | Phase 1 스킬 도입. wf-/stack-/meta- 접두사 컨벤션, 스킬 11개·에이전트 1개 편입, 참조 업데이트 |
 
 ---
 
@@ -69,7 +67,7 @@ topic-lifecycle                    ← 상태 기계 중앙 참조
                                        ├─ review-adversarial-workflow.md (소비)
                                        └─ meta-codex-bridge.md (소비)
   └─ spec-workflow                 ← spec:* 상태
-  └─ commit-workflow               ← impl:* 상태 (커밋 계약)
+  └─ impl-workflow                 ← impl:* 상태 (커밋 계약 + 배치 모드)
        └─ review-adversarial-workflow ← review-fix 상세
   └─ review-adversarial-workflow   ← review:* 상태
   └─ reference-docs-workflow       ← docs:* 상태 (참조 문서 생성 1차 책임)
