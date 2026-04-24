@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 name: stack-exa
 description: Search-adapter skill that calls Exa REST API via Bash curl. Loaded by skill-registry with [search-adapter, exa] tags. Requires $EXA_API_KEY. Provides /search, /contents, /answer, and /findSimilar operations.
 origin: harness
@@ -21,6 +21,8 @@ Targets Exa REST API at `https://api.exa.ai`.
 - `$EXA_API_KEY` is unset or empty — see Rate Limits & Error Handling
 - MCP Exa tool is already configured — use existing MCP path instead
 - SSE streaming is required — outside this skill's scope
+
+**`search-adapter` contract scope:** `/search`, `/contents`, and `/findSimilar` conform to the standard `search-adapter` response schema (`query/results[]/source/operation`). `/answer` uses a separate Answer schema (see `## Response Format`) and is NOT interchangeable with other `search-adapter` outputs. Use `/answer` only when the caller explicitly handles the Answer schema.
 
 ## Search Procedure
 
@@ -51,7 +53,8 @@ for attempt in 1 2 3; do
     -H "Content-Type: application/json" \
     -o "$RESP_FILE" -w "%{http_code}" \
     -d "$(jq -cn --arg q "$QUERY" --arg t "$TYPE" --argjson n "${NUM_RESULTS:-10}" \
-          '{query: $q, type: $t, numResults: $n}')")
+          '{query: $q, type: $t, numResults: $n,
+            contents: {text: true, highlights: {numSentences: 3, highlightsPerUrl: 3}, summary: true}}')")
   RESPONSE=$(cat "$RESP_FILE")
   if [ "$HTTP_CODE" != "429" ]; then break; fi
   if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
@@ -92,7 +95,8 @@ for attempt in 1 2 3; do
     -H "x-api-key: $EXA_API_KEY" \
     -H "Content-Type: application/json" \
     -o "$RESP_FILE" -w "%{http_code}" \
-    -d "$(jq -cn --argjson ids "$URLS_JSON" '{ids: $ids}')")
+    -d "$(jq -cn --argjson ids "$URLS_JSON" \
+          '{ids: $ids, contents: {text: true, highlights: {numSentences: 3}, summary: true}}')")
   RESPONSE=$(cat "$RESP_FILE")
   if [ "$HTTP_CODE" != "429" ]; then break; fi
   if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
@@ -176,7 +180,8 @@ for attempt in 1 2 3; do
     -H "Content-Type: application/json" \
     -o "$RESP_FILE" -w "%{http_code}" \
     -d "$(jq -cn --arg u "$SEED_URL" --argjson n "${NUM_RESULTS:-10}" \
-          '{url: $u, numResults: $n}')")
+          '{url: $u, numResults: $n,
+            contents: {text: true, highlights: {numSentences: 3, highlightsPerUrl: 3}, summary: true}}')")
   RESPONSE=$(cat "$RESP_FILE")
   if [ "$HTTP_CODE" != "429" ]; then break; fi
   if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
