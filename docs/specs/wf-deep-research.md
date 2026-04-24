@@ -89,6 +89,7 @@ API 키 누락, HTTP 401/403, HTTP 429(재시도 소진), 네트워크 타임아
 - 검색 결과 캐싱 없음
 - Claude 내장 WebSearch 도구 지원 없음 (skill-registry 외부)
 - `capabilities:` 키 없음 (direct-load 전용, skill-registry 쿼리 대상 아님)
+- **어댑터 신뢰 모델**: skill-registry는 `.claude/skills/*/SKILL.md`에서 `capabilities: [search-adapter]`로 등록된 스킬만 반환한다. 새 search-adapter 스킬 추가는 코드 리뷰 대상 — 외부 API 키에 접근하는 명령을 실행하므로 신뢰할 수 없는 출처의 스킬을 설치하지 않는다.
 
 ## 관련 컴포넌트
 
