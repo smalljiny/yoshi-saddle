@@ -16,6 +16,7 @@ dist/
 # 민감한 파일 (절대 커밋하지 않음)
 .env
 .env.*
+.claude/settings.local.json
 *.pem
 *.key
 *.p12
