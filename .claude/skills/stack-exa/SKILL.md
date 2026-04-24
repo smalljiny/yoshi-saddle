@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: stack-exa
 description: Search-adapter skill that calls Exa REST API via Bash curl. Loaded by skill-registry with [search-adapter, exa] tags. Requires $EXA_API_KEY. Provides /search, /contents, /answer, and /findSimilar operations.
 origin: harness
@@ -151,6 +151,49 @@ done
 | `citations[].title` | `citations[].title` | Fallback: extract domain from URL |
 | `citations[].url` | `citations[].url` | As-is |
 | `citations[].snippet` | `citations[].text` | First 300 chars; fallback: `citations[].highlights[0]` |
+
+---
+
+### /findSimilar — Similar Page Discovery
+
+**Input parameters:**
+- `SEED_URL` (string, required): URL of the seed page to find similar content for
+- `NUM_RESULTS` (integer, optional, default 10): number of results to return
+
+**Note:** The normalized `query` field in the Standard schema is populated with the seed URL.
+
+**curl template (with 429 retry loop):**
+```bash
+RESP_FILE=$(mktemp)
+trap 'rm -f "$RESP_FILE"' EXIT
+for attempt in 1 2 3; do
+  HTTP_CODE=$(curl -s --max-time 30 -X POST https://api.exa.ai/findSimilar \
+    -H "x-api-key: $EXA_API_KEY" \
+    -H "Content-Type: application/json" \
+    -o "$RESP_FILE" -w "%{http_code}" \
+    -d "$(jq -cn --arg u "$SEED_URL" --argjson n "${NUM_RESULTS:-10}" \
+          '{url: $u, numResults: $n}')")
+  RESPONSE=$(cat "$RESP_FILE")
+  if [ "$HTTP_CODE" != "429" ]; then break; fi
+  if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
+done
+# $RESPONSE and $HTTP_CODE are available after the loop
+```
+
+**Raw response fields:**
+- `results[].title` — page title
+- `results[].url` — page URL
+- `results[].highlights[]` — extracted relevant text snippets
+- `results[].text` — full page text
+- `results[].summary` — LLM-generated summary
+
+**Field mapping:**
+
+| Normalized field | Source field | Rule |
+|------------------|--------------|------|
+| `title` | `results[].title` | Fallback: extract domain from URL |
+| `url` | `results[].url` | As-is |
+| `snippet` | `results[].highlights[0]` | Fallback: first 300 chars of `text`; then `summary` |
 
 ---
 
