@@ -55,7 +55,7 @@
 | `database` | DB 쿼리·스키마·마이그레이션 | stack-postgres, stack-db-migrations |
 | `analysis` | 정적 분석·의존성 탐색 | stack-knip, stack-dependency-cruiser |
 | `deployment` | CI/CD·컨테이너·배포 | stack-deploy, stack-docker |
-| `search-adapter` | 외부 검색 API 어댑터 | stack-firecrawl |
+| `search-adapter` | 외부 검색 API 어댑터 | stack-firecrawl, stack-exa |
 
 ### 쿼리 패턴
 
