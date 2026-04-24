@@ -246,3 +246,23 @@ echo "$UPDATED" > "$BASELINE"
 - `references/everything-claude-code/skills/eval-harness/SKILL.md` — ECC 원본 참조
 - `.codex/skills/spec-review/SKILL.md` — Codex 스킬 형식 참조
 - `.claude/evals/` — eval 케이스 파일 및 실행 이력 저장 디렉토리
+
+## E2E 검증 결과 (2026-04-24)
+
+레퍼런스 eval 케이스 2건에 대해 Codex CLI end-to-end 검증 완료:
+
+```
+codex "eval-harness 스킬로 stack-exa를 eval해줘"
+→ Decision: PASS (git: 1b180bc)
+
+codex "eval-harness 스킬로 stack-firecrawl를 eval해줘"
+→ Decision: PASS (git: 1b180bc)
+```
+
+**Open Question #3 (Codex sandbox 쓰기 권한) 결과:**
+- `workspace-write` 모드(workdir 포함)에서 `.claude/evals/*.log`와 `baseline.json` 쓰기 모두 성공
+- 별도 sandbox 설정 변경 없이 정상 작동 확인
+
+**레퍼런스 eval 케이스 형식 주의:**
+- Response schema 필드 검증 시 JSON 형식(`"query"`, `"results"` 등 큰따옴표 포함)으로 확인해야 함
+- `:` 없는 필드명 검색은 false negative 발생 가능
