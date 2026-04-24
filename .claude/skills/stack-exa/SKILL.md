@@ -26,6 +26,8 @@ Targets Exa REST API at `https://api.exa.ai`.
 
 All requests use base URL `https://api.exa.ai`, authentication header `x-api-key: $EXA_API_KEY`, and default timeout `--max-time 30`. Timeout overrides are noted per-operation below.
 
+> **Security note:** `$EXA_API_KEY` appears as a `-H` argument in curl command lines. On shared systems, other users may see it via `ps aux`. In single-user developer environments this risk is acceptable (same pattern as `stack-firecrawl`). On shared servers, prefer injecting the key via `curl -K -`.
+
 Use `jq -cn --arg val "$VALUE" '{field: $val}'` to safely escape user input before passing to curl.
 
 ### /search — Web Search
@@ -78,6 +80,8 @@ done
 
 **Input parameters:**
 - `URLS_JSON` (JSON array string, required): JSON array of URLs to fetch. Single URL must be wrapped in an array: `'["https://example.com"]'`
+
+**Note:** The normalized `query` field in the Standard schema is populated with the first URL in the batch (`URLS_JSON[0]`).
 
 **curl template (with 429 retry loop):**
 ```bash
@@ -238,6 +242,17 @@ Normalize results into one of the following two standard schemas.
 }
 ```
 
+### Snippet extraction priority
+
+Snippet extraction priority differs by operation, reflecting each endpoint's response shape:
+
+| Operation | Primary | Fallback chain | Design rationale |
+|-----------|---------|---------------|-----------------|
+| `/search` | `highlights[0]` | `text[:300]` → `summary` | Relevance-ranked highlights are preferable for search results |
+| `/contents` | `text[:300]` | `summary` | No `highlights` in `/contents` response; raw text is the primary output |
+| `/answer` citations | `text[:300]` | `highlights[0]` | Verbatim excerpt provides grounding; highlights are secondary |
+| `/findSimilar` | `highlights[0]` | `text[:300]` → `summary` | Same shape as `/search`; highlights preferred |
+
 ### Title fallback rule
 
 When `title` is missing or empty, extract the domain from the URL:
@@ -274,14 +289,16 @@ Check $EXA_API_KEY and replace with a valid key.
 Up to 3 attempts total (1 initial + 2 retries). Wait before each retry using exponential backoff: 2s before attempt 2, 4s before attempt 3.  
 If attempt 3 still returns 429, propagate the error to the caller.
 
-Apply this reusable pattern to any operation (example shown for `/search`):
+Apply this reusable pattern to any operation (example shown for `/search` with deep-type timeout branching):
 
 ```bash
+case "$TYPE" in deep|deep-reasoning) TIMEOUT=90 ;; *) TIMEOUT=30 ;; esac
+
 RESP_FILE=$(mktemp)
 trap 'rm -f "$RESP_FILE"' EXIT
 RESPONSE=""
 for attempt in 1 2 3; do
-  HTTP_CODE=$(curl -s --max-time 30 -X POST https://api.exa.ai/search \
+  HTTP_CODE=$(curl -s --max-time "$TIMEOUT" -X POST https://api.exa.ai/search \
     -H "x-api-key: $EXA_API_KEY" \
     -H "Content-Type: application/json" \
     -o "$RESP_FILE" -w "%{http_code}" \
@@ -292,6 +309,7 @@ for attempt in 1 2 3; do
   if [ "$attempt" -lt 3 ]; then sleep $((2 ** attempt)); fi
 done
 # $RESPONSE and $HTTP_CODE are available after the loop
+# Caller MUST inspect $HTTP_CODE: 401/403 → auth error (abort), 5xx → propagate, 2xx → proceed
 ```
 
 ### HTTP 5xx (Server error)
