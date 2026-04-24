@@ -49,10 +49,15 @@ Read each matched skill's `SKILL.md` to load its Search Procedure before Step 3.
 | 1 | Use that adapter only |
 | 2 or more | Use all adapters sequentially per sub-question; merge results and deduplicate |
 
-**Deep-Read Adapter Priority** (used in Step 4)
+**Deep-Read Adapter Selection** (used in Step 4)
 
-When selecting a single representative adapter for content fetching:
+Select the representative adapter from the **adapters that succeeded in Step 3**
+(i.e., returned at least one result without a fatal error), using priority order:
 `stack-exa` > `stack-firecrawl` > other adapters in discovery order.
+
+If the top-priority adapter fails during content fetching (Step 4), fall back to the
+next healthy adapter. If all healthy adapters fail content fetching, report the gap and
+proceed with snippet-only content for those URLs.
 
 **Sub-agent Delegation**
 
@@ -67,6 +72,9 @@ re-query skill-registry.
 | API key missing (`$KEY` unset) | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: API key not set` |
 | HTTP 401 / 403 | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: authentication failed (HTTP 4xx)` |
 | HTTP 429 (after adapter-level 3 retries) | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: rate limit exceeded` |
+| Network timeout | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: request timed out` |
+| HTTP 5xx / server error | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: server error (HTTP 5xx)` |
+| Malformed / unparseable response | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: unexpected response format` |
 | All adapters failed | Stop: `모든 search-adapter 호출이 실패했습니다. API 키와 네트워크를 확인하세요.` |
 
 Failed adapter warnings appear in both the Methodology section and the report meta line.
@@ -202,7 +210,7 @@ Example: AI is transforming diagnostics ([Nature Medicine](https://...)).
 | Report length | Action |
 |--------------|--------|
 | ≤ 3,000 chars | Post full report in chat |
-| > 3,000 chars | Save to `research-<topic>-<YYYYMMDD>.md`, post Executive Summary + Key Takeaways in chat |
+| > 3,000 chars | Save to `research-<topic>-<YYYYMMDDHHMMSS>.md`, post Executive Summary + Key Takeaways in chat |
 
 **Default save directory**: current working directory (`./`).
 Override with `$DEEP_RESEARCH_OUTPUT_DIR` environment variable.
