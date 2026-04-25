@@ -88,7 +88,7 @@ make_absolute_path() {
   if [ -d "$parent" ]; then
     printf '%s/%s\n' "$(cd "$parent" && pwd -P)" "$base"
   else
-    printf '%s\n' "$input"
+    die "target path cannot be resolved: parent directory does not exist: $parent"
   fi
 }
 
@@ -206,6 +206,12 @@ else
   case "$SOURCE_DIR/" in
     "$TARGET_DIR/"*)
       die "external mode: target must not contain the src/ directory: $TARGET_DIR"
+      ;;
+  esac
+  # Block: target is inside the harness repository (sibling directories etc.)
+  case "$TARGET_DIR/" in
+    "$REPO_DIR/"*)
+      die "external mode: target must not be inside the harness repository: $TARGET_DIR"
       ;;
   esac
 fi

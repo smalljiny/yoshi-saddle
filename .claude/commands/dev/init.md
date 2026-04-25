@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 category: dev-workflow
 ---
@@ -21,8 +21,10 @@ category: dev-workflow
 `src/` 디렉토리 존재 여부로 컨텍스트를 판별한다:
 
 ```bash
-[ -d src ] && echo "harness-repo" || echo "target-project"
+[ -d "$(git rev-parse --show-toplevel)/src" ] && echo "harness-repo" || echo "target-project"
 ```
+
+에이전트는 Bash 도구로 위 명령을 실행해 컨텍스트를 판별한다.
 
 - **존재 (하네스 저장소)**: `src/CLAUDE.md`, `src/AGENTS.md`에 쓴다. 완료 후 `./scripts/deploy-harness.sh` 실행 안내를 출력한다.
 - **부재 (타깃 프로젝트)**: 루트 `CLAUDE.md`, `AGENTS.md`에 직접 쓴다.
@@ -31,17 +33,23 @@ category: dev-workflow
 
 ### Step 2: 모드 분기
 
-대상 파일 존재 여부로 신규 생성 vs 업데이트 모드를 결정한다:
+CLAUDE.md와 AGENTS.md 각각 독립적으로 판정한다:
 
-- `$TARGET_DIR/CLAUDE.md`가 없으면 → **신규 생성 모드**
-- `$TARGET_DIR/CLAUDE.md`가 있으면 → **업데이트 모드**
+**CLAUDE.md 모드**:
+- `$TARGET_DIR/CLAUDE.md`가 없으면 → **신규 생성**
+- 있고 `@.harness/harness-guide.md` 라인이 있으면 → **업데이트**
+- 있지만 해당 라인이 없으면 → **경계 탐지 불가** → 경고 출력 + `AskUserQuestion`:
+  - `(Recommended) CLAUDE.md.bak.<timestamp> 백업 후 재생성 모드로 진행`
+  - `중단`
 
-**업데이트 모드 — 기존 마커 확인**:
-- CLAUDE.md에 `@.harness/harness-guide.md` 라인이 없으면 경계 탐지 불가
-- AGENTS.md에 `<!-- harness-guide:begin -->` 마커가 없으면 경계 탐지 불가
-- 위 중 하나라도 없으면: 사용자에게 경고를 출력하고, `AskUserQuestion`으로 진행 여부를 묻는다.
-  - `(Recommended) 백업(.bak) 생성 후 재생성 모드로 진행` — 기존 파일을 `<file>.bak`으로 복사 후 신규 생성 모드로 전환
-  - `중단` — 업데이트를 취소하고 종료
+**AGENTS.md 모드**:
+- `$TARGET_DIR/AGENTS.md`가 없으면 → **신규 생성**
+- 있고 `<!-- harness-guide:begin -->` 마커가 있으면 → **업데이트**
+- 있지만 마커가 없으면 → **경계 탐지 불가** → 경고 출력 + `AskUserQuestion`:
+  - `(Recommended) AGENTS.md.bak.<timestamp> 백업 후 재생성 모드로 진행`
+  - `중단`
+
+각 파일의 모드는 독립적으로 결정되며, 한 파일이 "중단"을 선택해도 다른 파일은 계속 진행할 수 있다.
 
 ### Step 3: 프로젝트 정보 수집
 
@@ -93,7 +101,7 @@ Claude Code가 이 저장소에서 작업할 때의 안내 파일.
 
 **신규 생성**: 위 템플릿으로 `$TARGET_DIR/CLAUDE.md`를 생성한다.
 
-**업데이트**: `@.harness/harness-guide.md` 라인을 경계로, 그 이전의 모든 내용을 새 프로젝트 섹션으로 교체한다. import 라인(`@.harness/harness-guide.md`)은 그대로 유지한다.
+**업데이트**: `@.harness/harness-guide.md` 라인을 경계로, 그 이전의 모든 내용을 새 프로젝트 섹션으로 교체한다. import 라인(`@.harness/harness-guide.md`)은 그대로 유지하며, **import 라인 이후의 내용도 그대로 보존**한다.
 
 - 업데이트 시 `version` 값을 기존 +1로 증가시킨다.
 
@@ -127,8 +135,9 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 
 **업데이트**:
 - `<!-- harness-guide:begin -->` 이전 모든 내용을 새 프로젝트 섹션으로 교체한다.
-- begin/end 마커 사이 내용도 현재 `.harness/harness-guide.md` 내용으로 교체한다 (point-in-time 갱신).
+- begin/end 마커 사이 내용도 현재 `.harness/harness-guide.md` 내용으로 교체한다 (point-in-time 갱신). **삽입 시 harness-guide.md의 YAML frontmatter 블록(`---\nversion: N\n---`)은 제외하고 본문만 삽입**한다.
 - 마커 라인 자체(`<!-- harness-guide:begin -->`, `<!-- harness-guide:end -->`)는 그대로 유지한다.
+- `<!-- harness-guide:end -->` **이후의 내용도 그대로 보존**한다.
 
 ### Step 6: 결과 안내
 

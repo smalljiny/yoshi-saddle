@@ -19,10 +19,6 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 - 컴포넌트 파일 (에이전트, 스킬, 커맨드, 규칙): **영어**
 
 <!-- harness-guide:begin -->
----
-version: 1
----
-
 # 하네스 가이드
 
 Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·훅·Codex 스킬을 한 곳에서 참조하는 문서다.
@@ -32,7 +28,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 ```
 .claude/
 ├── agents/          전문 서브에이전트 (planner, tdd-specialist, code-reviewer 등)
-├── commands/        슬래시 커맨드 (/dev:spec, /dev:plan, /dev:impl, /dev:review, /dev:verify, /dev:docs, /dev:pr, /dev:done, /harness:audit, /harness:learn)
+├── commands/        슬래시 커맨드 (/dev:init, /dev:spec, /dev:topic, /dev:plan, /dev:impl, /dev:review, /dev:verify, /dev:docs, /dev:pr, /dev:done, /harness:audit, /harness:learn)
 │   ├── dev/         개발 워크플로우 커맨드
 │   └── harness/     하네스 관리 커맨드
 ├── hooks/           훅 설정 (hooks.json)
@@ -78,6 +74,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 | `/dev:docs` | 구현된 하네스 파일로 참조 문서(`docs/specs/<name>.md`) 생성 + 커밋. `/dev:pr` 전에 실행. |
 | `/dev:pr` | 브랜치 Push + GitHub PR 생성 (퍼블리시 전용). PR 제목/본문은 플랜 Commit 필드 + `.harness/templates/pr-body.md`. |
 | `/dev:done` | 플래닝 산출물을 `done/`에 아카이브, dev-context.json에서 토픽 제거. `pr:created` 상태 필요. |
+| `/dev:init` | CLAUDE.md·AGENTS.md 프로젝트 섹션 초기화·업데이트 |
 | `/dev:topic` | 활성 토픽 + backlog 목록 확인, 또는 활성 토픽 전환 (`/dev:topic switch <name>`) |
 | `/harness:learn` | 세션 패턴 추출 → skills/learned/에 저장 |
 
