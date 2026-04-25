@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Reconcile spec with implementation, update existing docs/specs/ files (or create new ones), and commit. Run before /dev:pr.
 category: dev-workflow
 ---
@@ -71,33 +71,43 @@ node .harness/scripts/dev-context.js read --field=config.git.pullRemote
 
 Use defaults if not set: `baseBranch=main`, `pullRemote=origin`.
 
+Read the source filter configuration:
+```bash
+node .harness/scripts/dev-context.js read --field=config.docs.sourceFilter
+```
+Parse the output as a line-by-line list of path prefixes (one prefix per line). Store as `sourceFilter`. If the output is empty, `sourceFilter` is an empty list (no filter).
+
+**sourceFilter application rule** (used at both filter points below):
+- If `sourceFilter` is empty: include all files (no filtering).
+- If `sourceFilter` is non-empty: keep only files whose path starts with at least one of the listed prefixes.
+
 Collect changed files from all three sources and deduplicate:
 
 1. `git diff <pullRemote>/<baseBranch>...HEAD --name-only` — committed changes
 2. `git diff --name-only` — unstaged working tree changes
 3. `git diff --cached --name-only` — staged changes
 
-Merge the three lists and remove duplicates.
+Merge the three lists and remove duplicates. Apply the **sourceFilter application rule**.
 
 **If all three sources are empty**:
 ```
 git diff 결과가 비어 있습니다.
 베이스 브랜치를 입력하세요 (기본값: <baseBranch>):
 ```
-Validate the user-provided branch name against `^[a-zA-Z0-9][a-zA-Z0-9_/.-]*$` before using it (leading `-` is rejected to prevent option injection). If invalid, re-prompt. Then verify the branch exists (`git rev-parse --verify -- <branch>`); if not found, show an error and stop. Then re-run the three diff sources with this branch as base and re-apply the harness filter.
+Validate the user-provided branch name against `^[a-zA-Z0-9][a-zA-Z0-9_/.-]*$` before using it (leading `-` is rejected to prevent option injection). If invalid, re-prompt. Then verify the branch exists (`git rev-parse --verify -- <branch>`); if not found, show an error and stop. Then re-run the three diff sources with this branch as base and re-apply the **sourceFilter application rule**.
 
-Filter to harness files only — keep files matching any of:
-- path starts with `.claude/`
-- path starts with `.codex/`
-- path starts with `.harness/`
-- path is `CLAUDE.md`
-- path is `AGENTS.md`
+**If no files found after filtering**:
 
-**If no harness files found after filtering**:
-```
-⚠ 변경된 하네스 파일이 없습니다.
-계속하시겠습니까? (y/n)
-```
+- If `sourceFilter` was empty (no filter applied):
+  ```
+  ⚠ 변경된 파일이 없습니다.
+  계속하시겠습니까? (y/n)
+  ```
+- If `sourceFilter` was non-empty (filter applied):
+  ```
+  ⚠ 변경된 파일이 없습니다 (sourceFilter 적용됨).
+  계속하시겠습니까? (y/n)
+  ```
 - `n`: stop
 - `y`: proceed to Step 4 with an empty change set
 
@@ -280,6 +290,7 @@ Show completion:
 - **amend forbidden** — re-entry creates a new commit, never amends
 - **Failure is safe** — state does not transition on error; re-run after fixing
 - **diff base from config** — uses `config.git.pullRemote`/`config.git.baseBranch` (defaults: `origin`/`main`)
+- **sourceFilter from config** — file filter is externalized to `config.docs.sourceFilter`; unset or empty array means no filter (full diff used); both are treated identically
 
 ## Next Steps
 
