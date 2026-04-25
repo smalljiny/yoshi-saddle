@@ -1,24 +1,7 @@
-# AGENTS.md
+---
+version: 2
+---
 
-Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 `CLAUDE.md`를 사용한다.
-
-## 프로젝트 개요
-
-이 저장소는 **Claude Code 기반 개발을 위한 하네스**다. **프로젝트 템플릿**으로 기능하며 — 새 프로젝트를 시작할 때 `src/` 디렉토리를 복사해 개발 환경으로 사용한다. `scripts/deploy-harness.sh`로 대상 프로젝트에 배포하거나, 인자 없이 실행하면 `src/` → 루트 자기 동기화를 수행한다.
-
-## 기술 스택
-
-- **Bash** — 배포 스크립트 (`scripts/deploy-harness.sh`)
-- **Node.js** — 훅 스크립트, `dev-context.js` 상태 관리자 (`.harness/scripts/`, `.claude/scripts/`)
-- **Markdown** — 에이전트, 스킬, 커맨드, 규칙 컴포넌트 파일
-
-## 언어 규칙
-
-- 문서, 주석, 커밋 메시지: **한국어**
-- 코드 식별자 (변수, 함수, 파일명, 디렉토리명): **영어**
-- 컴포넌트 파일 (에이전트, 스킬, 커맨드, 규칙): **영어**
-
-<!-- harness-guide:begin -->
 # 하네스 가이드
 
 Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·훅·Codex 스킬을 한 곳에서 참조하는 문서다.
@@ -221,4 +204,3 @@ codex "plan-review 스킬을 실행해줘"
 |---------|------|
 | `references/everything-claude-code/` | Claude Code 플러그인 레퍼런스. 에이전트, 스킬, 커맨드, 훅, 규칙, mcp-configs 구조와 검증된 워크플로우 제공. |
 | `references/sample-claude-env/` | 이전 프로젝트 샘플. 문서 구조(docs, guides, specs, onboarding)와 Codex 리뷰 프롬프트 포함. |
-<!-- harness-guide:end -->
