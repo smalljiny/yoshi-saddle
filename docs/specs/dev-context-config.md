@@ -1,6 +1,6 @@
 # dev-context 전역 config 섹션
 
-> `dev-context.json`의 전역 `config` 섹션과 `dev-context.js` 점 경로 CLI의 동작 계약. 현재 정의된 네임스페이스: `config.dev_impl.*`, `config.git.*`.
+> `dev-context.json`의 전역 `config` 섹션과 `dev-context.js` 점 경로 CLI의 동작 계약. 현재 정의된 네임스페이스: `config.dev_impl.*`, `config.git.*`, `config.docs.*`.
 
 ## 개요
 
@@ -12,6 +12,7 @@
 - `config.git` — `/dev:docs`·`/dev:pr` 에서 참조하는 git 원격 설정
 - `config.review` — `/dev:review` 옵션 설정 (adversarial-review opt-in)
 - `config.codex` — Codex CLI 감지 캐시 (쓰기 전용: `codex-session-detection` 시스템 소유. 소비: `/dev:review`·`meta-codex-bridge`)
+- `config.docs` — `/dev:docs` 파일 수집 동작 제어 (`/dev:init`이 저장소 유형 감지 후 자동 설정)
 
 ## 구조 / 스키마
 
@@ -40,6 +41,9 @@
       "authenticated": false,
       "version": "",
       "checked_at": ""
+    },
+    "docs": {
+      "sourceFilter": []
     }
   },
   "updatedAt": "<ISO-8601>"
@@ -54,10 +58,11 @@
 
 ### `dev-context.js` — config 경로 읽기/쓰기
 
-- `read --field=config.<ns>.<key>`: `--topic` 금지. `Object.hasOwn` 가드로 own property만 조회하며, 경로상 어느 세그먼트가 없어도 빈 줄을 출력한다(exit 0). 상속 속성(`toString`, `valueOf` 등)은 반환하지 않는다.
+- `read --field=config.<ns>.<key>`: `--topic` 금지. `Object.hasOwn` 가드로 own property만 조회하며, 경로상 어느 세그먼트가 없어도 빈 줄을 출력한다(exit 0). 상속 속성(`toString`, `valueOf` 등)은 반환하지 않는다. **배열 값이면 원소를 한 줄씩 출력**한다. 빈 배열·미설정 모두 빈 출력(호출자는 빈 출력을 "필터 없음"으로 처리).
 - `set-field --field=config.<ns>.<key> --value=<V>`: `--topic` 금지. 누락된 `config` · `config.<ns>` 객체를 auto-create한다. 값은 config 경로 전용 타입 추론으로 저장된다:
   - `"true"`/`"false"` → boolean
   - `/^-?\d+$/` 매칭 → Number
+  - `/^\s*\[.*\]\s*$/s` 매칭 (완전한 JSON 배열 리터럴) → JSON 배열. 원소가 모두 문자열이어야 하며 줄바꿈(`\r\n`) 포함 불가. 나머지 `[`로 시작하는 값(예: `[A-Z].*` 정규식)은 문자열로 저장된다.
   - 그 외 → string (리터럴 `"null"`도 문자열로 저장)
 - 토픽 필드 경로(`set-field --topic=<X> --field=<F> --value=<V>`)는 타입 추론 대상이 아니며, 값을 문자열 그대로 저장한다.
 - 깊이 1(`config`, `config.X`) 또는 깊이 3 이상(`config.X.Y.Z`) 경로는 non-zero exit로 거부된다.
@@ -112,6 +117,29 @@ adversarial-review 전체 실행 흐름과 조건 평가 순서는 `review-adver
 
 캐시 갱신 방법: `/codex:setup` 실행 또는 세션 재시작. 상세 동작은 `codex-session-detection.md` 참조.
 
+### `config.docs.sourceFilter` — `/dev:docs` 변경 파일 수집 필터
+
+`/dev:docs` Step 3에서 git diff 결과를 필터링할 경로 prefix 목록. `/dev:init`이 저장소 유형을 자동 감지하여 설정한다.
+
+| 값 | 동작 |
+|---|---|
+| `[]` (빈 배열) 또는 미설정 | 필터 없음 — 전체 git diff 결과 포함 |
+| `[".claude/", ...]` 비어 있지 않은 배열 | 해당 prefix로 시작하는 파일만 포함 |
+
+**`/dev:init` 자동 감지**:
+
+- `scripts/deploy-harness.sh` 존재 → 하네스 저장소 → `[".claude/", ".codex/", ".harness/", "CLAUDE.md", "AGENTS.md"]` 설정
+- 미존재 → 일반 프로젝트 → `[]` 설정
+
+수동 설정:
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=config.docs.sourceFilter \
+  --value='[".claude/", ".harness/", "src/"]'
+```
+
+**마이그레이션**: 이 필드를 처음 도입하는 경우 `/dev:init`을 한 번 실행해 저장소 유형에 맞는 기본값을 설정한다.
+
 ### `config.git.*` — 원격 저장소 설정
 
 `/dev:docs`의 변경 파일 수집 시 `config.git.pullRemote`와 `config.git.baseBranch`를 조합하여 diff 기준을 결정한다:
@@ -131,6 +159,9 @@ git diff <pullRemote>/<baseBranch>...HEAD
 - `auto_commit` 기본값은 `false`(수동 확인)이다.
 - `adversarial_enabled` 기본값은 `false`(비활성)이다. `set-field`로 명시적으로 `true`로 전환할 때만 활성화된다.
 - `config.codex.*`는 시스템이 소유하는 캐시 네임스페이스다. 사용자·커맨드가 직접 `set-field`를 호출하지 않는다.
+- `config.docs.sourceFilter`의 빈 배열과 미설정은 `read` 출력이 동일(빈 줄)하므로 `/dev:docs`는 두 경우를 "필터 없음"으로 동일 처리한다.
+- 배열 원소에는 `\r`·`\n`이 허용되지 않는다 — `set-field` 단계에서 거부된다.
+- 배열 추론은 완전한 JSON 배열 형태(`[...]`)에만 적용된다. `[A-Z].*` 같은 정규식 스칼라는 일반 문자열로 저장된다.
 - Per-invocation CLI 오버라이드(예: `/dev:impl --auto-start`)는 지원하지 않는다.
 - 토픽별 config 블록(`topics[X].config`)은 스키마에 존재하지 않는다.
 - 키별 기본값 테이블은 CLI에 중앙화되어 있지 않다. 소비 커맨드가 빈 문자열을 "미설정"으로 해석하여 기본 동작을 적용한다. `config.git.*` 기본값: `pushRemote`·`pullRemote=origin`, `baseBranch=main`.
