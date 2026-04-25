@@ -54,7 +54,7 @@ docs/
    git diff --name-only
    git diff --cached --name-only
    ```
-   세 소스를 병합·중복 제거 후 harness 파일(`.claude/`, `.codex/`, `.harness/`, `CLAUDE.md`, `AGENTS.md`)만 필터링한다. 세 소스가 모두 비면 사용자로부터 base 브랜치를 입력받아 재수집한다.
+   세 소스를 병합·중복 제거한 뒤 `config.docs.sourceFilter`(prefix 목록)로 필터링한다. `sourceFilter`가 비어 있거나 미설정이면 필터를 적용하지 않는다. 세 소스가 모두 비면 사용자로부터 base 브랜치를 입력받아 재수집한다. `config.docs.sourceFilter` 스키마는 `dev-context-config.md` 참조.
 
 4. **스펙 정합성 확인**: `docs/_local/active/<topic>/spec.md`와 수집된 변경 내용을 비교해 불일치를 도출한다.
    - 불일치 있음: 목록을 표시하고 일괄 승인 시 `spec.md`에 반영. 수정이 구현 목표를 변경하는 경우 즉시 중단한다.
@@ -88,3 +88,4 @@ docs/
 - `refDoc`은 단일 대표 경로만 지원한다. `/dev:pr`의 PR body 계약이 단일 경로를 요구하므로 복수 경로 확장은 범위 밖이다.
 - 스펙 수정이 구현 목표를 변경하면 `/dev:docs`를 즉시 중단하고 `/dev:plan` 또는 `/dev:review`부터 재검토해야 한다.
 - `config.git.pullRemote`·`config.git.baseBranch` 미설정 시 기본값 `origin`·`main` 사용 (스키마는 `dev-context-config.md` 참조).
+- `config.docs.sourceFilter` 미설정 또는 빈 배열은 "필터 없음"과 동일하다. 하네스 저장소는 `/dev:init`을 실행해 소스 필터를 초기화해야 한다.

@@ -506,6 +506,82 @@ describe('dev-context.js', () => {
       const out = run('read', '--field=config.dev_impl.auto_start')
       assert.equal(out, 'true')
     })
+
+    // 14. JSON 배열 리터럴 지원
+    test('set-field config: JSON 문자열 배열 → 네이티브 배열 저장', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[".claude/",".harness/"]')
+      const ctx = readCtx()
+      assert.deepEqual(ctx.config.docs.sourceFilter, ['.claude/', '.harness/'])
+      assert.ok(Array.isArray(ctx.config.docs.sourceFilter))
+    })
+
+    test('read config: 배열 값 → 줄바꿈 구분 출력 (각 원소 한 줄)', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[".claude/",".harness/","CLAUDE.md"]')
+      const out = run('read', '--field=config.docs.sourceFilter')
+      assert.equal(out, '.claude/\n.harness/\nCLAUDE.md')
+    })
+
+    test('set-field config: 빈 배열 [] 저장 → 네이티브 빈 배열', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[]')
+      const ctx = readCtx()
+      assert.deepEqual(ctx.config.docs.sourceFilter, [])
+      assert.ok(Array.isArray(ctx.config.docs.sourceFilter))
+    })
+
+    test('read config: 빈 배열 → 빈 출력 (미설정과 동일 동작)', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[]')
+      const out = run('read', '--field=config.docs.sourceFilter')
+      assert.equal(out, '')
+    })
+
+    test('set-field config: 비문자열 원소(숫자) → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=[1,2]')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('문자열 원소만 허용'))
+    })
+
+    test('set-field config: 비문자열 원소(null 포함) → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=[null]')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('문자열 원소만 허용'))
+    })
+
+    test('set-field config: [invalid (닫는 ] 없음) → 스칼라 문자열로 저장 (정규식 패턴 보호)', () => {
+      // [A-Z].* 같은 정규식 스칼라를 보호하기 위해 '[...]' 패턴만 배열로 추론.
+      // '[invalid'은 패턴 미매치 → 문자열 그대로 저장 (에러 아님).
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[invalid')
+      const ctx = readCtx()
+      assert.equal(ctx.config.docs.sourceFilter, '[invalid')
+      assert.equal(typeof ctx.config.docs.sourceFilter, 'string')
+    })
+
+    test('set-field config: [A-Z].* 정규식 스칼라 → 문자열 저장 (배열 오탐 없음)', () => {
+      run('set-field', '--field=config.git.branchPattern', '--value=[A-Z].*')
+      const ctx = readCtx()
+      assert.equal(ctx.config.git.branchPattern, '[A-Z].*')
+      assert.equal(typeof ctx.config.git.branchPattern, 'string')
+    })
+
+    test('set-field config: 줄바꿈 포함 배열 원소 → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=["src/\\nlib/"]')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('줄바꿈'))
+    })
+
+    test('round-trip: 빈 배열은 split-and-filter 시 0 prefix로 해석', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[]')
+      const out = run('read', '--field=config.docs.sourceFilter')
+      const prefixes = out.split('\n').filter(Boolean)
+      assert.equal(prefixes.length, 0)
+    })
+
+    test('회귀: 토픽 필드 set-field에는 배열 추론 미적용 (문자열 그대로 저장)', () => {
+      run('register-topic', '--topic=arr-reg', '--spec=some/spec.md')
+      run('set-field', '--topic=arr-reg', '--field=plan', '--value=["x"]')
+      const ctx = readCtx()
+      assert.equal(ctx.topics['arr-reg'].plan, '["x"]')
+      assert.equal(typeof ctx.topics['arr-reg'].plan, 'string')
+    })
   })
 
   describe('remove-topic', () => {

@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 category: dev-workflow
 ---
@@ -128,7 +128,37 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 - 마커 라인 자체(`<!-- harness-guide:begin -->`, `<!-- harness-guide:end -->`)는 그대로 유지한다.
 - `<!-- harness-guide:end -->` **이후의 내용도 그대로 보존**한다.
 
-### Step 5: 결과 안내
+### Step 5: docs.sourceFilter 자동 감지·설정
+
+Step 1에서 두 파일(`CLAUDE.md`, `AGENTS.md`) 모두 "중단"을 선택한 경우 이 단계를 건너뛴다.
+
+`scripts/deploy-harness.sh` 파일 존재 여부로 저장소 유형을 감지하고 `config.docs.sourceFilter`를 설정한다.
+
+**감지 로직**:
+
+`scripts/deploy-harness.sh`가 존재하면 (하네스 저장소):
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=config.docs.sourceFilter \
+  --value='[".claude/",".codex/",".harness/","CLAUDE.md","AGENTS.md"]'
+```
+출력: `하네스 저장소로 감지: config.docs.sourceFilter를 하네스 기본값으로 설정했습니다.`
+
+`scripts/deploy-harness.sh`가 없으면 (일반 프로젝트):
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=config.docs.sourceFilter \
+  --value='[]'
+```
+출력: `일반 프로젝트로 감지: config.docs.sourceFilter를 빈 배열로 설정했습니다 (필터 없음).`
+
+**덮어쓰기 정책**: 기존 값이 있어도 감지 결과로 덮어쓴다. 사용자 정의가 필요하면 `/dev:init` 재실행 후 `dev-context.js set-field`로 수동 조정:
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=config.docs.sourceFilter --value='["src/","lib/"]'
+```
+
+### Step 6: 결과 안내
 
 작성된 파일 경로와 모드(신규/업데이트)를 출력한다:
 
@@ -136,7 +166,9 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 완료:
   [신규/업데이트] CLAUDE.md
   [신규/업데이트] AGENTS.md
+  [감지] config.docs.sourceFilter = [".claude/",".codex/",".harness/","CLAUDE.md","AGENTS.md"]
 ```
+(일반 프로젝트의 경우: `[감지] config.docs.sourceFilter = [] (필터 없음)`)
 
 ## 오류 처리
 
@@ -145,6 +177,7 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 | 마커 없는 기존 파일 | Step 1에서 경고 + AskUserQuestion → 백업 후 재생성 or 중단 |
 | `.harness/harness-guide.md` 없음 | AGENTS.md begin/end 블록을 빈 상태로 생성, 경고 출력 |
 | 쓰기 권한 없음 | 오류 메시지 출력 후 종료 |
+| Step 5: `dev-context.js` 미존재 또는 `set-field` 실패 | 경고 출력 + Step 5 스킵, Step 6에서 `[감지 실패] config.docs.sourceFilter` 표기 |
 
 ## Key Principles
 
@@ -152,3 +185,4 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 - **AskUserQuestion 사용 필수** — 선택이 포함된 모든 질문에 적용. 첫 옵션에 `(Recommended)` 레이블.
 - **경계 마커 기준 업데이트** — 프로젝트 섹션은 마커(`@.harness/harness-guide.md`, `<!-- harness-guide:begin -->`) 이전까지로 정의됨.
 - **harness-guide 블록 갱신** — 업데이트 시 AGENTS.md의 harness-guide 블록을 현재 `.harness/harness-guide.md` 내용으로 최신화.
+- **저장소 유형 자동 감지** — `scripts/deploy-harness.sh` 존재 여부로 `config.docs.sourceFilter` 기본값 결정 (하네스 저장소: 하네스 파일 prefix 목록, 일반 프로젝트: 빈 배열); 기존 값이 있어도 덮어씀 (`/dev:init`은 멱등한 설정 커맨드이므로 재실행마다 전체 초기화가 의도된 동작).
