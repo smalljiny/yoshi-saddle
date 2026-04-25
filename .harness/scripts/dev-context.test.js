@@ -546,10 +546,20 @@ describe('dev-context.js', () => {
       assert.ok(err.stderr.includes('문자열 원소만 허용'))
     })
 
-    test('set-field config: 깨진 JSON 배열 → 파싱 오류 메시지 + non-zero exit', async () => {
-      const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=[invalid')
-      assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('JSON 배열 파싱 실패'))
+    test('set-field config: [invalid (닫는 ] 없음) → 스칼라 문자열로 저장 (정규식 패턴 보호)', () => {
+      // [A-Z].* 같은 정규식 스칼라를 보호하기 위해 '[...]' 패턴만 배열로 추론.
+      // '[invalid'은 패턴 미매치 → 문자열 그대로 저장 (에러 아님).
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[invalid')
+      const ctx = readCtx()
+      assert.equal(ctx.config.docs.sourceFilter, '[invalid')
+      assert.equal(typeof ctx.config.docs.sourceFilter, 'string')
+    })
+
+    test('set-field config: [A-Z].* 정규식 스칼라 → 문자열 저장 (배열 오탐 없음)', () => {
+      run('set-field', '--field=config.git.branchPattern', '--value=[A-Z].*')
+      const ctx = readCtx()
+      assert.equal(ctx.config.git.branchPattern, '[A-Z].*')
+      assert.equal(typeof ctx.config.git.branchPattern, 'string')
     })
 
     test('set-field config: 줄바꿈 포함 배열 원소 → non-zero exit', async () => {

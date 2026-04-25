@@ -44,11 +44,12 @@ function parseConfigPath(field) {
 }
 
 // config 경로 전용 값 타입 추론: 'true'/'false' → boolean, 정수 리터럴 → number, JSON 배열 → array, 그 외 → string
+// 배열 추론: '[' 시작 + ']' 끝 패턴만. '[A-Z].*' 같은 정규식 스칼라는 ']*' 뒤에 문자가 있으므로 매치되지 않음.
 function coerceConfigValue(value) {
   if (value === 'true') return true
   if (value === 'false') return false
   if (/^-?\d+$/.test(value)) return Number(value)
-  if (/^\s*\[/.test(value)) {
+  if (/^\s*\[.*\]\s*$/s.test(value)) {
     let parsed
     try {
       parsed = JSON.parse(value)
