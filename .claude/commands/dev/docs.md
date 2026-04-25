@@ -75,7 +75,9 @@ Read the source filter configuration:
 ```bash
 node .harness/scripts/dev-context.js read --field=config.docs.sourceFilter
 ```
-Parse the output as a line-by-line list of path prefixes (one prefix per line). Store as `sourceFilter`. If the output is empty, `sourceFilter` is an empty list (no filter).
+Parse the output as a line-by-line list of path prefixes: split by `\n`, filter out empty strings. Store as `sourceFilter`. If no non-empty lines remain, `sourceFilter` is an empty list (no filter).
+
+> **Migration note**: If `config.docs.sourceFilter` has never been set (e.g., upgrading from a version without this feature), the result is an empty `sourceFilter` and all changed files are included. For harness repositories, run `/dev:init` once to auto-configure the correct filter.
 
 **sourceFilter application rule** (used at both filter points below):
 - If `sourceFilter` is empty: include all files (no filtering).

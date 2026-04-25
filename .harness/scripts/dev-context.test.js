@@ -552,6 +552,19 @@ describe('dev-context.js', () => {
       assert.ok(err.stderr.includes('JSON 배열 파싱 실패'))
     })
 
+    test('set-field config: 줄바꿈 포함 배열 원소 → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=["src/\\nlib/"]')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('줄바꿈'))
+    })
+
+    test('round-trip: 빈 배열은 split-and-filter 시 0 prefix로 해석', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[]')
+      const out = run('read', '--field=config.docs.sourceFilter')
+      const prefixes = out.split('\n').filter(Boolean)
+      assert.equal(prefixes.length, 0)
+    })
+
     test('회귀: 토픽 필드 set-field에는 배열 추론 미적용 (문자열 그대로 저장)', () => {
       run('register-topic', '--topic=arr-reg', '--spec=some/spec.md')
       run('set-field', '--topic=arr-reg', '--field=plan', '--value=["x"]')

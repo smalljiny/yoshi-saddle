@@ -55,8 +55,8 @@ function coerceConfigValue(value) {
     } catch (e) {
       die(`config 값 파싱 오류: JSON 배열 파싱 실패 — ${e.message} (입력: ${value})`)
     }
-    if (!Array.isArray(parsed) || !parsed.every(el => typeof el === 'string')) {
-      die('config 배열 값은 문자열 원소만 허용합니다 (예: [".claude/", ".harness/"])')
+    if (!Array.isArray(parsed) || !parsed.every(el => typeof el === 'string' && !/[\r\n]/.test(el))) {
+      die('config 배열 값은 문자열 원소만 허용합니다 — 줄바꿈 포함 및 비문자열 불가 (예: [".claude/", ".harness/"])')
     }
     return parsed
   }
