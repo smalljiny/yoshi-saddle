@@ -506,6 +506,59 @@ describe('dev-context.js', () => {
       const out = run('read', '--field=config.dev_impl.auto_start')
       assert.equal(out, 'true')
     })
+
+    // 14. JSON 배열 리터럴 지원
+    test('set-field config: JSON 문자열 배열 → 네이티브 배열 저장', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[".claude/",".harness/"]')
+      const ctx = readCtx()
+      assert.deepEqual(ctx.config.docs.sourceFilter, ['.claude/', '.harness/'])
+      assert.ok(Array.isArray(ctx.config.docs.sourceFilter))
+    })
+
+    test('read config: 배열 값 → 줄바꿈 구분 출력 (각 원소 한 줄)', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[".claude/",".harness/","CLAUDE.md"]')
+      const out = run('read', '--field=config.docs.sourceFilter')
+      assert.equal(out, '.claude/\n.harness/\nCLAUDE.md')
+    })
+
+    test('set-field config: 빈 배열 [] 저장 → 네이티브 빈 배열', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[]')
+      const ctx = readCtx()
+      assert.deepEqual(ctx.config.docs.sourceFilter, [])
+      assert.ok(Array.isArray(ctx.config.docs.sourceFilter))
+    })
+
+    test('read config: 빈 배열 → 빈 출력 (미설정과 동일 동작)', () => {
+      run('set-field', '--field=config.docs.sourceFilter', '--value=[]')
+      const out = run('read', '--field=config.docs.sourceFilter')
+      assert.equal(out, '')
+    })
+
+    test('set-field config: 비문자열 원소(숫자) → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=[1,2]')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('문자열 원소만 허용'))
+    })
+
+    test('set-field config: 비문자열 원소(null 포함) → non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=[null]')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('문자열 원소만 허용'))
+    })
+
+    test('set-field config: 깨진 JSON 배열 → 파싱 오류 메시지 + non-zero exit', async () => {
+      const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=[invalid')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('JSON 배열 파싱 실패'))
+    })
+
+    test('회귀: 토픽 필드 set-field에는 배열 추론 미적용 (문자열 그대로 저장)', () => {
+      run('register-topic', '--topic=arr-reg', '--spec=some/spec.md')
+      run('set-field', '--topic=arr-reg', '--field=plan', '--value=["x"]')
+      const ctx = readCtx()
+      assert.equal(ctx.topics['arr-reg'].plan, '["x"]')
+      assert.equal(typeof ctx.topics['arr-reg'].plan, 'string')
+    })
   })
 
   describe('remove-topic', () => {

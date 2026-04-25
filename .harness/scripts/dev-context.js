@@ -43,11 +43,23 @@ function parseConfigPath(field) {
   return { ok: true, ns: segments[1], key: segments[2] }
 }
 
-// config 경로 전용 값 타입 추론: 'true'/'false' → boolean, 정수 리터럴 → number, 그 외 → string
+// config 경로 전용 값 타입 추론: 'true'/'false' → boolean, 정수 리터럴 → number, JSON 배열 → array, 그 외 → string
 function coerceConfigValue(value) {
   if (value === 'true') return true
   if (value === 'false') return false
   if (/^-?\d+$/.test(value)) return Number(value)
+  if (/^\s*\[/.test(value)) {
+    let parsed
+    try {
+      parsed = JSON.parse(value)
+    } catch (e) {
+      die(`config 값 파싱 오류: JSON 배열 파싱 실패 — ${e.message} (입력: ${value})`)
+    }
+    if (!Array.isArray(parsed) || !parsed.every(el => typeof el === 'string')) {
+      die('config 배열 값은 문자열 원소만 허용합니다 (예: [".claude/", ".harness/"])')
+    }
+    return parsed
+  }
   return value
 }
 
@@ -255,7 +267,13 @@ switch (subcommand) {
       const nsObj = hasNs ? ctx.config[parsed.ns] : undefined
       const hasKey = nsObj !== null && typeof nsObj === 'object' && Object.hasOwn(nsObj, parsed.key)
       const val = hasKey ? nsObj[parsed.key] : undefined
-      process.stdout.write((val === null || val === undefined ? '' : String(val)) + '\n')
+      if (Array.isArray(val)) {
+        // 빈 배열과 미설정은 모두 빈 출력을 낸다.
+        // 호출자(예: /dev:docs)는 "빈 출력 = 필터 없음"으로 동일하게 처리해야 한다.
+        process.stdout.write(val.length > 0 ? val.join('\n') + '\n' : '\n')
+      } else {
+        process.stdout.write((val === null || val === undefined ? '' : String(val)) + '\n')
+      }
       break
     }
 
