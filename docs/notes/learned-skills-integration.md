@@ -1,195 +1,90 @@
-# Learned Skills → 기존 컴포넌트 강화 아이디어
+# Learned Skills → 하네스 컴포넌트 통합 현황
 
-> 작성일: 2026-04-23  
-> 계기: `.claude/skills/learned/` 11개 패턴 검토 — 기존 커맨드·규칙·스킬에 반영되지 않은 항목 식별
+> 최초 작성: 2026-04-23 · 최종 갱신: 2026-04-25  
+> 계기: `.claude/skills/learned/` 14개 패턴 전수 검토 — 반영 상태 분류 및 잔여 작업 정리
 
 ---
 
 ## 개요
 
-`/harness:learn`으로 축적된 learned skill은 세션 중 발견된 버그·보안 취약점·설계 개선을 담고 있다.  
-이 문서는 각 패턴이 어떤 기존 컴포넌트를 강화할 수 있는지 매핑하고 작업 우선순위를 정리한다.
+`/harness:learn`으로 축적된 learned skill은 세션 중 발견된 버그·보안 취약점·설계 개선을 담는다.
+각 패턴은 코드·명령어·규칙 파일에 흡수되면 learned skill로 유지할 필요가 없어진다.
+
+이 문서는 **잔여 통합 작업**(아직 규칙·명령어에 흡수되지 않은 패턴)을 추적한다.
 
 ---
 
-## 고우선순위 — 직접적인 버그·보안 위험
+## 잔여 작업 — 규칙 파일 업데이트 (6건)
 
-### 1. `shell-heredoc-injection` → `pr.md`, `impl.md`, `done.md`
+### `.harness/rules/security.md` — 2개 패턴 추가 필요
 
-**패턴 요약**: AI·사용자 생성 문자열(PR 제목, 커밋 메시지, 플랜 이름 등)을 셸 명령에 직접 보간하면  
-injection 취약. `"$var"` 대신 HEREDOC 또는 `--message-file`로 리터럴 전달해야 한다.
+**`shell-heredoc-injection`**
+- 패턴: AI·사용자 생성 문자열을 셸 명령에 보간할 때 HEREDOC으로 injection 방어
+- 현황: `/dev:pr` Step 7에는 이미 적용됨. 규칙 파일에는 없어 새 명령어 작성 시 누락 위험
+- 추가할 섹션: "Shell Injection Defense"
 
-**현재 문제**:
-- `gh pr create --body "$body"` 형태가 `pr.md`에 있을 경우 플랜 이름에 `$(...)` 포함 시 실행됨
-- `git commit -m "$msg"` 형태도 동일한 위험
-
-**적용 방향**:
-- `pr.md`: `gh pr create` 호출부를 HEREDOC 방식으로 명세
-- `impl.md`: `git commit -m` 호출부에 HEREDOC 패턴 명시
-- `done.md`: 아카이브 파일명 생성 시 사용자 입력 포함 경로 처리
+**`prototype-pollution-defense-cli`**
+- 패턴: 동적 키로 JSON 객체를 조작하는 CLI에서 쓰기 예약 키 차단 + 읽기 `hasOwn` 가드 2층 방어
+- 현황: `dev-context.js`에는 이미 적용됨. 향후 CLI 추가 시 동일 구현이 필요하므로 규칙화 필요
+- 추가할 섹션: "CLI Dynamic Key Access"
 
 ---
 
-### 2. `prototype-pollution-defense-cli` → `dev-context.js`
+### `.harness/rules/testing.md` — 1개 패턴 추가 필요
 
-**패턴 요약**: CLI에서 사용자 입력 경로로 JSON 객체를 조작할 때, 쓰기 단계에서  
-`__proto__`, `constructor`, `prototype` 예약 키를 차단하고, 읽기 단계에서 `Object.hasOwn()` 가드 적용.
-
-**현재 문제**:
-- `.harness/scripts/dev-context.js`는 `set-field` 명령으로 임의 경로를 JSON에 쓴다
-- 예: `node dev-context.js set-field topics.__proto__.isAdmin true`
-
-**적용 방향**:
-- `dev-context.js` `set-field` 핸들러에 예약 키 차단 가드 추가
-- `get-field` 핸들러에 `Object.hasOwn()` 기반 안전 읽기 적용
+**`test-guard-precedence`**
+- 패턴: 다층 guard 테스트 시 검증 대상 guard 이전의 모든 guard를 통과할 입력을 완비해야 함
+- 현황: 테스트 규칙에 guard 계층 테스트 원칙 없음
+- 추가할 섹션: "다층 Guard 테스트 원칙"
 
 ---
 
-### 3. `git-diff-three-source` → `done.md`, `review.md`, `verify.md`
+### `.claude/rules/common/development-workflow.md` — 1개 패턴 추가 필요
 
-**패턴 요약**: 변경 파일 목록 수집 시 세 가지 소스를 합산해야 모든 케이스를 포착한다.
-
-```
-git diff <base>...HEAD        # 브랜치 전체 변경
-git diff --name-only          # 미커밋 변경 (unstaged)
-git diff --cached --name-only # 스테이징된 변경
-```
-
-**현재 문제**:
-- `done.md`가 `git diff`만 사용하면 스테이징 파일을 빠뜨림
-- `review.md` 리뷰 범위가 HEAD 기준으로만 잡히면 워킹트리 변경 누락
-
-**적용 방향**:
-- 세 소스를 합산·중복 제거하는 표준 파일 수집 패턴을 `verify.md`·`done.md`·`review.md`에 명시
+**`bash-set-u-empty-array`**
+- 패턴: `set -u` 환경에서 빈 배열의 안전 확장 — `${arr[@]+"${arr[@]}"}` 패턴
+- 현황: 기존 "Shell Portability" 섹션이 bash vs zsh만 다루고, `set -u` 빈 배열 패턴은 없음
+- 추가할 위치: Shell Portability 섹션 하단
 
 ---
 
-## 중우선순위 — 워크플로우 개선
+### `.claude/rules/common/component-boundaries.md` — 2개 패턴 추가 필요
 
-### 4. `state-table-before-branch` → `docs.md`, `pr.md`, `impl.md`
+**`skill-checklist-duplication`**
+- 패턴: 스킬이 이미 정의한 체크리스트를 커맨드에 bullet으로 복사하지 않고 섹션 참조 위임
+- 현황: Violation Criteria에 "already exists in a skill" 기준은 있으나 체크리스트 구체 예시 없음
+- 추가할 위치: Violation Criteria 섹션 — 구체 예시 추가
 
-**패턴 요약**: 여러 상태를 처리하는 커맨드에서 early-stop guard 대신 exhaustive 상태 테이블을  
-먼저 정의해야 특정 상태가 절대 도달 불가능해지는 버그를 방지할 수 있다.
-
-```
-# 나쁜 패턴 (early-stop guard)
-if status == "pr:created": stop
-if status == "impl:in-progress": ...
-
-# 좋은 패턴 (상태 테이블)
-상태 → 모드 매핑:
-  docs:generated → update 모드
-  pr:created     → skip (이미 완료)
-  impl:*         → create 모드
-  그 외          → 오류
-```
-
-**현재 문제**:
-- `docs.md`가 다양한 진입 상태를 처리할 때 특정 상태 조합이 의도치 않게 통과될 수 있음
-- `pr.md`의 모드 분기가 guard 체인 형태
-
-**적용 방향**:
-- 각 커맨드 상단에 `상태 → 동작` 테이블을 명세 섹션으로 추가
+**`state-table-before-branch`**
+- 패턴: 복수 유효 상태를 처리하는 커맨드에서 early-stop guard 대신 exhaustive 상태 테이블 먼저 작성
+- 현황: `/dev:pr`·`/dev:docs`에는 이미 적용됐지만 명령어 작성 규칙에 없어 신규 커맨드 시 반복 실수 위험
+- 추가할 위치: "Command Gate Pattern" 신규 섹션
 
 ---
 
-### 5. `cross-step-handoff-field` → `docs.md → pr.md`, `impl.md → review.md`
+## 잔여 작업 — 명령어 업데이트 (2건)
 
-**패턴 요약**: 멀티스텝 워크플로우에서 앞 단계 산출물(파일 경로, PR URL 등)을  
-`dev-context.json`에 명시 저장해야 후속 단계가 git log·grep 추측에 의존하지 않는다.
+### `/dev:review` — `ask-user-question-final-review`
 
-**현재 문제**:
-- `/dev:pr` 실행 후 생성된 PR URL이 dev-context에 저장되지 않으면 `/dev:done`이 추측해야 함
-- `/dev:docs`가 생성한 참조 문서 경로를 `/dev:pr`이 직접 알 수 없음
+- 패턴: Task별 code-reviewer는 단일 파일 품질에 집중하므로 전체 변경 스코프에서 CLAUDE.md 규칙(특히 `AskUserQuestion` 강제 사용) 준수 여부는 `/dev:review`의 전체 스캔에서만 잡힌다
+- 현황: Step 5 code-reviewer 범위에 CLAUDE.md 규칙 준수 스캔이 명시되어 있지 않음
+- 추가할 위치: Step 5 code-reviewer 검토 범위에 "CLAUDE.md rule compliance (cross-file)" 항목 추가
 
-**적용 방향**:
-- `pr.md`: PR 생성 후 `pr.url`, `pr.number`를 dev-context에 저장
-- `docs.md`: 생성한 참조 문서 경로를 dev-context의 `docs.referencePath`에 저장
-- `meta-dev-context` 스킬: 핸드오프 필드 목록 추가
+### `/dev:spec` — `spec-review-pending-pr-dependency`
 
----
-
-### 6. `multi-layer-review-gate` → `impl.md`, `review.md`
-
-**패턴 요약**: 4단계 리뷰 레이어를 순서대로 통과해야 하며, 각 단계의 HIGH 이슈는  
-즉시 수정 후 같은 흐름 내에서 계속한다.
-
-```
-plan-review → code-review (Task별) → /dev:review (전체) → /codex:adversarial-review (opt-in)
-```
-
-**현재 문제**:
-- `impl.md`에 code-review 호출 타이밍은 있지만 4단계 전체 구조가 명문화되지 않음
-- `/dev:review`에서 adversarial-review 트리거 조건이 불명확
-
-**적용 방향**:
-- `development-workflow.md` 규칙에 4단계 레이어 다이어그램 추가
-- `review.md`에 adversarial-review 진입 조건 명시
+- 패턴: 스펙이 미병합 PR의 파일을 참조하면 Codex spec-review가 구현 가능성 체크(Gate 7)에서 NOT READY를 반복한다. 스펙 최상단에 "구현 선행 조건" 표를 추가하면 리뷰어가 파일 부재를 게이트 실패가 아닌 선행 조건 미충족으로 처리한다
+- 현황: Step 5 "NOT READY → 수정" 흐름에 이 케이스 처리 안내 없음
+- 추가할 위치: Step 5 NOT READY 처리 분기에 pending PR dependency 케이스 안내 추가
 
 ---
 
-### 7. `base-branch-config-precedence` → `pr.md`
+## 완료 — 코드·명령어에 흡수됨 (learned skill 제거됨)
 
-**패턴 요약**: `/dev:pr`에서 base 브랜치 결정 시 우선순위:  
-`config.git.baseBranch` (topic 오버라이드) > `config.git.baseBranch` (프로젝트 기본) > CLAUDE.md 규칙
-
-**현재 문제**:
-- `pr.md`에 base 브랜치 결정 로직이 명시되어 있지 않아 CLAUDE.md의 "PR target: main" 규칙에만 의존함
-- topic별 다른 base가 필요한 경우 처리 방법 불명확
-
-**적용 방향**:
-- `pr.md`에 base 브랜치 결정 우선순위 명세 추가
-- `meta-dev-context` 스킬에 `config.git.baseBranch` 필드 정의 추가
-
----
-
-## 저우선순위 — 규칙·가이드 보완
-
-### 8. `skill-checklist-duplication` → `component-boundaries.md`
-
-**패턴 요약**: 스킬에서 이미 정의한 체크리스트를 커맨드가 복사하지 않고,  
-섹션 참조 문구로 위임해야 component-boundaries 원칙을 유지할 수 있다.
-
-```
-# 나쁜 패턴: 커맨드가 체크리스트를 직접 나열
-## 검증 항목
-- [ ] 빌드 성공
-- [ ] 타입 체크
-...
-
-# 좋은 패턴: 스킬 섹션 위임
-Walk through the **Verification Checklist** from `.claude/skills/wf-verification/SKILL.md`.
-```
-
-**현재 문제**:
-- `component-boundaries.md`에 체크리스트 위임 패턴 예시가 없음
-- 신규 커맨드 작성 시 체크리스트를 직접 복사하는 경향 발생
-
-**적용 방향**:
-- `component-boundaries.md` Violation Criteria 섹션에 체크리스트 중복 항목 추가
-- 위임 패턴 예시 코드 블록 삽입
-
----
-
-## 이미 충분히 반영된 패턴
-
-| Learned Skill | 이유 |
-|---|---|
-| `ask-user-question-final-review` | CLAUDE.md에 AskUserQuestion 강제 규칙 이미 명시 |
-| `schema-evolution-read-normalize` | dev-context.js 내부 로직 — CLI가 이미 처리 중인지 확인 후 판단 |
-| `test-guard-precedence` | 테스트 설계 원칙으로는 유효하나 현재 rules에 테스트 전용 섹션 없음 |
-
----
-
-## 작업 우선순위 요약
-
-| 우선순위 | 항목 | 대상 파일 |
+| Learned Skill | 반영된 위치 | 제거일 |
 |---|---|---|
-| 1 | shell-heredoc-injection | `pr.md`, `impl.md`, `done.md` |
-| 2 | prototype-pollution-defense-cli | `dev-context.js` |
-| 3 | git-diff-three-source | `done.md`, `review.md`, `verify.md` |
-| 4 | state-table-before-branch | `docs.md`, `pr.md`, `impl.md` |
-| 5 | cross-step-handoff-field | `pr.md`, `docs.md`, `meta-dev-context` |
-| 6 | multi-layer-review-gate | `impl.md`, `review.md`, `development-workflow.md` |
-| 7 | base-branch-config-precedence | `pr.md`, `meta-dev-context` |
-| 8 | skill-checklist-duplication | `component-boundaries.md` |
+| `base-branch-config-precedence` | `/dev:pr` Step 3 — topic 오버라이드 → config.git.baseBranch → CLAUDE.md 순 우선순위 | 2026-04-25 |
+| `cross-step-handoff-field` | `/dev:pr` Step 5 — `topics[topic].refDoc` 읽기 (set by `/dev:docs`) | 2026-04-25 |
+| `git-diff-three-source` | `/dev:docs` Step 3 — 3소스 합산 + 중복 제거 | 2026-04-25 |
+| `rsync-preserve-target-files` | `scripts/deploy-harness.sh` — `--exclude='commit-scopes.md'` 조건부 적용 | 2026-04-25 |
+| `schema-evolution-read-normalize` | `.harness/scripts/dev-context.js` — `readContext` 정규화 + `writeContext` 영속화 | 2026-04-25 |
+| `multi-layer-review-gate` | `.claude/rules/common/development-workflow.md` — plan-review → impl → /dev:review → adversarial 4단계 명시 | 2026-04-25 |
