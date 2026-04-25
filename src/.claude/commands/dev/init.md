@@ -1,12 +1,14 @@
 ---
-version: 2
+version: 3
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 category: dev-workflow
 ---
 
 # /dev:init
 
-`CLAUDE.md`와 `AGENTS.md`의 프로젝트 섹션을 초기화하거나 업데이트한다.
+루트 `CLAUDE.md`와 `AGENTS.md`의 프로젝트 섹션을 초기화하거나 업데이트한다.
+
+`deploy-harness.sh`로 하네스 파일을 배포한 후, `.harness/harness-guide.md`의 내용을 기반으로 루트 `CLAUDE.md`와 `AGENTS.md`를 구성하는 환경 설정 단계다.
 
 ## Usage
 
@@ -16,34 +18,19 @@ category: dev-workflow
 
 ## Execution Flow
 
-### Step 1: 쓰기 대상 결정
+### Step 1: 모드 분기
 
-`src/` 디렉토리 존재 여부로 컨텍스트를 판별한다:
-
-```bash
-[ -d "$(git rev-parse --show-toplevel)/src" ] && echo "harness-repo" || echo "target-project"
-```
-
-에이전트는 Bash 도구로 위 명령을 실행해 컨텍스트를 판별한다.
-
-- **존재 (하네스 저장소)**: `src/CLAUDE.md`, `src/AGENTS.md`에 쓴다. 완료 후 `./scripts/deploy-harness.sh` 실행 안내를 출력한다.
-- **부재 (타깃 프로젝트)**: 루트 `CLAUDE.md`, `AGENTS.md`에 직접 쓴다.
-
-이후 단계에서 `TARGET_DIR`는 `src/`(하네스 저장소) 또는 `.`(타깃 프로젝트)를 가리킨다.
-
-### Step 2: 모드 분기
-
-CLAUDE.md와 AGENTS.md 각각 독립적으로 판정한다:
+루트 `CLAUDE.md`와 `AGENTS.md` 각각 독립적으로 판정한다:
 
 **CLAUDE.md 모드**:
-- `$TARGET_DIR/CLAUDE.md`가 없으면 → **신규 생성**
+- `CLAUDE.md`가 없으면 → **신규 생성**
 - 있고 `@.harness/harness-guide.md` 라인이 있으면 → **업데이트**
 - 있지만 해당 라인이 없으면 → **경계 탐지 불가** → 경고 출력 + `AskUserQuestion`:
   - `(Recommended) CLAUDE.md.bak.<timestamp> 백업 후 재생성 모드로 진행`
   - `중단`
 
 **AGENTS.md 모드**:
-- `$TARGET_DIR/AGENTS.md`가 없으면 → **신규 생성**
+- `AGENTS.md`가 없으면 → **신규 생성**
 - 있고 `<!-- harness-guide:begin -->` 마커가 있으면 → **업데이트**
 - 있지만 마커가 없으면 → **경계 탐지 불가** → 경고 출력 + `AskUserQuestion`:
   - `(Recommended) AGENTS.md.bak.<timestamp> 백업 후 재생성 모드로 진행`
@@ -51,27 +38,29 @@ CLAUDE.md와 AGENTS.md 각각 독립적으로 판정한다:
 
 각 파일의 모드는 독립적으로 결정되며, 한 파일이 "중단"을 선택해도 다른 파일은 계속 진행할 수 있다.
 
-### Step 3: 프로젝트 정보 수집
+### Step 2: 프로젝트 정보 수집
 
 `AskUserQuestion` 도구로 아래 4개 항목을 순서대로 질문한다. 각 질문의 첫 번째 옵션은 `(Recommended)` 레이블로 표시한다.
+
+업데이트 모드에서는 기존 `CLAUDE.md`에서 읽은 값을 권장 옵션으로 제시한다.
 
 1. **프로젝트명** — 짧은 이름 (예: `my-app`)
    - `(Recommended)` 현재 디렉토리명: `$(basename "$PWD")`
    - 직접 입력
 
 2. **한 줄 설명** — 프로젝트 또는 저장소의 목적
-   - `(Recommended)` 예시: `[프로젝트명] 백엔드 서비스`
+   - `(Recommended)` 기존 값 (업데이트 모드) 또는 예시
    - 직접 입력
 
 3. **기술 스택** — 핵심 언어·프레임워크 목록 (쉼표 구분)
-   - `(Recommended)` 예시: `TypeScript, Node.js, PostgreSQL`
+   - `(Recommended)` 기존 값 (업데이트 모드) 또는 예시
    - 직접 입력
 
 4. **언어 규칙** — 문서/코드/컴포넌트 파일 언어
    - `(Recommended)` 기본값: 문서·주석·커밋 메시지 **한국어** / 코드 식별자 **영어** / 컴포넌트 파일 **영어**
    - 직접 입력
 
-### Step 4: CLAUDE.md 작성
+### Step 3: CLAUDE.md 작성
 
 수집한 프로젝트 정보로 프로젝트 섹션을 구성한다:
 
@@ -99,13 +88,13 @@ Claude Code가 이 저장소에서 작업할 때의 안내 파일.
 @.harness/harness-guide.md
 ```
 
-**신규 생성**: 위 템플릿으로 `$TARGET_DIR/CLAUDE.md`를 생성한다.
+**신규 생성**: 위 템플릿으로 루트 `CLAUDE.md`를 생성한다.
 
 **업데이트**: `@.harness/harness-guide.md` 라인을 경계로, 그 이전의 모든 내용을 새 프로젝트 섹션으로 교체한다. import 라인(`@.harness/harness-guide.md`)은 그대로 유지하며, **import 라인 이후의 내용도 그대로 보존**한다.
 
 - 업데이트 시 `version` 값을 기존 +1로 증가시킨다.
 
-### Step 5: AGENTS.md 작성
+### Step 4: AGENTS.md 작성
 
 **신규 생성**:
 
@@ -139,34 +128,27 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 - 마커 라인 자체(`<!-- harness-guide:begin -->`, `<!-- harness-guide:end -->`)는 그대로 유지한다.
 - `<!-- harness-guide:end -->` **이후의 내용도 그대로 보존**한다.
 
-### Step 6: 결과 안내
+### Step 5: 결과 안내
 
 작성된 파일 경로와 모드(신규/업데이트)를 출력한다:
 
 ```
 완료:
-  [신규/업데이트] $TARGET_DIR/CLAUDE.md
-  [신규/업데이트] $TARGET_DIR/AGENTS.md
-```
-
-`src/` 모드(하네스 저장소)일 경우 추가로 아래 안내를 출력한다:
-
-```
-루트에 반영하려면 self-sync를 실행하세요:
-  ./scripts/deploy-harness.sh
+  [신규/업데이트] CLAUDE.md
+  [신규/업데이트] AGENTS.md
 ```
 
 ## 오류 처리
 
 | 상황 | 처리 |
 |------|------|
-| 마커 없는 기존 파일 | Step 2에서 경고 + AskUserQuestion → 백업 후 재생성 or 중단 |
+| 마커 없는 기존 파일 | Step 1에서 경고 + AskUserQuestion → 백업 후 재생성 or 중단 |
 | `.harness/harness-guide.md` 없음 | AGENTS.md begin/end 블록을 빈 상태로 생성, 경고 출력 |
 | 쓰기 권한 없음 | 오류 메시지 출력 후 종료 |
 
 ## Key Principles
 
+- **항상 루트 대상** — `src/` 여부와 관계없이 항상 루트 `CLAUDE.md`, `AGENTS.md`를 수정한다.
 - **AskUserQuestion 사용 필수** — 선택이 포함된 모든 질문에 적용. 첫 옵션에 `(Recommended)` 레이블.
 - **경계 마커 기준 업데이트** — 프로젝트 섹션은 마커(`@.harness/harness-guide.md`, `<!-- harness-guide:begin -->`) 이전까지로 정의됨.
 - **harness-guide 블록 갱신** — 업데이트 시 AGENTS.md의 harness-guide 블록을 현재 `.harness/harness-guide.md` 내용으로 최신화.
-- **src/ 우선** — 하네스 저장소에서는 항상 `src/`에 쓰고 self-sync로 루트에 반영.
