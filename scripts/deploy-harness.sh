@@ -98,14 +98,16 @@ backup_existing() {
 copy_item() {
   local rel="$1"
   local source="$SOURCE_DIR/$rel"
+  shift
+  local extra_opts=("$@")
 
   [ -e "$source" ] || die "source item is missing: $rel"
 
   backup_existing "$rel"
   if [ "$DRY_RUN" -eq 1 ]; then
-    rsync "${COMMON_RSYNC_OPTS[@]}" --dry-run --itemize-changes "$source" "$TARGET_DIR/"
+    rsync "${COMMON_RSYNC_OPTS[@]}" ${extra_opts[@]+"${extra_opts[@]}"} --dry-run --itemize-changes "$source" "$TARGET_DIR/"
   else
-    rsync "${COMMON_RSYNC_OPTS[@]}" "$source" "$TARGET_DIR/"
+    rsync "${COMMON_RSYNC_OPTS[@]}" ${extra_opts[@]+"${extra_opts[@]}"} "$source" "$TARGET_DIR/"
   fi
 }
 
@@ -221,7 +223,12 @@ fi
 
 for item in "${ITEMS[@]}"; do
   info "copying $item"
-  copy_item "$item"
+  if [ "$item" = ".harness" ] && [ -f "$TARGET_DIR/.harness/commit-scopes.md" ]; then
+    info "preserving existing .harness/commit-scopes.md (target-specific)"
+    copy_item "$item" --exclude='commit-scopes.md'
+  else
+    copy_item "$item"
+  fi
 done
 
 if [ "$UPDATE_GITIGNORE" -eq 1 ]; then
