@@ -5,7 +5,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/deploy-harness.sh [options] <target-dir>
+  scripts/deploy-harness.sh [options] [<target-dir>]
 
 Options:
   --dry-run     Show what would be copied without writing files.
@@ -13,6 +13,15 @@ Options:
   --skip-gitignore
                 Do not add harness local-file ignores to target .gitignore.
   -h, --help    Show this help.
+
+Modes:
+  No target-dir (self-sync):
+    Syncs src/ → repo root. Overwrites all items including CLAUDE.md,
+    AGENTS.md, and .harness/commit-scopes.md. No backup is created.
+
+  With target-dir (external):
+    Deploys harness to an external project directory. CLAUDE.md, AGENTS.md,
+    and .harness/commit-scopes.md are skipped when the target already has them.
 
 Deploys the harness files needed by Claude Code and Codex:
   AGENTS.md
@@ -171,22 +180,35 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-[ -n "$TARGET_INPUT" ] || {
-  usage >&2
-  exit 1
-}
-
 require_rsync
 
 SCRIPT_DIR="$(resolve_script_dir)"
-SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
-TARGET_DIR="$(make_absolute_path "$TARGET_INPUT")"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+SOURCE_DIR="$REPO_DIR/src"
 
-case "$TARGET_DIR/" in
-  "$SOURCE_DIR/"|"$SOURCE_DIR"/*)
-    die "target directory must not be the harness repository or a child of it: $TARGET_DIR"
-    ;;
-esac
+[ -d "$SOURCE_DIR" ] || die "src/ layout not found at $SOURCE_DIR — run this from the harness root after Task 1"
+
+if [ -z "$TARGET_INPUT" ]; then
+  MODE=self-sync
+  TARGET_DIR="$REPO_DIR"
+  BACKUP_ENABLED=0
+else
+  MODE=external
+  TARGET_DIR="$(make_absolute_path "$TARGET_INPUT")"
+
+  # Block: target == src/ itself or a subdirectory of src/
+  case "$TARGET_DIR/" in
+    "$SOURCE_DIR/"*)
+      die "external mode: target must not be src/ itself or a subdirectory: $TARGET_DIR"
+      ;;
+  esac
+  # Block: src/ would be under target (i.e., target is repo root or an ancestor)
+  case "$SOURCE_DIR/" in
+    "$TARGET_DIR/"*)
+      die "external mode: target must not contain the src/ directory: $TARGET_DIR"
+      ;;
+  esac
+fi
 
 TIMESTAMP="$(date +%Y%m%d%H%M%S)"
 BACKUP_DIR="$TARGET_DIR/.harness-backups/harness-deploy-$TIMESTAMP"
@@ -207,6 +229,7 @@ ITEMS=(
   .harness
 )
 
+info "mode: $MODE"
 info "source: $SOURCE_DIR"
 info "target: $TARGET_DIR"
 
@@ -223,18 +246,32 @@ fi
 
 for item in "${ITEMS[@]}"; do
   info "copying $item"
-  if [ "$item" = ".harness" ] && [ -f "$TARGET_DIR/.harness/commit-scopes.md" ]; then
-    info "preserving existing .harness/commit-scopes.md (target-specific)"
-    copy_item "$item" --exclude='commit-scopes.md'
-  else
-    copy_item "$item"
+  if [ "$MODE" = "external" ]; then
+    case "$item" in
+      CLAUDE.md|AGENTS.md)
+        if [ -f "$TARGET_DIR/$item" ]; then
+          info "  skip: target has $item (external preserve)"
+          continue
+        fi
+        ;;
+      .harness)
+        if [ -f "$TARGET_DIR/.harness/commit-scopes.md" ]; then
+          info "  preserving target .harness/commit-scopes.md"
+          copy_item "$item" --exclude='commit-scopes.md'
+          continue
+        fi
+        ;;
+    esac
   fi
+  copy_item "$item"
 done
 
-if [ "$UPDATE_GITIGNORE" -eq 1 ]; then
+if [ "$UPDATE_GITIGNORE" -eq 1 ] && [ "$MODE" = "external" ]; then
   update_gitignore
 else
-  info ".gitignore update: skipped"
+  if [ "$UPDATE_GITIGNORE" -eq 0 ]; then
+    info ".gitignore update: skipped"
+  fi
 fi
 
 info "done"
