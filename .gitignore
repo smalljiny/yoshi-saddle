@@ -1,6 +1,7 @@
-# Claude Code
-.claude/sessions/
-.claude/checkpoints.log
+# Harness 배포 산출물 — src/ 가 소스 원천, deploy-harness.sh 로 동기화
+/.claude/
+/.codex/
+/.harness/
 
 # 로컬 작업 문서 (개발 중 임시 파일)
 docs/_local/
@@ -19,7 +20,6 @@ dist/
 # 민감한 파일 (절대 커밋하지 않음)
 .env
 .env.*
-.claude/settings.local.json
 *.pem
 *.key
 *.p12
