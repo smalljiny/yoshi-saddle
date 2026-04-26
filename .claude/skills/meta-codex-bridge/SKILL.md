@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 name: meta-codex-bridge
 description: Prototype feasibility spike — do NOT load this skill for general use. This skill should be used only when explicitly testing whether Claude can invoke Codex spec-review or plan-review via the codex exec non-interactive CLI and read the resulting review files. Use it to run the bridge experiment or verify codex exec availability. Do not trigger for normal spec or plan authoring tasks.
 origin: harness
@@ -23,6 +23,47 @@ The following are explicitly **out of scope** for this skill:
 - Using `codex-companion.mjs` or adversarial-review infrastructure
 - Calling any Codex skill other than `spec-review` and `plan-review`
 - Automatically editing spec or plan documents based on review output
+
+---
+
+## Auto-Detect Entry Point
+
+인자 없이 이 스킬이 로드되면, 사용자에게 묻지 않고 아래 순서로 자동 판단하여 즉시 실행한다.
+
+### 1. 현재 토픽과 상태 읽기
+
+```bash
+TOPIC=$(node .harness/scripts/dev-context.js read --field=current_topic)
+PHASE=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=phase)
+STATUS=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=status)
+```
+
+### 2. phase:status → 실행 스킬 결정
+
+| phase:status | 실행 스킬 | 경로 필드 |
+|---|---|---|
+| `spec:reviewing` | spec-review | `spec` |
+| `plan:reviewing` | plan-review | `plan` |
+| 기타 | 실행 불가 — 아래 메시지 출력 후 종료 |  |
+
+해당하지 않는 상태일 경우:
+```
+현재 상태 (<phase>:<status>)에서 bridge를 실행할 수 없습니다.
+spec-review: /dev:spec에서 spec:reviewing 상태로 전환 후 실행하세요.
+plan-review: /dev:plan에서 plan:reviewing 상태로 전환 후 실행하세요.
+```
+
+### 3. 경로 읽기 및 실행
+
+```bash
+# spec-review인 경우
+TARGET_PATH=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=spec)
+
+# plan-review인 경우
+TARGET_PATH=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=plan)
+```
+
+경로를 읽은 뒤 **사용자 확인 없이** Availability Gate → Path Validation → Invocation Pattern 순으로 바로 진행한다.
 
 ---
 
