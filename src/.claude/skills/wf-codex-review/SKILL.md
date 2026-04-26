@@ -1,5 +1,5 @@
 ---
-version: 10
+version: 11
 name: wf-codex-review
 description: Run a single Codex spec-review or plan-review via `codex exec` and return the parsed Decision. Phase auto-detected from `dev-context.json`. Loop control is owned by the calling command, not this skill.
 origin: harness
@@ -142,11 +142,12 @@ SPEC_PATH="docs/_local/active/my-topic/spec.md"
 # -s workspace-write: 리뷰 파일을 workdir 내에 쓸 수 있도록 명시적으로 허용.
 # 프로젝트 codex.toml에 workspace-write가 없어도 동작하도록 항상 붙인다.
 # macOS: gtimeout (brew coreutils) preferred; falls back to timeout (Linux); no-op if absent
+# < /dev/null: bash 복합 명령 안에서 실행 시 codex가 stdin을 읽으려 대기하는 문제 방지.
 TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
 if [ -n "$TIMEOUT_BIN" ]; then
-  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 else
-  codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+  codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 fi
 ```
 
@@ -155,9 +156,9 @@ fi
 ```bash
 TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
 if [ -n "$TIMEOUT_BIN" ]; then
-  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "plan-review 스킬을 실행해줘"
+  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "plan-review 스킬을 실행해줘" < /dev/null
 else
-  codex exec -s workspace-write "plan-review 스킬을 실행해줘"
+  codex exec -s workspace-write "plan-review 스킬을 실행해줘" < /dev/null
 fi
 ```
 
@@ -174,9 +175,9 @@ to a fixture dev-context file inside the repo (e.g. `docs/_local/.../fixture/`):
 DEV_CONTEXT_PATH="docs/_local/active/codex-skill-bridge/fixture/fixture-dev-context.json"
 TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
 if [ -n "$TIMEOUT_BIN" ]; then
-  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" "$TIMEOUT_BIN" 120 codex exec "..."
+  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" "$TIMEOUT_BIN" 120 codex exec "..." < /dev/null
 else
-  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" codex exec "..."
+  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" codex exec "..." < /dev/null
 fi
 ```
 
@@ -218,7 +219,7 @@ REVIEW_DIR="$(dirname "$CANON_PATH")"   # canonicalized file path → its contai
 BEFORE_FILES=$(ls "$REVIEW_DIR"/$PATTERN 2>/dev/null | sort)
 
 # 2. codex exec 실행
-codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
+codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘" < /dev/null
 EXEC_EXIT=$?
 
 # 3. 실행 후 파일 목록과 비교 → 새 파일 = after - before
