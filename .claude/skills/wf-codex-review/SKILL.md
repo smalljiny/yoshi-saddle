@@ -1,28 +1,20 @@
 ---
-version: 9
-name: meta-codex-bridge
-description: Prototype feasibility spike — do NOT load this skill for general use. This skill should be used only when explicitly testing whether Claude can invoke Codex spec-review or plan-review via the codex exec non-interactive CLI and read the resulting review files. Use it to run the bridge experiment or verify codex exec availability. Do not trigger for normal spec or plan authoring tasks.
+version: 10
+name: wf-codex-review
+description: Run a single Codex spec-review or plan-review via `codex exec` and return the parsed Decision. Phase auto-detected from `dev-context.json`. Loop control is owned by the calling command, not this skill.
 origin: harness
 ---
 
-# codex-skill-bridge
-
-> **Prototype / Feasibility Spike** — This skill is not production-ready. Its purpose is to
-> determine whether `codex exec` can invoke Codex review skills (spec-review, plan-review)
-> from within Claude's Bash environment and whether the generated review files can be read
-> and parsed. Integration into `/dev:spec` and `/dev:plan` is out of scope here.
->
-> **Note**: `codex -p` is the `--profile` flag (selects a config.toml profile), NOT a
-> print/non-interactive mode. The correct non-interactive command is `codex exec`.
+# wf-codex-review
 
 ## Non-Goals
 
 The following are explicitly **out of scope** for this skill:
 
-- Modifying `/dev:spec` or `/dev:plan` commands
 - Using `codex-companion.mjs` or adversarial-review infrastructure
 - Calling any Codex skill other than `spec-review` and `plan-review`
 - Automatically editing spec or plan documents based on review output
+- 스킬 내부 루프 금지 (loop control stays in the calling command)
 
 ---
 
@@ -48,7 +40,7 @@ STATUS=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=stat
 
 해당하지 않는 상태일 경우:
 ```
-현재 상태 (<phase>:<status>)에서 bridge를 실행할 수 없습니다.
+현재 상태 (<phase>:<status>)에서 wf-codex-review를 실행할 수 없습니다.
 spec-review: /dev:spec에서 spec:reviewing 상태로 전환 후 실행하세요.
 plan-review: /dev:plan에서 plan:reviewing 상태로 전환 후 실행하세요.
 ```
@@ -87,7 +79,7 @@ node .harness/scripts/dev-context.js read --field=config.codex.authenticated
 ```
 
 If either returns a value other than `"true"`:
-1. Print a warning: `Codex not available or not authenticated — bridge cannot proceed.`
+1. Print a warning: `Codex not available or not authenticated — wf-codex-review cannot proceed.`
 2. Show the manual fallback command (see "Fallback" section below)
 3. Exit the skill without invoking `codex exec`
 
@@ -218,7 +210,7 @@ codex exec 실행 전후로 파일 목록을 비교해 새로 생성된 리뷰 �
 ```bash
 # Set pattern: spec-review → 'spec-review-*.md' / plan-review → 'plan-review-*.md'
 PATTERN='spec-review-*.md'
-REVIEW_DIR="$CANON_PATH_DIR"   # use canonicalized path from Path Validation above
+REVIEW_DIR="$(dirname "$CANON_PATH")"   # canonicalized file path → its containing dir
 
 # 1. 실행 전 파일 목록 기록
 BEFORE_FILES=$(ls "$REVIEW_DIR"/$PATTERN 2>/dev/null | sort)
@@ -273,23 +265,3 @@ codex "plan-review 스킬을 실행해줘"
 **⚠ `-a always` 사용 주의**: `codex exec -a always ...`는 모든 작업 승인을 자동화하며
 sandbox 보호를 사실상 무력화합니다. 실험 목적 외 프로덕션 코드에 사용 금지.
 문제 발생 시 먼저 stdout/stderr를 확인하고, 필요 최소 권한만 허용하세요.
-
----
-
-## Open Questions (to answer during the spike experiment)
-
-1. **Does `codex exec` correctly trigger the spec-review and plan-review Codex skills?**
-   Observe: does the skill load and produce the expected review file?
-
-2. **Is 120 seconds a sufficient timeout?**
-   Observe: actual wall-clock duration of `codex exec` for both skills.
-
-3. **What does `codex exec` write to stdout?**
-   Observe: is stdout empty, contains progress messages, or contains the full review output?
-   This determines whether stdout can serve as a fallback parsing source.
-
-4. **Does `codex exec` sandbox policy allow the review skill to write files?**
-   Observe: if no review file is generated despite exit 0, check whether `workspace-write`
-   covers the target review directory. Do NOT use `-a always` (disables all safeguards).
-   Instead, investigate which specific file path Codex is trying to write and adjust the
-   sandbox profile to allow only that path.
