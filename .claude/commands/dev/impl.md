@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
 category: dev-workflow
 ---
@@ -96,7 +96,15 @@ Then proceed to Step 4 immediately without waiting for approval.
 ---
 ```
 
-After the briefing block is printed (closing `---`), read the auto_start config:
+After the briefing block is printed (closing `---`), **advisor 조건부 호출**을 먼저 수행한다:
+
+**복잡한 Task 판정 조건** — 아래 중 하나라도 해당하면 `advisor`를 호출한다:
+- Task Type이 `infra` (스크립트·코드 변경, 시스템 영향 큼)
+- Work Items 수 ≥ 5
+
+조건에 해당하면 `advisor()`를 호출해 설계 상 위험·엣지 케이스·대안을 사전 검토한다. advisor 응답을 반영한 뒤 다음 단계로 진행한다. 이 호출은 `auto_start`와 무관하게 항상 실행된다.
+
+그 다음, auto_start config를 읽는다:
 
 ```bash
 node .harness/scripts/dev-context.js read --field=config.dev_impl.auto_start
@@ -141,6 +149,15 @@ For types `config`, `infra`, `refactor`:
 Immediately review the Task code:
 - Quality review
 - Immediate feedback + fixes
+
+**`tdd` 타입 전용 — simplify 스킬 후속 호출**: code-reviewer 완료 직후, Task Type이 `tdd`이면 `simplify` 스킬을 로드해 실행한다:
+
+```
+Load `.claude/skills/simplify/SKILL.md` and follow its process.
+```
+
+- simplify는 코드 재사용·효율성·품질을 재검토하고 개선이 있으면 즉시 수정한다.
+- `config`·`infra`·`refactor` 타입은 실제 소스 코드가 아닌 설정/문서/구조 변경이므로 simplify를 적용하지 않는다.
 
 **Batch failure condition**: If code-reviewer reports a blocking issue that cannot be resolved automatically:
 - `batch == true`: set `batch_failed = true` with reason "blocking review issue" and proceed to Step 11 (terminal)
@@ -313,6 +330,8 @@ Resume after fixing the issue:
 - **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
 - **TDD enforced** — `tdd` type must write tests first
 - **Immediate review** — automatically invoke code-reviewer immediately after implementation
+- **simplify after code-review (tdd only)** — `tdd` 타입은 code-reviewer 직후 `simplify` 스킬을 추가 실행; `config`·`infra`·`refactor` 타입은 제외
+- **Pre-work advisor (complex tasks)** — `infra` 타입 또는 Work Items ≥ 5인 Task는 브리핑 직후 `advisor()`를 호출해 설계 위험·엣지 케이스를 사전 점검
 - **Commit from plan** — commit message comes from the Task's `**Commit**` field; never invent a message
 - **auto_commit default is false** — user sees and approves each commit unless `config.dev_impl.auto_commit=true`
 - **batch + auto_start + auto_commit = fully unattended** — enabling all three removes every human gate after Task 1 approval; use only in trusted environments

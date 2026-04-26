@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 name: meta-codex-bridge
 description: Prototype feasibility spike — do NOT load this skill for general use. This skill should be used only when explicitly testing whether Claude can invoke Codex spec-review or plan-review via the codex exec non-interactive CLI and read the resulting review files. Use it to run the bridge experiment or verify codex exec availability. Do not trigger for normal spec or plan authoring tasks.
 origin: harness
@@ -104,13 +104,14 @@ Use `$CANON_PATH` in subsequent `codex exec` and `find` calls.
 # Validate path first (see "Path Validation" above)
 SPEC_PATH="docs/_local/active/my-topic/spec.md"
 
+# -s workspace-write: 리뷰 파일을 workdir 내에 쓸 수 있도록 명시적으로 허용.
+# 프로젝트 codex.toml에 workspace-write가 없어도 동작하도록 항상 붙인다.
 # macOS: gtimeout (brew coreutils) preferred; falls back to timeout (Linux); no-op if absent
-# Use explicit if/else — ${VAR:+...} word-splitting is unreliable in zsh
 TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
 if [ -n "$TIMEOUT_BIN" ]; then
-  "$TIMEOUT_BIN" 120 codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
 else
-  codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+  codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
 fi
 ```
 
@@ -119,9 +120,9 @@ fi
 ```bash
 TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
 if [ -n "$TIMEOUT_BIN" ]; then
-  "$TIMEOUT_BIN" 120 codex exec "plan-review 스킬을 실행해줘"
+  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "plan-review 스킬을 실행해줘"
 else
-  codex exec "plan-review 스킬을 실행해줘"
+  codex exec -s workspace-write "plan-review 스킬을 실행해줘"
 fi
 ```
 
@@ -170,29 +171,26 @@ skills.
 
 ## Parsing the Decision
 
-To avoid accepting a stale review artifact, record the invocation start time and require
-a new file created after that point:
+codex exec 실행 전후로 파일 목록을 비교해 새로 생성된 리뷰 파일을 식별한다.
+`-newer` 방식은 macOS에서 타임스탬프 해상도 문제로 신뢰할 수 없으므로 사용하지 않는다.
 
 ```bash
 # Set pattern: spec-review → 'spec-review-*.md' / plan-review → 'plan-review-*.md'
 PATTERN='spec-review-*.md'
 REVIEW_DIR="$CANON_PATH_DIR"   # use canonicalized path from Path Validation above
 
-# Record start time before invoking codex exec
-INVOKE_START=$(date +%s)
+# 1. 실행 전 파일 목록 기록
+BEFORE_FILES=$(ls "$REVIEW_DIR"/$PATTERN 2>/dev/null | sort)
 
-# --- run codex exec here ---
+# 2. codex exec 실행
 codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
 EXEC_EXIT=$?
 
-# Find review files created AFTER the invocation start (freshness check)
-REVIEW_FILE=$(find "$REVIEW_DIR" -maxdepth 1 -name "$PATTERN" -newer /proc/1/exe \
-  -print0 2>/dev/null | sort -rz | head -zn1 | tr -d '\0')
-# macOS alternative (no /proc): use a temp reference file
-# TMP_REF=$(mktemp); touch -t "$(date -r $INVOKE_START '+%Y%m%d%H%M.%S')" "$TMP_REF" 2>/dev/null
-# REVIEW_FILE=$(find "$REVIEW_DIR" -maxdepth 1 -name "$PATTERN" -newer "$TMP_REF" ...)
+# 3. 실행 후 파일 목록과 비교 → 새 파일 = after - before
+AFTER_FILES=$(ls "$REVIEW_DIR"/$PATTERN 2>/dev/null | sort)
+REVIEW_FILE=$(comm -13 <(echo "$BEFORE_FILES") <(echo "$AFTER_FILES") | tail -1)
 
-# Guard: require exactly one new artifact from this invocation
+# Guard: 새 파일이 없으면 실패
 if [ -z "$REVIEW_FILE" ]; then
   echo "No new review file found after codex exec (exit=$EXEC_EXIT) — stale or missing" >&2
   exit 1
@@ -201,6 +199,11 @@ fi
 # Parse the decision line (case-sensitive: READY / READY WITH NOTE / NOT READY)
 grep -m1 "^- Decision:" "$REVIEW_FILE"
 ```
+
+이 방식의 장점:
+- `/proc` 없이 macOS에서 동작 (타임스탬프 해상도 무관)
+- 파일 존재 여부 기반이므로 신뢰성 높음
+- `comm -13` = before에 없고 after에 있는 파일 = 이번 실행으로 새로 생성된 파일
 
 Decision line format (from existing review files): `- Decision: READY` / `- Decision: NOT READY` / `- Decision: READY WITH NOTE`
 
