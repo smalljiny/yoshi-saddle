@@ -172,7 +172,13 @@ Codex 리뷰를 실행하세요:
 리뷰 완료 후 spec-review-*.md 파일이 생성되면 다시 /dev:spec을 실행하세요.
 ```
 
-**If output is `true`** (auto mode): run the auto-review loop (`attempt=1`, `max_attempts=3`):
+**If output is `true`** (auto mode): sync `current_topic` to `<topic>` so the review skill resolves the correct topic:
+
+```bash
+node .harness/scripts/dev-context.js set-field --field=current_topic --value=<topic>
+```
+
+Then run the auto-review loop (`attempt=1`, `max_attempts=3`):
 
 1. **Availability Gate**: read `config.codex.available` and `config.codex.authenticated` from `dev-context.json`. If either is not `true`: show **Manual Fallback** (below) and stop.
 

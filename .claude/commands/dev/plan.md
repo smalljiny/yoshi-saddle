@@ -179,7 +179,16 @@ Codex plan-review를 실행하세요:
 리뷰 완료 후 plan-review-*.md 파일이 생성되면 다시 /dev:plan을 실행하세요.
 ```
 
-**If output is `true`** (auto mode): run the auto-review loop (`attempt=1`, `max_attempts=3`):
+**If output is `true`** (auto mode): sync `current_topic` to `<topic>` and validate the plan path before invoking the review skill:
+
+```bash
+node .harness/scripts/dev-context.js set-field --field=current_topic --value=<topic>
+PLAN_PATH=$(node .harness/scripts/dev-context.js read --topic=<topic> --field=plan)
+```
+
+Validate `PLAN_PATH` matches the expected pattern `docs/_local/active/<topic>/implementation-plan.md`. If the path is empty, absolute, contains `..`, or does not start with `docs/_local/active/<topic>/`: show **Manual Fallback** (below) and stop.
+
+Then run the auto-review loop (`attempt=1`, `max_attempts=3`):
 
 1. **Availability Gate**: read `config.codex.available` and `config.codex.authenticated` from `dev-context.json`. If either is not `true`: show **Manual Fallback** (below) and stop.
 
