@@ -13,6 +13,11 @@
       "Bash(node:*)",
       "Bash(mkdir:*)",
       "Bash(ls:*)",
+      "Bash(codex:*)",
+      "Bash(greadlink:*)",
+      "Bash(python3:*)",
+      "Bash(grep:*)",
+      "Bash(comm:*)",
       "Skill(*)"
     ]
   },
