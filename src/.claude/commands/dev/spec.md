@@ -1,5 +1,5 @@
 ---
-version: 14
+version: 15
 description: Write a spec for a new topic. Registers the topic in dev-context.json, writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 category: dev-workflow
 ---
@@ -155,7 +155,13 @@ node .harness/scripts/dev-context.js update-state \
   --status=reviewing
 ```
 
-Then show the user this message:
+Read `config.spec.auto_review`:
+
+```bash
+node .harness/scripts/dev-context.js read --field=config.spec.auto_review
+```
+
+**If output is NOT `true`** (default / manual mode): show the user this message and stop:
 
 ```
 스펙 초안이 작성되었습니다: docs/_local/backlog/<topic>/spec.md
@@ -166,7 +172,40 @@ Codex 리뷰를 실행하세요:
 리뷰 완료 후 spec-review-*.md 파일이 생성되면 다시 /dev:spec을 실행하세요.
 ```
 
-Stop and wait for the user to run Codex and return.
+**If output is `true`** (auto mode): run the auto-review loop (`attempt=1`, `max_attempts=3`):
+
+1. **Availability Gate**: read `config.codex.available` and `config.codex.authenticated` from `dev-context.json`. If either is not `true`: show **Manual Fallback** (below) and stop.
+
+2. Load `.claude/skills/wf-codex-review/SKILL.md` and follow its Availability Gate → Path Validation → Invocation Pattern (spec-review) → Parsing the Decision sections. The skill reads the current phase/status from `dev-context.json` and invokes `codex exec -s workspace-write "spec-review 스킬로 <canon-path>를 리뷰해줘"`.
+
+   **If the skill exits without producing a new `spec-review-*.md`** (internal Availability Gate failure, `codex exec` non-zero exit, or sandbox-blocked write): show **Manual Fallback** (below) and stop.
+
+3. Parse Decision from the new `spec-review-*.md`:
+   - `READY` or `READY WITH NOTE` → proceed to Step 5
+   - `NOT READY`:
+     - Apply Required Fixes from the review report to `spec.md`
+     - Transition to `spec:drafting`:
+       ```bash
+       node .harness/scripts/dev-context.js update-state \
+         --topic=<topic> --phase=spec --status=drafting
+       ```
+     - Increment `attempt`. If `attempt > max_attempts`:
+       ```
+       Auto-review Stopped at attempt 3. Maximum attempts reached.
+       수동으로 진행하세요:
+         codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
+       ```
+       Stop.
+     - Otherwise: transition back to `spec:reviewing` and repeat from step 1.
+
+**Manual fallback** (shown when Availability Gate fails in auto mode):
+
+```
+Codex를 사용할 수 없어 수동으로 진행하세요:
+  codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
+
+리뷰 완료 후 spec-review-*.md 파일이 생성되면 다시 /dev:spec을 실행하세요.
+```
 
 ### 5. Reflect review
 
