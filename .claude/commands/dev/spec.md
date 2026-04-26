@@ -198,7 +198,7 @@ Codex 리뷰를 실행하세요:
        Stop.
      - Otherwise: transition back to `spec:reviewing` and repeat from step 1.
 
-**Manual fallback** (shown when Availability Gate fails in auto mode):
+**Manual fallback** (shown when auto mode cannot proceed — Availability Gate fails or skill produces no review file):
 
 ```
 Codex를 사용할 수 없어 수동으로 진행하세요:
