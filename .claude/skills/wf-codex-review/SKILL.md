@@ -122,8 +122,10 @@ This prevents:
 - Directory traversal (e.g. `../../outside`)
 - Control characters and leading dash
 
-Note: shell metacharacter injection (`"`, `$`, `` ` ``, `;`) is mitigated by double-quoting
-at all call sites, not by this regex.
+Note: double-quoting at all call sites prevents shell re-evaluation of `$`, `` ` ``, `;` etc.
+This does not prevent LLM-level prompt injection via the path value; that risk is bounded by
+the path being repo-local (enforced by the `REPO_ROOT/*` check above) and the `workspace-write`
+sandbox limiting what `codex exec` can act on.
 
 Use `$CANON_PATH` in subsequent `codex exec` and `find` calls.
 
