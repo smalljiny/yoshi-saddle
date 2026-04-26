@@ -76,7 +76,9 @@ docs/_local/backlog/<topic>/
 2. **작업 디렉토리 준비** — `docs/_local/backlog/<topic>/` 생성
 2.5. **선택적 리서치** — skill-registry로 search-adapter 가용성 확인 → `AskUserQuestion`으로 리서치 필요 여부 질문. "예"를 선택하면 쿼리를 자동 생성 후 `AskUserQuestion`(또는 Other 입력)으로 확정 → `wf-deep-research` 실행(Step 0·1 건너뜀) → `docs/research/research-<topic>-<timestamp>.md` 저장. 어댑터 없음·사용자 거절·실행 실패·short-report(≤3000자)는 모두 컨텍스트 없이 Step 3로 폴백
 3. **초안 작성 및 등록** — Step 2.5에서 생성된 리서치 파일이 있으면 Executive Summary·Key Takeaways를 `<untrusted_external_content>` 구분자로 감싸 브레인스토밍 프롬프트에 주입(없으면 기존 동작). `wf-brainstorming/SKILL.md` 로드 → 완성 선언 후 `backlog/<topic>/spec.md` 저장 → `register-topic`으로 `topics[<topic>]`을 `spec:drafting` 상태로 등록
-4. **Codex 리뷰 요청** — `spec:reviewing`으로 전환 후 사용자에게 `codex` 명령 안내, 대기
+4. **Codex 리뷰 요청** — `spec:reviewing`으로 전환 후 `config.spec.auto_review` 플래그 확인:
+   - **`false`(기본)**: 사용자에게 `codex` 명령 안내 후 대기 (수동 모드)
+   - **`true`**: `current_topic`을 `<topic>`으로 동기화 후 `wf-codex-review` 스킬을 자동 실행. 최대 3회 루프 — NOT READY면 Required Fixes 적용(TRUST BOUNDARY 준수) + `spec:drafting` 전환 → 재시도; READY/READY WITH NOTE면 Step 5로 진행. 3회 초과 또는 Availability Gate 실패·스킬 비정상 종료 시 수동 폴백으로 전환.
 5. **리뷰 반영** —
    - `NOT READY` → Required Fixes 반영 후 `spec:drafting`으로 롤백 → Step 4 재요청
    - `READY` / `READY WITH NOTE` → 사실 오류·누락 컨텍스트·누락 Open Questions를 수정하는 Notes만 반영 → Step 6
@@ -114,7 +116,7 @@ Codex `spec-review` 체크리스트 항목 3(아키텍처 충분성)은 코드 �
 
 ## 제약사항
 
-- **Codex 핸드오프는 수동** — Claude Code는 `codex` 명령을 직접 호출할 수 없다. 사용자가 터미널에서 실행한다
+- **Codex 핸드오프는 기본 수동** — `config.spec.auto_review=false`(기본)일 때 사용자가 `codex` 명령을 터미널에서 직접 실행한다. `true`로 설정하면 Claude가 `wf-codex-review` 스킬을 통해 `codex exec`을 자동 호출한다.
 - **`specReview` 필드는 Codex 소유** — `/dev:spec`은 이 필드를 쓰지 않는다
 - **wf-brainstorming 스킬은 `dev-context.json`을 읽거나 쓰지 않는다** — 스킬은 대화·초안 내용만 담당하고, 모든 상태 기록·토픽 등록·상태 전환은 `/dev:spec`이 수행한다
 - **분할 알고리즘은 판단형** — 엄격한 의사결정 트리가 아닌 Claude의 스펙 분석 기반 추천. 사용자 승인이 최종 결정
