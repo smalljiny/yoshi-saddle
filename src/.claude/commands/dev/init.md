@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 category: dev-workflow
 ---
@@ -92,7 +92,8 @@ Claude Code가 이 저장소에서 작업할 때의 안내 파일.
 
 **업데이트**: `@.harness/harness-guide.md` 라인을 경계로, 그 이전의 모든 내용을 새 프로젝트 섹션으로 교체한다. import 라인(`@.harness/harness-guide.md`)은 그대로 유지하며, **import 라인 이후의 내용도 그대로 보존**한다.
 
-- 업데이트 시 `version` 값을 기존 +1로 증가시킨다.
+- **변경 감지**: 새 프로젝트 섹션(`version` 라인 제외)과 기존 프로젝트 섹션을 비교한다. 내용이 동일하면 파일을 건드리지 않는다. (`[변경 없음]` 표기)
+- 내용이 달라진 경우에만 `version` 값을 기존 +1로 증가시키고 파일을 쓴다.
 
 ### Step 4: AGENTS.md 작성
 
@@ -127,6 +128,8 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 - begin/end 마커 사이 내용도 현재 `.harness/harness-guide.md` 내용으로 교체한다 (point-in-time 갱신). **삽입 시 harness-guide.md의 YAML frontmatter 블록(`---\nversion: N\n---`)은 제외하고 본문만 삽입**한다.
 - 마커 라인 자체(`<!-- harness-guide:begin -->`, `<!-- harness-guide:end -->`)는 그대로 유지한다.
 - `<!-- harness-guide:end -->` **이후의 내용도 그대로 보존**한다.
+- **trailing 줄바꿈 정규화**: harness-guide 본문을 삽입할 때 본문 끝의 공백/줄바꿈을 rstrip한 뒤 정확히 `\n`(한 줄)을 붙여 end 마커 앞에 놓는다. end 마커 앞에 빈 줄이 생기지 않도록 한다.
+- **변경 감지**: 조립된 전체 AGENTS.md 내용이 기존과 동일하면 파일을 건드리지 않는다. (`[변경 없음]` 표기)
 
 ### Step 5: docs.sourceFilter 자동 감지·설정
 
@@ -160,15 +163,19 @@ node .harness/scripts/dev-context.js set-field \
 
 ### Step 6: 결과 안내
 
-작성된 파일 경로와 모드(신규/업데이트)를 출력한다:
+작성된 파일 경로와 결과를 출력한다:
 
 ```
 완료:
-  [신규/업데이트] CLAUDE.md
-  [신규/업데이트] AGENTS.md
+  [신규/업데이트/변경 없음] CLAUDE.md
+  [신규/업데이트/변경 없음] AGENTS.md
   [감지] config.docs.sourceFilter = [".claude/",".codex/",".harness/","CLAUDE.md","AGENTS.md"]
 ```
 (일반 프로젝트의 경우: `[감지] config.docs.sourceFilter = [] (필터 없음)`)
+
+- `[신규]`: 파일이 새로 생성됨
+- `[업데이트]`: 내용이 달라져 파일을 다시 씀
+- `[변경 없음]`: 내용이 동일하여 파일을 건드리지 않음
 
 ## 오류 처리
 
