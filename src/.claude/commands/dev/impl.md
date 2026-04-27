@@ -1,5 +1,5 @@
 ---
-version: 11
+version: 12
 description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
 category: dev-workflow
 ---
@@ -35,14 +35,14 @@ Execute Tasks from the implementation plan one at a time, or all at once in batc
      node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchRunning --value=true
      ```
    - (b) If `batch == false`, check for a stale batch state:
-     - **명시적 Task 인자가 주어진 경우 stale 감지를 건너뛴다** (explicit-Task-wins). `currentBatchRunning`은 그대로 둔다.
+     - **명시적 Task 인자가 주어진 경우 stale 감지를 건너뛴다** (explicit-Task-wins). 이 호출이 Step 11에 도달하면 `currentBatchRunning`은 그때 초기화된다. 배치를 재개하려면 이후 `/dev:impl --all`을 사용한다.
      - 그 외에는 stale 감지를 수행한다:
      ```bash
      node .harness/scripts/dev-context.js read --field=config.dev_impl.currentBatchRunning
      ```
      - `"true"` (정확히 일치) → stale batch state detected; use `AskUserQuestion`:
-       - **재개 (Recommended)**: override `batch = true`, then execute (a) above
-       - **초기화**: run `node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchRunning --value=false`; continue as single-Task
+       - **재개 (Recommended)**: 이전 배치를 이어 실행 — override `batch = true`, then execute (a) above
+       - **초기화**: persisted batch 상태를 지우고 이 호출은 단일 Task만 실행 — run `node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchRunning --value=false`; continue as single-Task
      - 그 외 모든 값(empty string, `"false"`, 기타) → not stale; continue as single-Task
 
 2. Get the current topic from dev-context.json:
@@ -272,7 +272,7 @@ node .harness/scripts/dev-context.js set-field \
 
 ### 10.5. Batch Loop Decision
 
-Evaluate when `batch == true` OR (`currentBatchRunning == "true"` AND explicit Task argument was NOT given):
+Evaluate after Step 10 (sub-step 0 owns the full skip/recover/proceed logic):
 
 0. Recover persisted batch state (session memory loss guard):
    - If the invocation included an **explicit Task argument** (e.g. `/dev:impl T2`), skip this step entirely (explicit-Task-wins overrides persisted batch state — do not loop).
@@ -357,7 +357,7 @@ Resume after fixing the issue:
 
 - **One Task at a time (default)** — only one Task per invocation unless `--all` or `config.dev_impl.batch_mode=true` is set; in batch mode all remaining Tasks run sequentially
 - **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately; `currentBatchRunning` is reset on every terminal exit (Step 11)
-- **Batch persistence** — `currentBatchRunning` 필드로 비정상 종료된 배치를 감지·재개한다; Step 1 진입 시 세팅, Step 11 모든 terminal exit 시 false로 초기화 (single-Task·batch complete·batch stopped 무관)
+- **Batch persistence** — `currentBatchRunning` 필드로 비정상 종료된 배치를 감지·재개한다; Step 1 진입 시 세팅, Step 11 모든 terminal exit 시 false로 초기화. Step 1 게이트 실패 등 Step 11 미도달 시에는 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그를 트리거한다. reset 명령 실패 시에는 오류를 표시하고 터미널 브리핑을 중단한다 (다음 호출에서 stale 감지가 트리거됨).
 - **Pre-work briefing for first Task only in batch mode** — Task 2 onward shows a single "Starting Task" line; full briefing and approval gate apply only to the first Task (subject to `auto_start`)
 - **Prior approval required** (unless `config.dev_impl.auto_start=true`) — do not start the first Task without approving the work plan
 - **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
