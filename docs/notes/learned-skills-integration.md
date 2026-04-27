@@ -14,14 +14,9 @@
 
 ---
 
-## 잔여 작업 — 규칙 파일 업데이트 (6건)
+## 잔여 작업 — 규칙 파일 업데이트 (5건)
 
-### `.harness/rules/security.md` — 2개 패턴 추가 필요
-
-**`shell-heredoc-injection`**
-- 패턴: AI·사용자 생성 문자열을 셸 명령에 보간할 때 HEREDOC으로 injection 방어
-- 현황: `/dev:pr` Step 7에는 이미 적용됨. 규칙 파일에는 없어 새 명령어 작성 시 누락 위험
-- 추가할 섹션: "Shell Injection Defense"
+### `.harness/rules/security.md` — 1개 패턴 추가 필요
 
 **`prototype-pollution-defense-cli`**
 - 패턴: 동적 키로 JSON 객체를 조작하는 CLI에서 쓰기 예약 키 차단 + 읽기 `hasOwn` 가드 2층 방어
@@ -62,13 +57,7 @@
 
 ---
 
-## 잔여 작업 — 명령어 업데이트 (2건)
-
-### `/dev:review` — `ask-user-question-final-review`
-
-- 패턴: Task별 code-reviewer는 단일 파일 품질에 집중하므로 전체 변경 스코프에서 CLAUDE.md 규칙(특히 `AskUserQuestion` 강제 사용) 준수 여부는 `/dev:review`의 전체 스캔에서만 잡힌다
-- 현황: Step 5 code-reviewer 범위에 CLAUDE.md 규칙 준수 스캔이 명시되어 있지 않음
-- 추가할 위치: Step 5 code-reviewer 검토 범위에 "CLAUDE.md rule compliance (cross-file)" 항목 추가
+## 잔여 작업 — 명령어 업데이트 (1건)
 
 ### `/dev:spec` — `spec-review-pending-pr-dependency`
 
@@ -88,3 +77,5 @@
 | `rsync-preserve-target-files` | `scripts/deploy-harness.sh` — `--exclude='commit-scopes.md'` 조건부 적용 | 2026-04-25 |
 | `schema-evolution-read-normalize` | `.harness/scripts/dev-context.js` — `readContext` 정규화 + `writeContext` 영속화 | 2026-04-25 |
 | `multi-layer-review-gate` | `.claude/rules/common/development-workflow.md` — plan-review → impl → /dev:review → adversarial 4단계 명시 | 2026-04-25 |
+| `shell-heredoc-injection` | `.harness/rules/security.md` — Shell Injection Defense 섹션 추가 (HEREDOC `<<'EOF'` 강제) | 2026-04-27 |
+| `ask-user-question-final-review` | `.claude/commands/dev/review.md` — Step 5 code-reviewer 범위에 CLAUDE.md rule compliance 항목 추가 | 2026-04-27 |
