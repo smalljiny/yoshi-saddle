@@ -1,5 +1,5 @@
 ---
-version: 9
+version: 10
 description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
 category: dev-workflow
 ---
@@ -28,6 +28,22 @@ Execute Tasks from the implementation plan one at a time, or all at once in batc
      node .harness/scripts/dev-context.js read --field=config.dev_impl.batch_mode
      ```
    - Set `batch = true` if `--all` is present OR (`batch_mode == "true"` AND no explicit Task ID/name argument is given). An explicit Task argument (e.g. `T2`) always runs a single Task regardless of `batch_mode`. Carry this value through all subsequent steps.
+
+   **`currentBatchRunning` lifecycle:**
+   - (a) If `batch == true`, persist the state immediately:
+     ```bash
+     node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchRunning --value=true
+     ```
+   - (b) If `batch == false`, check for a stale batch state:
+     - **명시적 Task 인자가 주어진 경우 stale 감지를 건너뛴다** (explicit-Task-wins). `currentBatchRunning`은 그대로 둔다.
+     - 그 외에는 stale 감지를 수행한다:
+     ```bash
+     node .harness/scripts/dev-context.js read --field=config.dev_impl.currentBatchRunning
+     ```
+     - `"true"` (정확히 일치) → stale batch state detected; use `AskUserQuestion`:
+       - **재개 (Recommended)**: override `batch = true`, then execute (a) above
+       - **초기화**: run `node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchRunning --value=false`; continue as single-Task
+     - 그 외 모든 값(empty string, `"false"`, 기타) → not stale; continue as single-Task
 
 2. Get the current topic from dev-context.json:
    ```bash
@@ -270,6 +286,13 @@ Reached only when the Batch Loop Decision (Step 10.5) jumps back to Step 2. Not 
 
 **Terminal briefing (single-Task mode, batch complete, or batch stopped)**
 
+단일/배치 모드 무관하게 터미널 브리핑 직전 currentBatchRunning을 false로 초기화한다:
+
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=config.dev_impl.currentBatchRunning --value=false
+```
+
 *Single-Task mode (non-batch)*:
 ```
 ---
@@ -325,6 +348,7 @@ Resume after fixing the issue:
 
 - **One Task at a time (default)** — only one Task per invocation unless `--all` or `config.dev_impl.batch_mode=true` is set; in batch mode all remaining Tasks run sequentially
 - **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately
+- **Batch persistence** — `currentBatchRunning` 필드로 비정상 종료된 배치를 감지·재개한다; Step 1 진입 시 세팅, Step 11 정상 종료 시 false로 초기화
 - **Pre-work briefing for first Task only in batch mode** — Task 2 onward shows a single "Starting Task" line; full briefing and approval gate apply only to the first Task (subject to `auto_start`)
 - **Prior approval required** (unless `config.dev_impl.auto_start=true`) — do not start the first Task without approving the work plan
 - **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
