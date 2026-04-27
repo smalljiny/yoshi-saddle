@@ -14,8 +14,8 @@
       "Bash(mkdir:*)",
       "Bash(ls:*)",
       "Bash(codex:*)",
-      "Bash(greadlink:*)",
-      "Bash(python3:*)",
+      "Bash(timeout:*)",
+      "Bash(gtimeout:*)",
       "Bash(grep:*)",
       "Bash(comm:*)",
       "Skill(*)"

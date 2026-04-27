@@ -1,5 +1,5 @@
 ---
-version: 13
+version: 14
 name: wf-codex-review
 description: Run a single Codex spec-review or plan-review via `codex exec` and return the parsed Decision. Phase auto-detected from `dev-context.json`. Loop control is owned by the calling command, not this skill.
 origin: harness
@@ -128,16 +128,19 @@ fi
 ### plan-review
 
 ```bash
-TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+# Path Validation → CANON_PATH 획득 (단일 node 호출, Bash(node:*) 허용)
+CANON_PATH=$(node .harness/scripts/validate-path.js --topic="$TOPIC" --field=plan)
+
+# < /dev/null: bash 복합 명령 안에서 실행 시 codex가 stdin을 읽으려 대기하는 문제 방지.
+TIMEOUT_BIN=$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null || true)
 if [ -n "$TIMEOUT_BIN" ]; then
-  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "plan-review 스킬을 실행해줘" < /dev/null
+  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "plan-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 else
-  codex exec -s workspace-write "plan-review 스킬을 실행해줘" < /dev/null
+  codex exec -s workspace-write "plan-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 fi
 ```
 
-`plan-review` reads `current_topic` and `plan` from `dev-context.json` (or `DEV_CONTEXT_PATH`
-if set) to locate the target plan file — no explicit path argument is needed.
+`$CANON_PATH`를 이후 `Parsing the Decision`의 `REVIEW_DIR` 계산에 사용한다.
 
 ### Isolation via DEV_CONTEXT_PATH
 
