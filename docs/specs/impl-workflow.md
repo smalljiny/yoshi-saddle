@@ -108,6 +108,26 @@
 node .harness/scripts/dev-context.js read --field=config.dev_impl.batch_mode
 ```
 
+### 배치 상태 영속화
+
+서브 에이전트(tdd-specialist·code-reviewer) 완료 후 세션 메모리의 `batch` 변수가 소실되어도 배치 루프가 지속되도록 `dev-context.json`에 배치 상태를 저장한다.
+
+**저장 필드 (`config.dev_impl`)**:
+
+| 필드 | 값 | 설명 |
+|------|-----|------|
+| `currentBatchRunning` | `true`/`false` | 배치 진행 중 여부 |
+| `currentBatchTopic` | `<topic>` / `false` | 배치가 시작된 토픽 (topic-scoped) |
+
+**Step 1 lifecycle**:
+- `batch=true` 진입 시: 두 필드를 즉시 저장 (현재 토픽 포함)
+- `batch=false` + 명시적 Task 인자: stale 감지 건너뜀 (explicit-Task-wins)
+- `batch=false` + 일반 호출: `currentBatchRunning` 읽기 → `"true"`이면
+  - 토픽 불일치 → silently reset 두 필드 → 단일 Task 진행
+  - 토픽 일치 → `AskUserQuestion` (재개 / 초기화) 표시
+
+**Step 11 cleanup**: 모든 terminal exit(단일 Task 완료·배치 완료·배치 중단) 직전에 두 필드를 `false`로 초기화한다.
+
 ### 루프 구조
 
 1. 첫 번째 Task: 전체 Pre-work Briefing 출력 → 승인 대기 (또는 `auto_start=true` 시 자동 진행)
@@ -116,6 +136,7 @@ node .harness/scripts/dev-context.js read --field=config.dev_impl.batch_mode
    --- Starting Task <ID>: <Name> ---
    ```
 3. 각 Task 완료 후 Step 10.5(Batch Loop Decision)에서 다음 미완료 Task 유무를 확인:
+   - `batch == true` OR (`currentBatchRunning == "true"` AND 토픽 일치 AND 명시적 Task 인자 없음) → 배치 계속
    - 남은 Task 있음 → Step 2로 돌아가 다음 Task 실행
    - 없음 → Batch Complete 보고 후 종료
 
@@ -178,7 +199,8 @@ Resume after fixing the issue:
 
 - `git add -A` 금지. Task 변경 파일만 명시적 stage.
 - amend 금지. 항상 새 commit 생성.
-- 명시적 Task 인수는 `batch_mode`를 무효화한다.
+- 명시적 Task 인수는 `batch_mode`를 무효화하며 stale 감지를 건너뛴다 (explicit-Task-wins).
+- 배치 상태(`currentBatchRunning`·`currentBatchTopic`)는 topic-scoped. 토픽 불일치 stale 상태는 silently reset된다.
 - 병렬 실행 없음 — Task는 반드시 순차 실행된다.
 - 실패 Task 자동 재시도 없음 — 중단 후 사용자가 직접 수정하고 재실행해야 한다.
 - 실패 시 건너뛰기 없음 — 실패한 Task를 무시하고 다음 Task로 넘어가지 않는다.
