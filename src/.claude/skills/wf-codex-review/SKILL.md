@@ -1,5 +1,5 @@
 ---
-version: 12
+version: 13
 name: wf-codex-review
 description: Run a single Codex spec-review or plan-review via `codex exec` and return the parsed Decision. Phase auto-detected from `dev-context.json`. Loop control is owned by the calling command, not this skill.
 origin: harness
@@ -193,7 +193,7 @@ REVIEW_DIR="$(dirname "$CANON_PATH")"   # canonicalized file path → its contai
 BEFORE_FILES=$(ls "$REVIEW_DIR"/$PATTERN 2>/dev/null | sort)
 
 # 2. codex exec 실행
-codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘" < /dev/null
+codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 EXEC_EXIT=$?
 
 # 3. 실행 후 파일 목록과 비교 → 새 파일 = after - before

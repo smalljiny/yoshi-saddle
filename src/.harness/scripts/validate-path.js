@@ -6,7 +6,7 @@
 // 성공: exit 0 + canonical 절대경로 출력
 // 실패: exit 1 + 오류 메시지를 stderr에 출력
 
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -42,8 +42,9 @@ function main() {
 
   let rawPath;
   try {
-    rawPath = execSync(
-      `node "${devContextScript}" read --topic="${topic}" --field="${field}"`,
+    rawPath = execFileSync(
+      'node',
+      [devContextScript, 'read', `--topic=${topic}`, `--field=${field}`],
       { encoding: 'utf8', cwd: repoRoot }
     ).trim();
   } catch (err) {
@@ -56,9 +57,13 @@ function main() {
     process.exit(1);
   }
 
-  // 절대경로·leading dash·경로 탐색·제어 문자 거부
+  // 절대경로·leading dash·경로 탐색·제어 문자·쉘 메타문자 거부
   if (/^\//.test(rawPath) || /^-/.test(rawPath) || /\.\./.test(rawPath) || /[\x00-\x1f]/.test(rawPath)) {
     process.stderr.write(`UNSAFE path rejected: ${rawPath}\n`);
+    process.exit(1);
+  }
+  if (/[^a-zA-Z0-9_.\/\-]/.test(rawPath)) {
+    process.stderr.write(`UNSAFE path chars rejected: ${rawPath}\n`);
     process.exit(1);
   }
 
