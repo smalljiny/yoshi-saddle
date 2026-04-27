@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob
@@ -55,6 +55,30 @@ Each phase should include:
 - Group related changes
 - Minimize context switching
 - Structure for incremental testability
+
+### 4.5. `prompt` 타입 Task 작성 지침
+
+Task Type이 `prompt`인 경우 Completion Criteria를 다음 형식으로 작성한다.
+Eval Case 스키마 전체 명세는 `.harness/contracts/implementation-plan.md`의 `## Prompt Task Eval Schema` 섹션을 참조한다.
+
+**언제 사용**: 에이전트·스킬·커맨드·규칙 등 Claude에게 전달되는 프롬프트 파일을 작성·개선하는 Task.
+
+**Completion Criteria 작성 규칙**:
+- Eval Case 최소 **2개** 이상 작성
+- 전략 태그 없으면 `direct`로 해석됨 (기본값)
+- `Acceptance: N/M eval 통과` 라인은 **필수** (N=M인 경우도 명시)
+
+**형식 예시**:
+```markdown
+- **Type**: prompt
+- **Completion Criteria**:
+  - [ ] Eval 1: Input: "<시나리오>" → Expected: "<기대 출력 또는 패턴>"
+  - [ ] Eval 2 [rubric]: Input: "<시나리오>"
+      Criteria: "<평가 기준>"
+      Rubric: "1=<나쁜 예>, 5=<좋은 예>"
+      Pass: score >= 4
+  - [ ] Acceptance: 2/2 eval 통과
+```
 
 ### 5. Design per-Task Commit Message
 
