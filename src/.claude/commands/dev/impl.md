@@ -198,6 +198,8 @@ Load `.claude/skills/simplify/SKILL.md` and follow its process.
 - simplify는 코드 재사용·효율성·품질을 재검토하고 개선이 있으면 즉시 수정한다.
 - `config`·`infra`·`refactor`·`prompt` 타입은 simplify를 적용하지 않는다. `prompt` 타입은 REFINE 사이클이 품질 개선을 담당한다.
 
+**`prompt` 타입 — code-reviewer는 comment-only**: `prompt-engineer`가 Eval Acceptance를 달성한 후 code-reviewer가 실행된다. code-reviewer는 **평가 대상 프롬프트 파일을 수정하지 않는다** — 관찰 사항만 보고한다. 프롬프트 파일 수정이 필요하면 `prompt-engineer`를 재호출해 eval 게이트를 다시 통과해야 한다.
+
 **Batch failure condition**: If code-reviewer reports a blocking issue that cannot be resolved automatically:
 - `batch == true`: set `batch_failed = true` with reason "blocking review issue" and proceed to Step 11 (terminal)
 - `batch == false`: surface the issue and stop

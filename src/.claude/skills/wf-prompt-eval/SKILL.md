@@ -14,6 +14,15 @@ origin: harness
 `prompt` 타입 Task의 평가 절차를 정의한다.
 `prompt-engineer` 에이전트가 이 스킬을 로드하고 따른다.
 
+## Known Limitation: Prediction-Based Evaluation
+
+`direct`, `rubric`, `judge` 세 전략 모두 평가자 자신의 추론으로 출력을 예측하고 점수를 산출한다 (실제 API 호출 없음). 이는 비용·속도를 위한 의도적 설계 결정이며, 아래 제한을 수반한다:
+
+- **Self-judgment bias**: 프롬프트를 작성한 동일한 컨텍스트가 평가도 수행하므로 Acceptance 달성이 실제 품질을 보장하지 않는다.
+- **No runtime evidence**: 커밋된 프롬프트가 실제 입력에서 동작할 것을 이 스킬이 보장할 수 없다.
+
+실제 API 호출 기반 평가가 필요하면 호출자 에이전트가 `Bash` 도구로 직접 구현해야 한다.
+
 ## Non-Goals
 
 다음은 이 스킬의 범위 밖이다:
