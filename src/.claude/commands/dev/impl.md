@@ -1,5 +1,5 @@
 ---
-version: 13
+version: 14
 description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
 category: dev-workflow
 ---
@@ -88,7 +88,7 @@ Execute Tasks from the implementation plan one at a time, or all at once in batc
 ### 2. Understand Task Details
 
 Extract from the plan document:
-- **Type**: tdd, config, infra, refactor
+- **Type**: tdd, config, infra, refactor, prompt
 - **Goal**: What to achieve
 - **Work Items**: Checklist
 - **Completion Criteria**: Validation criteria
@@ -108,7 +108,7 @@ Then proceed to Step 4 immediately without waiting for approval.
 ## Pre-work Briefing: [Task ID] [Task Name]
 
 ### Task Overview
-- Type: [tdd / config / infra / refactor]
+- Type: [tdd / config / infra / refactor / prompt]
 - Goal: [What to achieve]
 
 ### Work Plan
@@ -154,8 +154,9 @@ node .harness/scripts/dev-context.js update-state \
   --topic=<topic> --phase=impl --status=in-progress
 ```
 
-### 5. **Automatically invoke tdd-specialist agent** (type: tdd)
+### 5. **Automatically invoke agent by Task Type**
 
+**Type: `tdd`** → Invoke **tdd-specialist** agent:
 - Write failing tests (RED)
 - Confirm tests fail
 - Minimal implementation (GREEN)
@@ -163,12 +164,22 @@ node .harness/scripts/dev-context.js update-state \
 - Refactoring (REFACTOR)
 - Check coverage
 
-For types `config`, `infra`, `refactor`:
-- `config`: Change and validate configuration files
-- `infra`: Change infrastructure and document
-- `refactor`: Improve structure after ensuring test coverage
+**Type: `prompt`** → Invoke **prompt-engineer** agent:
+- Pass: Goal, Eval Cases (from Completion Criteria), Acceptance threshold, target file path
+- Agent runs PROPOSE→EVAL→REFINE cycle via `wf-prompt-eval` skill (max 5 iterations)
+- Agent reports outcome (success / stagnation / max iterations)
 
-**Batch failure condition**: If tdd-specialist reports that RED→GREEN test failure cannot be resolved:
+**Type: `refactor`** → Invoke **refactor-cleaner** agent:
+- Ensure test coverage exists before refactoring
+- Apply incremental structural improvements
+
+**Type: `config`** → Direct handling:
+- Change and validate configuration files
+
+**Type: `infra`** → Direct handling:
+- Change infrastructure and document
+
+**Batch failure condition**: If the invoked agent (tdd-specialist, prompt-engineer, or refactor-cleaner) reports an unresolvable failure:
 - `batch == true`: set `batch_failed = true` with reason "test failure" and proceed to Step 11 (terminal)
 - `batch == false`: surface the failure and stop
 
@@ -185,7 +196,7 @@ Load `.claude/skills/simplify/SKILL.md` and follow its process.
 ```
 
 - simplify는 코드 재사용·효율성·품질을 재검토하고 개선이 있으면 즉시 수정한다.
-- `config`·`infra`·`refactor` 타입은 실제 소스 코드가 아닌 설정/문서/구조 변경이므로 simplify를 적용하지 않는다.
+- `config`·`infra`·`refactor`·`prompt` 타입은 simplify를 적용하지 않는다. `prompt` 타입은 REFINE 사이클이 품질 개선을 담당한다.
 
 **Batch failure condition**: If code-reviewer reports a blocking issue that cannot be resolved automatically:
 - `batch == true`: set `batch_failed = true` with reason "blocking review issue" and proceed to Step 11 (terminal)
@@ -379,7 +390,7 @@ Resume after fixing the issue:
 - **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
 - **TDD enforced** — `tdd` type must write tests first
 - **Immediate review** — automatically invoke code-reviewer immediately after implementation
-- **simplify after code-review (tdd only)** — `tdd` 타입은 code-reviewer 직후 `simplify` 스킬을 추가 실행; `config`·`infra`·`refactor` 타입은 제외
+- **simplify after code-review (tdd only)** — `tdd` 타입은 code-reviewer 직후 `simplify` 스킬을 추가 실행; `config`·`infra`·`refactor`·`prompt` 타입은 제외 (`prompt`는 REFINE 사이클이 담당)
 - **Pre-work advisor (complex tasks)** — `infra` 타입 또는 Work Items ≥ 5인 Task는 브리핑 직후 `advisor()`를 호출해 설계 위험·엣지 케이스를 사전 점검
 - **Commit from plan** — commit message comes from the Task's `**Commit**` field; never invent a message
 - **auto_commit default is false** — user sees and approves each commit unless `config.dev_impl.auto_commit=true`
