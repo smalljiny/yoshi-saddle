@@ -1,5 +1,5 @@
 ---
-version: 10
+version: 11
 description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
 category: dev-workflow
 ---
@@ -272,7 +272,16 @@ node .harness/scripts/dev-context.js set-field \
 
 ### 10.5. Batch Loop Decision
 
-Evaluate only when `batch == true`:
+Evaluate when `batch == true` OR (`currentBatchRunning == "true"` AND explicit Task argument was NOT given):
+
+0. Recover persisted batch state (session memory loss guard):
+   - If the invocation included an **explicit Task argument** (e.g. `/dev:impl T2`), skip this step entirely (explicit-Task-wins overrides persisted batch state — do not loop).
+   - Otherwise, read the persisted field:
+     ```bash
+     node .harness/scripts/dev-context.js read --field=config.dev_impl.currentBatchRunning
+     ```
+   - If the returned value is `"true"`, recover `batch = true` (세션 메모리 소실 보완).
+   - Then proceed only if `batch == true`.
 
 1. Read `currentTask` written by Step 10 — this must equal the first remaining `[ ]` Task in `implementation-plan.md`. If they disagree (plan edited mid-batch), use the plan file as the authoritative source and log a warning.
 2. If a next Task exists → jump back to Step 2 (start next Task)
@@ -347,8 +356,8 @@ Resume after fixing the issue:
 ## Key Principles
 
 - **One Task at a time (default)** — only one Task per invocation unless `--all` or `config.dev_impl.batch_mode=true` is set; in batch mode all remaining Tasks run sequentially
-- **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately
-- **Batch persistence** — `currentBatchRunning` 필드로 비정상 종료된 배치를 감지·재개한다; Step 1 진입 시 세팅, Step 11 정상 종료 시 false로 초기화
+- **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately; `currentBatchRunning` is reset on every terminal exit (Step 11)
+- **Batch persistence** — `currentBatchRunning` 필드로 비정상 종료된 배치를 감지·재개한다; Step 1 진입 시 세팅, Step 11 모든 terminal exit 시 false로 초기화 (single-Task·batch complete·batch stopped 무관)
 - **Pre-work briefing for first Task only in batch mode** — Task 2 onward shows a single "Starting Task" line; full briefing and approval gate apply only to the first Task (subject to `auto_start`)
 - **Prior approval required** (unless `config.dev_impl.auto_start=true`) — do not start the first Task without approving the work plan
 - **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
