@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 category: dev-workflow
 ---
@@ -85,6 +85,7 @@ Invoke both agents simultaneously:
 - Architecture consistency
 - Test coverage
 - Performance considerations
+- CLAUDE.md rule compliance (cross-file) — especially AskUserQuestion enforcement
 
 **security-reviewer** examines:
 - Security vulnerabilities
