@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: plan-review
 description: >-
   Review an implementation plan against an 8-point quality gate. Resolves plan
