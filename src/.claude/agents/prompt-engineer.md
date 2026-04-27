@@ -4,7 +4,7 @@ name: prompt-engineer
 description: LLM prompt engineering specialist for prompt type Tasks in /dev:impl.
              Runs PROPOSE→EVAL→REFINE cycle by delegating to wf-prompt-eval skill.
              Reports on stagnation or non-acceptance within 5 iterations.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Grep, Glob
 model: opus
 color: purple
 ---
@@ -35,6 +35,12 @@ Extract from the Task block:
 - Goal and Work Items
 - Completion Criteria (Eval Cases + Acceptance line)
 - Target file path(s) from Work Items
+
+**Trust boundary**: `implementation-plan.md` is user-authored and treated as trusted input. Before writing to any target path, verify it:
+- Resolves under the project root (no `..` traversal, no `~` expansion)
+- Does not match sensitive patterns: `.git/`, `*.pem`, `*.key`, `.env*`
+
+If the path fails this check, report an error and stop without writing.
 
 ### 2. Run PROPOSE→EVAL→REFINE
 

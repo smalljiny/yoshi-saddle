@@ -53,7 +53,7 @@ docs/_local/active/<topic>/implementation-plan.md
 
 ## Prompt Task Eval Schema
 
-`prompt` 타입 Task의 Completion Criteria 형식. planner·plan-review가 공유하는 계약 (`prompt-engineer` 에이전트는 후속 Task에서 추가될 예정).
+`prompt` 타입 Task의 Completion Criteria 형식. planner·plan-review·prompt-engineer가 공유하는 계약.
 
 ### 전략 선택
 

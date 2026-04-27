@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 1
 name: wf-prompt-eval
 description: >
   Defines the PROPOSE→EVAL→REFINE evaluation procedure for prompt type Tasks.
