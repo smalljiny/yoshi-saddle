@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 ---
 # Security Rules
 
@@ -53,3 +53,23 @@ When a security issue is found:
 3. Fix CRITICAL issues before continuing
 4. Replace exposed secrets immediately
 5. Review the entire codebase for similar issues
+
+## Shell Injection Defense
+
+AI 출력·사용자 입력을 셸 명령 인자로 보간하면 백틱·`$()`·따옴표 escape 실패로 임의 명령이 실행될 수 있다. `git commit -m "<AI-generated>"` 패턴이 대표적 위험 사례다.
+
+셸에 동적 문자열을 전달할 때는 반드시 HEREDOC(`<<'EOF' ... EOF`, 단일 따옴표 delimiter) 또는 stdin 파이프를 사용한다. `<<'EOF'`는 변수 확장과 `$()` 명령 치환을 완전히 비활성화하지만, `<<EOF`(따옴표 없음)는 확장이 여전히 동작하므로 방어가 되지 않는다.
+
+```bash
+# WRONG: 메시지가 보간되어 임의 명령 실행 가능
+git commit -m "$AI_GENERATED_MSG"
+git commit -m "$(generate-message)"
+
+# CORRECT: HEREDOC으로 보간 없이 전달
+git commit -m "$(cat <<'COMMIT_MSG'
+feat: add shell injection defense section
+COMMIT_MSG
+)"
+```
+
+직접 `-m "$VAR"` 또는 문자열 연결로 셸 인자를 구성하는 패턴은 금지한다.

@@ -1,5 +1,5 @@
 ---
-version: 10
+version: 14
 name: wf-codex-review
 description: Run a single Codex spec-review or plan-review via `codex exec` and return the parsed Decision. Phase auto-detected from `dev-context.json`. Loop control is owned by the calling command, not this skill.
 origin: harness
@@ -45,24 +45,22 @@ spec-review: /dev:spec에서 spec:reviewing 상태로 전환 후 실행하세요
 plan-review: /dev:plan에서 plan:reviewing 상태로 전환 후 실행하세요.
 ```
 
-### 3. 경로 읽기 및 실행
+### 3. 경로 읽기·검증·정규화
 
 ```bash
 # spec-review인 경우
-TARGET_PATH=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=spec)
+CANON_PATH=$(node .harness/scripts/validate-path.js --topic="$TOPIC" --field=spec)
 
 # plan-review인 경우
-TARGET_PATH=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=plan)
+CANON_PATH=$(node .harness/scripts/validate-path.js --topic="$TOPIC" --field=plan)
 ```
 
-경로를 읽은 뒤 **사용자 확인 없이** Availability Gate → Path Validation → Invocation Pattern 순으로 바로 진행한다.
+실패(비-0 exit) 시 즉시 중단. 성공 시 **사용자 확인 없이** Availability Gate → Invocation Pattern 순으로 바로 진행한다.
 
 ---
 
 ## Prerequisites
 
-- **`greadlink`** (GNU `realpath` 대안): `brew install coreutils` 로 설치 가능.
-  미설치 시 `python3` 폴백이 자동 사용되므로 macOS 기본 설치에서도 동작한다.
 - **`gtimeout`** (GNU `timeout` 대안): `brew install coreutils` 로 설치 가능.
   미설치 시 `timeout`(Linux 기본) 또는 no-op 폴백으로 자동 선택된다.
   timeout 없이 실행하면 Codex 자체 실행 제한에 의존한다.
@@ -87,47 +85,23 @@ If either returns a value other than `"true"`:
 
 ## Path Validation (Required Before Invocation)
 
-Before using any path in `codex exec` arguments or `find` calls, enforce repo-relative
-containment using canonicalization:
+`.harness/scripts/validate-path.js`가 경로 읽기·검증·정규화를 단일 호출로 처리한다.
+
+내부 동작:
+- `dev-context.json`에서 경로 읽기
+- 빈값·절대경로(`/`)·leading dash(`-`)·경로 탐색(`..`)·제어 문자 거부
+- `fs.realpathSync()`로 정규화 (파일 미존재 시 `path.resolve()` 폴백)
+- 리포지터리 루트 내부 경로 확인
 
 ```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-SPEC_PATH="<value-from-dev-context>"
-
-# Reject empty, absolute (/…), traversal (../ or /..), control chars, leading dash
-if [ -z "$SPEC_PATH" ] || \
-   echo "$SPEC_PATH" | grep -qE '(^/|^\-|\.\.|[[:cntrl:]])'; then
-  echo "UNSAFE path rejected: $SPEC_PATH" >&2
-  exit 1
-fi
-
-# Canonicalize and confirm it stays inside the repo root
-# macOS: greadlink -f (brew coreutils) preferred; python3 fallback for default installs
-# Note: both greadlink and python3 resolve symlinks (stricter than --no-symlinks)
-if command -v greadlink >/dev/null 2>&1; then
-  CANON_PATH="$(greadlink -f "$REPO_ROOT/$SPEC_PATH" 2>/dev/null)"
-elif command -v python3 >/dev/null 2>&1; then
-  CANON_PATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$REPO_ROOT/$SPEC_PATH")"
-else
-  echo "Neither greadlink nor python3 available for path canonicalization" >&2; exit 1
-fi
-case "$CANON_PATH" in
-  "$REPO_ROOT"/*) ;;   # OK: inside repo
-  *) echo "Path escapes repo root: $SPEC_PATH" >&2; exit 1 ;;
-esac
+# <field>: spec-review → spec / plan-review → plan
+CANON_PATH=$(node .harness/scripts/validate-path.js --topic="$TOPIC" --field=<field>)
+# 오류 시 비-0 exit + stderr 출력
 ```
 
-This prevents:
-- Absolute paths (e.g. `/tmp/spec.md`)
-- Directory traversal (e.g. `../../outside`)
-- Control characters and leading dash
+`$CANON_PATH`를 이후 `codex exec` 호출과 `Parsing the Decision`의 `REVIEW_DIR` 계산에 사용한다.
 
-Note: double-quoting at all call sites prevents shell re-evaluation of `$`, `` ` ``, `;` etc.
-This does not prevent LLM-level prompt injection via the path value; that risk is bounded by
-the path being repo-local (enforced by the `REPO_ROOT/*` check above) and the `workspace-write`
-sandbox limiting what `codex exec` can act on.
-
-Use `$CANON_PATH` in subsequent `codex exec` and `find` calls.
+**Security scope**: 경로를 리포지터리 로컬로 제한. `workspace-write` 샌드박스가 `codex exec` 작업 범위를 추가로 제한한다.
 
 ---
 
@@ -136,33 +110,37 @@ Use `$CANON_PATH` in subsequent `codex exec` and `find` calls.
 ### spec-review
 
 ```bash
-# Validate path first (see "Path Validation" above)
-SPEC_PATH="docs/_local/active/my-topic/spec.md"
+# Path Validation → CANON_PATH 획득 (단일 node 호출, Bash(node:*) 허용)
+CANON_PATH=$(node .harness/scripts/validate-path.js --topic="$TOPIC" --field=spec)
 
 # -s workspace-write: 리뷰 파일을 workdir 내에 쓸 수 있도록 명시적으로 허용.
 # 프로젝트 codex.toml에 workspace-write가 없어도 동작하도록 항상 붙인다.
 # macOS: gtimeout (brew coreutils) preferred; falls back to timeout (Linux); no-op if absent
-TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+# < /dev/null: bash 복합 명령 안에서 실행 시 codex가 stdin을 읽으려 대기하는 문제 방지.
+TIMEOUT_BIN=$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null || true)
 if [ -n "$TIMEOUT_BIN" ]; then
-  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 else
-  codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘"
+  codex exec -s workspace-write "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 fi
 ```
 
 ### plan-review
 
 ```bash
-TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
+# Path Validation → CANON_PATH 획득 (단일 node 호출, Bash(node:*) 허용)
+CANON_PATH=$(node .harness/scripts/validate-path.js --topic="$TOPIC" --field=plan)
+
+# < /dev/null: bash 복합 명령 안에서 실행 시 codex가 stdin을 읽으려 대기하는 문제 방지.
+TIMEOUT_BIN=$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null || true)
 if [ -n "$TIMEOUT_BIN" ]; then
-  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "plan-review 스킬을 실행해줘"
+  "$TIMEOUT_BIN" 120 codex exec -s workspace-write "plan-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 else
-  codex exec -s workspace-write "plan-review 스킬을 실행해줘"
+  codex exec -s workspace-write "plan-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 fi
 ```
 
-`plan-review` reads `current_topic` and `plan` from `dev-context.json` (or `DEV_CONTEXT_PATH`
-if set) to locate the target plan file — no explicit path argument is needed.
+`$CANON_PATH`를 이후 `Parsing the Decision`의 `REVIEW_DIR` 계산에 사용한다.
 
 ### Isolation via DEV_CONTEXT_PATH
 
@@ -174,9 +152,9 @@ to a fixture dev-context file inside the repo (e.g. `docs/_local/.../fixture/`):
 DEV_CONTEXT_PATH="docs/_local/active/codex-skill-bridge/fixture/fixture-dev-context.json"
 TIMEOUT_BIN="$(command -v gtimeout 2>/dev/null || command -v timeout 2>/dev/null)"
 if [ -n "$TIMEOUT_BIN" ]; then
-  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" "$TIMEOUT_BIN" 120 codex exec "..."
+  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" "$TIMEOUT_BIN" 120 codex exec "..." < /dev/null
 else
-  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" codex exec "..."
+  DEV_CONTEXT_PATH="$DEV_CONTEXT_PATH" codex exec "..." < /dev/null
 fi
 ```
 
@@ -218,7 +196,7 @@ REVIEW_DIR="$(dirname "$CANON_PATH")"   # canonicalized file path → its contai
 BEFORE_FILES=$(ls "$REVIEW_DIR"/$PATTERN 2>/dev/null | sort)
 
 # 2. codex exec 실행
-codex exec "spec-review 스킬로 ${SPEC_PATH}를 리뷰해줘"
+codex exec "spec-review 스킬로 ${CANON_PATH}를 리뷰해줘" < /dev/null
 EXEC_EXIT=$?
 
 # 3. 실행 후 파일 목록과 비교 → 새 파일 = after - before
