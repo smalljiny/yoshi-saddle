@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 ---
 # Security Rules
 
@@ -73,3 +73,24 @@ COMMIT_MSG
 ```
 
 직접 `-m "$VAR"` 또는 문자열 연결로 셸 인자를 구성하는 패턴은 금지한다.
+
+## CLI Dynamic Key Access
+
+CLI에서 동적 키로 JSON 객체를 조작할 때는 두 층의 방어가 필요하다.
+
+**쓰기 방어 — 예약 키 차단:**
+
+```js
+const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+if (RESERVED_KEYS.has(key)) throw new Error(`Reserved key: ${key}`)
+obj[key] = value
+```
+
+**읽기 방어 — `hasOwn` 가드:**
+
+```js
+if (!Object.hasOwn(obj, key)) return undefined
+return obj[key]
+```
+
+두 방어를 모두 적용한다. 쓰기 차단만으로는 prototype 속성에 대한 읽기 혼동을 막지 못하고, 읽기 가드만으로는 쓰기 오염을 막지 못한다.

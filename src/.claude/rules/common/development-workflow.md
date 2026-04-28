@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 ---
 # Development Workflow
 
@@ -123,6 +123,20 @@ grep -rnE 'declare\s+-[aA]|mapfile|readarray' .claude .harness
 ```
 
 현재 코드베이스 grep 결과: 0건 (2026-04-21 기준).
+
+**`set -u` 환경에서 빈 배열 확장:**
+
+`set -u`(nounset)가 활성화된 셸에서 빈 배열을 `${arr[@]}`로 확장하면 "unbound variable" 에러가 발생한다.
+
+```bash
+# WRONG: set -u 환경에서 배열이 비어 있으면 에러
+cmd "${arr[@]}"
+
+# CORRECT: 배열이 비어 있을 때 안전하게 확장
+cmd ${arr[@]+"${arr[@]}"}
+```
+
+이 패턴은 `arr`가 설정됐고 비어 있지 않을 때만 확장하므로, `set -u`·`set -e` 모두에서 안전하다.
 
 ## State Transition Summary
 
