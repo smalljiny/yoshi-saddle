@@ -1,5 +1,5 @@
 ---
-version: 15
+version: 16
 description: Write a spec for a new topic. Registers the topic in dev-context.json, writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 category: dev-workflow
 ---
@@ -222,6 +222,13 @@ When the user returns after Codex review:
 - Read the review report
 - If decision is `NOT READY`:
   - Apply all Required Fixes to `spec.md`
+  - > **Pending PR dependency**: Gate 7 (구현 가능성)에서 "참조 파일이 존재하지 않는다"는 이유로 NOT READY가 반복된다면, 해당 파일이 미병합 PR에 있는지 확인한다. 그렇다면 스펙 최상단에 "구현 선행 조건" 표를 추가한다:
+    > ```markdown
+    > | 선행 조건 | PR | 상태 |
+    > |---------|-----|------|
+    > | <파일명> | #<pr-number> | 미병합 |
+    > ```
+    > 이렇게 하면 리뷰어가 파일 부재를 Gate 7 실패가 아닌 선행 조건 미충족으로 처리한다.
   - Transition back to drafting:
     ```bash
     node .harness/scripts/dev-context.js update-state \

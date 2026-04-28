@@ -34,10 +34,20 @@ Final decision rules:
   Missing Completion Criteria section in any Task → FAIL.)
 
 - [ ] 5. Task 타입 정확성 (Task Type Accuracy)
-  Evidence: (verify each Task's Type (tdd/config/infra/refactor) matches its Work Items.
+  Evidence: (verify each Task's Type (tdd/config/infra/refactor/prompt) matches its Work Items.
   tdd: must include test writing. config: no executable behavior changes. infra: tooling/scripts.
   refactor: restructuring with existing coverage.
-  Mismatch between stated type and actual work → FAIL.)
+  prompt: LLM prompt authoring/improvement with Eval Cases and Acceptance.
+  Mismatch between stated type and actual work → FAIL.
+
+  For `prompt` type Tasks — additional validation (spec §3.5):
+  - Eval Case count < 2 → NOTE
+  - Any Eval Case missing Input field → FAIL
+  - `direct` Eval Case missing Expected field → FAIL
+  - `rubric` Eval Case missing Criteria, Rubric, or Pass field → FAIL
+  - `judge` Eval Case missing Expected, Judge Criteria, or Pass field → FAIL
+  - Missing `Acceptance: N/M eval 통과` line → NOTE
+  - N > M or N < 1 in Acceptance → FAIL)
 
 - [ ] 6. Task 규모 적정성 (Task Size Appropriate)
   Evidence: (verify each Task fits within a single commit unit.

@@ -4,7 +4,7 @@
 
 ## 개요
 
-기본적으로 `/dev:impl`은 Task 하나를 실행하고 멈춘다. 각 Task는 tdd-specialist → code-reviewer → commit의 세 단계를 밟는다.
+기본적으로 `/dev:impl`은 Task 하나를 실행하고 멈춘다. 각 Task는 에이전트 호출 → code-reviewer → commit의 세 단계를 밟는다. Task 타입에 따라 호출되는 에이전트가 다르다.
 
 배치 모드(`--all` 또는 `config.dev_impl.batch_mode=true`)를 활성화하면 미완료 Task 전체를 순차 자동 실행한다.
 
@@ -27,30 +27,109 @@
 
 ```markdown
 ### [ ] Task N: <title>
-- **Type**: tdd | config | infra | refactor
+- **Type**: tdd | config | infra | refactor | prompt
 - **Goal**: ...
 - **Work Items**: ...
 - **Completion Criteria**: ...
 - **Commit**: `<type>(<scope>): <subject>`
 ```
 
+`prompt` 타입은 Completion Criteria에 Eval Cases와 Acceptance를 포함한다 (형식은 아래 Eval Case 스키마 참조).
+
 ## 기본 실행 흐름 (단일 Task)
 
 각 Task는 다음 순서로 실행된다:
 
-1. tdd-specialist 호출 (RED → GREEN → REFACTOR)
-2. code-reviewer 호출 (즉시 리뷰 + 수정)
-3. Completion Criteria 검증
-4. commit 실행 (`**Commit**` 필드 기준)
-5. 플랜 체크박스 업데이트 (`[ ]` → `[x]`)
-6. `dev-context.json` currentTask 갱신
+1. Pre-work 브리핑 출력 및 승인 대기 (배치 모드 두 번째 Task 이후는 한 줄 헤더로 대체)
+2. `impl:in-progress` 전환 (첫 번째 Task에서만)
+3. **에이전트 호출** — Task 타입별 분기:
+
+   | Type | 에이전트 | 동작 |
+   |------|---------|------|
+   | `tdd` | tdd-specialist | RED → GREEN → REFACTOR 사이클 |
+   | `prompt` | prompt-engineer | PROPOSE → EVAL → REFINE 사이클 (`wf-prompt-eval` 스킬 사용, 최대 5회) |
+   | `refactor` | refactor-cleaner | 기존 테스트 커버리지 확인 후 구조적 개선 |
+   | `config` | (직접 처리) | 설정 파일 변경 및 검증 |
+   | `infra` | (직접 처리) | 인프라 변경 및 문서화 |
+
+4. **code-reviewer 호출** (에이전트 완료 직후)
+   - 모든 타입에 적용
+   - `prompt` 타입은 comment-only: 평가 대상 프롬프트 파일을 직접 수정하지 않는다. 수정이 필요하면 prompt-engineer를 재호출해 eval 게이트를 다시 통과해야 한다.
+5. **simplify 스킬 후속 호출** (`tdd` 타입 전용)
+   - code-reviewer 완료 직후 `simplify` 스킬을 로드해 코드 재사용·효율성·품질을 재검토한다.
+   - `config`·`infra`·`refactor`·`prompt` 타입은 적용하지 않는다. `prompt`는 REFINE 사이클이 품질 개선을 담당한다.
+6. Completion Criteria 검증
+7. commit 실행 (`**Commit**` 필드 기준)
+8. 플랜 체크박스 업데이트 (`[ ]` → `[x]`)
+9. `dev-context.json` currentTask 갱신
+
+### prompt 타입 상세
+
+`prompt-engineer` 에이전트는 다음 입력을 받아 PROPOSE→EVAL→REFINE 사이클을 실행한다:
+- Goal, Eval Cases (Completion Criteria에서 파싱), Acceptance 임계값, 대상 파일 경로
+
+에이전트는 최대 5회 반복하며, 연속 2회 pass_count(통과 Eval 개수) 증가 없음이 감지되면 정체로 판단해 즉시 보고한다. 5회 이내에 Acceptance 미달 시 실패 패턴 요약과 현재 최선 초안을 제시하고 사용자 판단에 위임한다.
+
+### Eval Case 스키마
+
+`prompt` 타입 Task의 Completion Criteria에 기재하는 평가 케이스 형식. planner·plan-review·prompt-engineer가 공유하는 계약이다.
+
+| 전략 | 적용 기준 | 필수 필드 |
+|------|----------|---------|
+| `direct` (기본값, 생략 가능) | 정확한 텍스트·구조 일치 | Input, Expected |
+| `rubric` | 주관적 품질 (어조, 간결성, 준수 여부) | Input, Criteria, Rubric, Pass |
+| `judge` | 복잡한 추론·정확성 (Claude-as-judge) | Input, Expected, Pass |
+
+**`direct` 전략** (전략 태그 생략 가능):
+```markdown
+- [ ] Eval 1: Input: "<시나리오>" → Expected: "<기대 출력 텍스트 또는 패턴>"
+```
+
+**`rubric` 전략:**
+```markdown
+- [ ] Eval 2 [rubric]: Input: "<시나리오>"
+    Criteria: "<평가 기준>"
+    Rubric: "1=<나쁜 예 설명>, 5=<좋은 예 설명>"
+    Pass: score >= N
+```
+
+**`judge` 전략:**
+```markdown
+- [ ] Eval 3 [judge]: Input: "<시나리오>"
+    Expected: "<기대 동작 설명 (비교 기준용)>"
+    Pass: judge 통과
+```
+
+**Acceptance 계산 규칙:**
+```markdown
+- [ ] Acceptance: N/M eval 통과
+```
+- M = Eval Case 총 개수; N = 통과 요건 개수 (일반적으로 N = M)
+- N ≠ M이면 명시적 표기 (예: `Acceptance: 2/3 eval 통과`)
+- 각 Eval의 Pass 조건 충족 여부로 통과 계산
+
+정체 감지 지표: 전략 무관하게 각 Eval의 이진 통과(1)/실패(0)를 합산한 pass_count를 기준으로 연속 2회 증가 없음을 정체로 판정한다.
+
+### plan-review 검증 규칙 (`prompt` 타입)
+
+plan-review 스킬이 `prompt` 타입 Task를 검증할 때 적용하는 규칙:
+
+| 검증 항목 | 미충족 시 결정 |
+|----------|-------------|
+| Eval Case 최소 2개 이상 | NOTE |
+| 각 Eval에 Input 필드 존재 | NOT READY |
+| `direct` Eval에 Expected 필드 존재 | NOT READY |
+| `rubric` Eval에 Criteria + Rubric + Pass 필드 존재 | NOT READY |
+| `judge` Eval에 Expected + Pass 필드 존재 | NOT READY |
+| `Acceptance: N/M` 형식 명시 | NOTE |
+| N ≤ M 이고 N ≥ 1 | NOT READY |
 
 ## 커밋 계약
 
-### Task 커밋 실행 (Step 8)
+### Task 커밋 실행
 
 1. plan의 `**Commit**` 필드에서 메시지 추출
-2. `config.dev_impl.auto_commit` 읽기 (스키마는 `dev-context-config.md` 참조):
+2. `config.dev_impl.auto_commit` 읽기:
    - `true`: 자동 실행 (`git add <task-files> && git commit` HEREDOC)
    - `false`(기본): 사용자에게 y/n/skip 프롬프트
 3. `git add -A` 금지 — Task에서 변경된 파일만 명시적으로 stage
@@ -110,7 +189,7 @@ node .harness/scripts/dev-context.js read --field=config.dev_impl.batch_mode
 
 ### 배치 상태 영속화
 
-서브 에이전트(tdd-specialist·code-reviewer) 완료 후 세션 메모리의 `batch` 변수가 소실되어도 배치 루프가 지속되도록 `dev-context.json`에 배치 상태를 저장한다.
+서브 에이전트 완료 후 세션 메모리의 `batch` 변수가 소실되어도 배치 루프가 지속되도록 `dev-context.json`에 배치 상태를 저장한다.
 
 **저장 필드 (`config.dev_impl`)**:
 
@@ -144,7 +223,7 @@ node .harness/scripts/dev-context.js read --field=config.dev_impl.batch_mode
 
 | # | 조건 | 단계 |
 |---|------|------|
-| 1 | tdd-specialist RED→GREEN 해결 불가 | Step 5 |
+| 1 | 에이전트가 해결 불가능한 실패 보고 (tdd-specialist / prompt-engineer / refactor-cleaner) | Step 5 |
 | 2 | code-reviewer blocking 이슈 자동 수정 불가 | Step 6 |
 | 3 | Completion Criteria 검증 실패 | Step 7 |
 | 4 | 사용자가 commit 거부 (`n`) | Step 8 |
@@ -209,3 +288,7 @@ Resume after fixing the issue:
 - 플랜 파일 권위 — batch 실행 중 `implementation-plan.md`가 편집되면 plan 파일의 미완료 Task 목록을 `currentTask` 값보다 우선한다.
 - git hooks 자동화 없음 (commit-msg·pre-push hook 미설치).
 - hotfix/release 브랜치 미지원: `feature`·`fix`·`chore` 브랜치만.
+- `prompt` 타입 반복 상한: 최대 5회 (PROPOSE→EVAL→REFINE). 초과 시 사용자 위임.
+- `prompt` 타입 정체 감지: 연속 2회 pass_count 증가 없으면 즉시 중단 보고.
+- `prompt` 타입 code-reviewer는 평가 대상 프롬프트 파일을 수정하지 않는다 (comment-only).
+- simplify 스킬은 `tdd` 타입에만 적용. `config`·`infra`·`refactor`·`prompt` 타입은 제외.
