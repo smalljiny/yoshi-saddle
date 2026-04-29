@@ -1,9 +1,8 @@
 ---
-version: 3
+version: 4
 name: stack-prompt
-description: Prompt domain skill defining PROPOSE→EVAL→REFINE cycle for prompt type Tasks. Provides strategy-specific eval logic (direct/rubric/judge), pass_count metric, and stagnation signals. Lazy-loads reference/authoring-patterns.md and reference/diagnostic-patterns.md. Loop control and persistence owned by the calling agent.
+description: Prompt domain skill defining PROPOSE→EVAL→REFINE cycle for prompt type Tasks. Provides strategy-specific eval logic (direct/rubric/judge), pass_count metric, and stagnation signals. Lazy-loads reference/authoring-patterns.md and reference/diagnostic-patterns.md. Loop control and persistence owned by the calling agent. Workflow-only — direct-load by `prompt-engineer` agent; not exposed via skill-registry.
 origin: harness
-capabilities: [language-patterns, prompt]
 ---
 
 # stack-prompt
