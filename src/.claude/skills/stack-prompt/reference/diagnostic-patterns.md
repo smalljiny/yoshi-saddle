@@ -80,10 +80,3 @@
 | #35 | **No human review trigger** | Agent decides everything autonomously | "Stop and ask before: deleting any file, adding any dependency, or changing the database schema" |
 | #36 | **Vague first turn on Opus 4.7** | "fix the auth bug" with no scope, no files, no criteria | Opus 4.7 reads prompts literally — it no longer fills implicit context like 4.6 did. Use Template M. Front-load intent, file scope, constraints, and acceptance criteria. |
 | #37 | **Context rot on long sessions** | Keeps correcting in the same session for 60+ turns | New task = new session. Use /rewind instead of correcting. /compact at ~50% context. Subagents for file-heavy investigation. |
-
----
-
-## 출처
-
-- `references/prompt-master/references/patterns.md` (v1.6.0, MIT 라이선스, [github.com/nidhinjs/prompt-master](https://github.com/nidhinjs/prompt-master))의 37 패턴 중 image AI 전용 2개와 emotional task description 1개를 제외한 34개를 6 카테고리로 그룹핑해 흡수. ID 컬럼만 `#` prefix를 부여했고 Bad Example·Fixed 텍스트는 원본을 보존한다.
-- 리서치 보고서: `docs/research/research-enhance-prompt-eval-from-prompt-master-20260429140912.md` (16개 출처, 2026-04-29)에서 §3 Agentic Anti-patterns 섹션을 보강 참조.

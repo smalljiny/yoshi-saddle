@@ -58,8 +58,6 @@ Opus 4.7 / Claude Code에서 우선 적용할 라우팅 규칙 11개. prompt-mas
 
 11. **Session hygiene** — `Session hygiene matters: new task = new session.` `/rewind`로 중간 수정하고, `/compact`은 50% 컨텍스트에서 (90%가 아니라) 실행한다. 새 Task는 새 세션으로 시작한다.
 
-> 참고: prompt-master에는 19개 항목이 더 있으나, 본 문서는 plan §3에 명시된 11개로 한정한다. 전체 목록은 `references/prompt-master/SKILL.md`의 해당 섹션을 직접 참조.
-
 ---
 
 ## 3. Research Insights (2025-2026)
@@ -75,10 +73,3 @@ Opus 4.7 / Claude Code에서 우선 적용할 라우팅 규칙 11개. prompt-mas
 - **progressive disclosure / 500줄 제한**. 스킬·에이전트 프롬프트는 progressive disclosure를 따른다: SKILL.md는 ≤500줄, references는 한 단계 깊이까지, 100줄 초과 reference 파일은 목차를 둔다. lazy-load로 attention budget을 보존한다 (research §3.5, Key Takeaway 9).
 
 - **degrees of freedom 매칭**. Skill 작성자는 task fragility에 degrees of freedom을 맞춘다 — 파괴적/취약 작업(DB 마이그레이션 등)은 정확한 스크립트(low freedom), 열린 작업(코드 리뷰 등)은 일반 방향(high freedom). 너무 높은 altitude(`be helpful`)도 너무 낮은 altitude(brittle if-else)도 모두 실패한다 (research §3.3, Key Takeaway 10).
-
----
-
-## 출처
-
-- `references/prompt-master/` (v1.6.0, MIT 라이선스, [github.com/nidhinjs/prompt-master](https://github.com/nidhinjs/prompt-master))의 Template M, Claude/Claude Code 라우팅 규칙을 발췌·큐레이션. 본 문서가 인용한 Template M 8 필드는 `references/templates.md`의 "Template M — Opus 4.7 Task Brief" 섹션, 라우팅 규칙은 `SKILL.md`의 Claude·Claude Code 섹션에서 가져왔다.
-- 리서치 보고서: `docs/research/research-enhance-prompt-eval-from-prompt-master-20260429140912.md` (16개 출처, 2026-04-29)에서 §1.1-1.4 + Key Takeaways의 작성 가이드 영역을 흡수.
