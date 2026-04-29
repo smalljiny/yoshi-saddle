@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: stack-prompt
 description: Prompt domain skill defining PROPOSE→EVAL→REFINE cycle for prompt type Tasks. Provides strategy-specific eval logic (direct/rubric/judge), pass_count metric, and stagnation signals. Lazy-loads reference/authoring-patterns.md and reference/diagnostic-patterns.md. Loop control and persistence owned by the calling agent.
 origin: harness
@@ -42,6 +42,8 @@ Pass 임계값:
 ---
 
 ## PROPOSE — 프롬프트 초안 작성 절차
+
+Consult `reference/authoring-patterns.md` for skeleton and Claude Code rules.
 
 호출자 에이전트에게 제공하는 작성 가이드:
 
@@ -110,6 +112,8 @@ Pass 임계값:
 ---
 
 ## REFINE — 실패 패턴 분류 및 수정 가이드
+
+Consult `reference/diagnostic-patterns.md` for failure category lookup.
 
 호출자 에이전트에게 제공하는 수정 가이드 (저장·루프 진행은 호출자 담당):
 
