@@ -1,15 +1,12 @@
 ---
-version: 1
-name: wf-prompt-eval
-description: >
-  Defines the PROPOSE→EVAL→REFINE evaluation procedure for prompt type Tasks.
-  Provides strategy-specific eval logic (direct/rubric/judge), pass_count metric,
-  stagnation signals, and rubric design principles.
-  Loop control and persistence are owned by the calling agent, not this skill.
+version: 2
+name: stack-prompt
+description: Prompt domain skill defining PROPOSE→EVAL→REFINE cycle for prompt type Tasks. Provides strategy-specific eval logic (direct/rubric/judge), pass_count metric, and stagnation signals. Lazy-loads reference/authoring-patterns.md and reference/diagnostic-patterns.md. Loop control and persistence owned by the calling agent.
 origin: harness
+capabilities: [language-patterns, prompt]
 ---
 
-# wf-prompt-eval
+# stack-prompt
 
 `prompt` 타입 Task의 평가 절차를 정의한다.
 `prompt-engineer` 에이전트가 이 스킬을 로드하고 따른다.
