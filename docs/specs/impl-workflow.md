@@ -47,7 +47,7 @@
    | Type | 에이전트 | 동작 |
    |------|---------|------|
    | `tdd` | tdd-specialist | RED → GREEN → REFACTOR 사이클 |
-   | `prompt` | prompt-engineer | PROPOSE → EVAL → REFINE 사이클 (`wf-prompt-eval` 스킬 사용, 최대 5회) |
+   | `prompt` | prompt-engineer | PROPOSE → EVAL → REFINE 사이클 (`stack-prompt` 스킬 사용, 최대 5회) |
    | `refactor` | refactor-cleaner | 기존 테스트 커버리지 확인 후 구조적 개선 |
    | `config` | (직접 처리) | 설정 파일 변경 및 검증 |
    | `infra` | (직접 처리) | 인프라 변경 및 문서화 |

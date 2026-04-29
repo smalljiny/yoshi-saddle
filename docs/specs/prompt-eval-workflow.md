@@ -1,6 +1,6 @@
 # Prompt Eval 워크플로우
 
-> `prompt` 타입 Task의 PROPOSE→EVAL→REFINE 사이클. `prompt-engineer` 에이전트와 `wf-prompt-eval` 스킬이 협력해 프롬프트 파일을 작성·검증·개선한다.
+> `prompt` 타입 Task의 PROPOSE→EVAL→REFINE 사이클. `prompt-engineer` 에이전트와 `stack-prompt` 스킬이 협력해 프롬프트 파일을 작성·검증·개선한다.
 
 ## 개요
 
@@ -13,7 +13,7 @@
 ├── agents/
 │   └── prompt-engineer.md    # PROPOSE→EVAL→REFINE 루프 오케스트레이터
 └── skills/
-    └── wf-prompt-eval/
+    └── stack-prompt/
         └── SKILL.md          # 평가 절차 정의 (전략, pass_count, 정체 신호)
 
 .harness/
@@ -26,7 +26,7 @@
 | 컴포넌트 | 역할 |
 |---|---|
 | `prompt-engineer` 에이전트 | 루프 제어, 파일 저장, 종료 신호 처리 |
-| `wf-prompt-eval` 스킬 | 전략별 평가 절차, pass_count 메트릭, 정체 신호 정의 |
+| `stack-prompt` 스킬 | 전략별 평가 절차, pass_count 메트릭, 정체 신호 정의 |
 | `implementation-plan.md` 계약 | planner·plan-review·prompt-engineer 공유 Eval Case 스키마 |
 
 ## 동작
@@ -39,7 +39,7 @@ prompt-engineer 호출
   ├── 1. Task 컨텍스트 읽기 (Goal, Eval Cases, Acceptance, 대상 파일)
   │     └── 경로 검증: 프로젝트 루트 내부·민감 패턴 제외
   │
-  ├── 2. wf-prompt-eval/SKILL.md 로드
+  ├── 2. stack-prompt/SKILL.md 로드
   │
   ├── 3. PROPOSE — 프롬프트 초안 작성 → 파일 저장
   │

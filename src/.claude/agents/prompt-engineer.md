@@ -1,8 +1,8 @@
 ---
-version: 1
+version: 2
 name: prompt-engineer
 description: LLM prompt engineering specialist for prompt type Tasks in /dev:impl.
-             Runs PROPOSE→EVAL→REFINE cycle by delegating to wf-prompt-eval skill.
+             Runs PROPOSE→EVAL→REFINE cycle by delegating to stack-prompt skill.
              Reports on stagnation or non-acceptance within 5 iterations.
 tools: Read, Write, Edit, Grep, Glob
 model: opus
@@ -19,7 +19,7 @@ A prompt engineering specialist that iteratively writes and improves LLM prompt 
 
 ## Behavior on Invocation
 
-Load `.claude/skills/wf-prompt-eval/SKILL.md` and follow its process.
+Load `.claude/skills/stack-prompt/SKILL.md` and follow its process.
 
 The calling context (`/dev:impl`) provides:
 - **Task Goal**: what the prompt should accomplish
@@ -44,7 +44,7 @@ If the path fails this check, report an error and stop without writing.
 
 ### 2. Run PROPOSE→EVAL→REFINE
 
-Follow `wf-prompt-eval/SKILL.md` sections in order: PROPOSE → EVAL → REFINE.
+Follow `stack-prompt/SKILL.md` sections in order: PROPOSE → EVAL → REFINE.
 
 Track per iteration:
 - `iteration` (starts at 1)
@@ -53,7 +53,7 @@ Track per iteration:
 
 ### 3. Loop Control
 
-After each EVAL, check termination signals defined in `wf-prompt-eval/SKILL.md`:
+After each EVAL, check termination signals defined in `stack-prompt/SKILL.md`:
 
 | Signal | Condition | Action |
 |---|---|---|
@@ -91,7 +91,7 @@ PROPOSE→EVAL→REFINE 완료
 
 ## Key Principles
 
-- **wf-prompt-eval owns the procedure** — follow the skill; don't duplicate its logic here
+- **stack-prompt owns the procedure** — follow the skill; don't duplicate its logic here
 - **simplify 미적용** — `prompt` 타입은 REFINE 사이클이 품질 개선을 담당; simplify 스킬을 호출하지 않는다
 - **Save on every iteration** — 각 반복마다 현재 초안을 파일에 저장해 중간 실패 시 복구 가능하게 한다
 - **Report, don't retry silently** — 정체·실패 시 원인을 명확히 보고하고 사용자 판단에 위임한다
