@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: skill-registry
 description: >
   Use this skill whenever a command or skill needs to dynamically discover which
@@ -122,7 +122,7 @@ capabilities: [group-tag, specific-tag, ...]
 
 | Group Tag | Meaning | Example Specific Tags |
 |-----------|---------|----------------------|
-| `language-patterns` | Language/framework implementation guidance | `python`, `typescript`, `fastify`, `react`, `nextjs`, `langchain`, `claude-api`, `backend` |
+| `language-patterns` | Language/framework implementation guidance | `python`, `typescript`, `fastify`, `react`, `nextjs`, `langchain`, `claude-api`, `backend`, `prompt` |
 | `testing` | Test strategy, frameworks, TDD support | `python`, `playwright`, `jest`, `vitest` |
 | `database` | Data storage, queries, schema, migrations | `postgres`, `mysql`, `migrations`, `redis` |
 | `analysis` | Static analysis, dead-code detection, dependency graphs | `typescript`, `knip`, `dependency-cruiser` |
