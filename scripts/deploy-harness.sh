@@ -114,9 +114,9 @@ copy_item() {
 
   backup_existing "$rel"
   if [ "$DRY_RUN" -eq 1 ]; then
-    rsync "${COMMON_RSYNC_OPTS[@]}" ${extra_opts[@]+"${extra_opts[@]}"} --dry-run --itemize-changes "$source" "$TARGET_DIR/"
+    rsync "${COMMON_RSYNC_OPTS[@]}" "${SYNC_RSYNC_OPTS[@]}" ${extra_opts[@]+"${extra_opts[@]}"} --dry-run --itemize-changes "$source" "$TARGET_DIR/"
   else
-    rsync "${COMMON_RSYNC_OPTS[@]}" ${extra_opts[@]+"${extra_opts[@]}"} "$source" "$TARGET_DIR/"
+    rsync "${COMMON_RSYNC_OPTS[@]}" "${SYNC_RSYNC_OPTS[@]}" ${extra_opts[@]+"${extra_opts[@]}"} "$source" "$TARGET_DIR/"
   fi
 }
 
@@ -226,6 +226,11 @@ COMMON_RSYNC_OPTS=(
   --exclude='.claude/settings.local.json'
   --exclude='.claude/checkpoints.log'
 )
+
+# rsync options for src→target sync (copy_item only — not used by backup_existing).
+# --delete removes destination files that no longer exist in source,
+# preventing stale artifacts (e.g., after a skill rename) from accumulating.
+SYNC_RSYNC_OPTS=(--delete)
 
 ITEMS=(
   AGENTS.md

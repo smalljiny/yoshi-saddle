@@ -1,5 +1,5 @@
 ---
-version: 14
+version: 15
 description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
 category: dev-workflow
 ---
@@ -166,7 +166,7 @@ node .harness/scripts/dev-context.js update-state \
 
 **Type: `prompt`** → Invoke **prompt-engineer** agent:
 - Pass: Goal, Eval Cases (from Completion Criteria), Acceptance threshold, target file path
-- Agent runs PROPOSE→EVAL→REFINE cycle via `wf-prompt-eval` skill (max 5 iterations)
+- Agent runs PROPOSE→EVAL→REFINE cycle via `stack-prompt` skill (max 5 iterations)
 - Agent reports outcome (success / stagnation / max iterations)
 
 **Type: `refactor`** → Invoke **refactor-cleaner** agent:

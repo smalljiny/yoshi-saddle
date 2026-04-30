@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 3
 name: skill-registry
 description: >
   Use this skill whenever a command or skill needs to dynamically discover which
