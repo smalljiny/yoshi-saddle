@@ -29,4 +29,4 @@ credentials.json
 # Dependency analysis reports
 .deps-report.txt
 .knip-report.json
-AGENT.md
+AGENTS.md
