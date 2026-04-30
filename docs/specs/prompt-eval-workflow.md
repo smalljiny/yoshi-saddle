@@ -14,7 +14,11 @@
 │   └── prompt-engineer.md    # PROPOSE→EVAL→REFINE 루프 오케스트레이터
 └── skills/
     └── stack-prompt/
-        └── SKILL.md          # 평가 절차 정의 (전략, pass_count, 정체 신호)
+        ├── SKILL.md                       # 평가 절차 + reference lazy-load 인덱스
+        └── reference/
+            ├── authoring-patterns.md      # PROPOSE 단계 lazy-load (Template M, 라우팅 규칙, 리서치 인사이트)
+            ├── diagnostic-patterns.md     # REFINE 단계 lazy-load (34개 진단 패턴)
+            └── SOURCES.md                 # attribution 메타 (lazy-load 대상 아님)
 
 .harness/
 └── contracts/
@@ -26,7 +30,10 @@
 | 컴포넌트 | 역할 |
 |---|---|
 | `prompt-engineer` 에이전트 | 루프 제어, 파일 저장, 종료 신호 처리 |
-| `stack-prompt` 스킬 | 전략별 평가 절차, pass_count 메트릭, 정체 신호 정의 |
+| `stack-prompt` 스킬 | 전략별 평가 절차, pass_count 메트릭, 정체 신호 정의. PROPOSE/REFINE에서 `reference/` 자산을 lazy-load. **direct-load only** — `prompt-engineer`가 명시 호출하며 skill-registry 발견 대상이 아님 (`capabilities` 미선언) |
+| `reference/authoring-patterns.md` | PROPOSE 작성 가이드: Template M 8개 필드 + Claude Code 라우팅 규칙 11항목 + 리서치 인사이트 5항목 |
+| `reference/diagnostic-patterns.md` | REFINE 진단 카탈로그: prompt-master 34개 패턴 (6 카테고리, Bad Example/Fixed 컬럼) |
+| `reference/SOURCES.md` | 출처·라이선스 attribution 메타. 스킬 동작에 영향을 주지 않으며 lazy-load 대상이 아님 |
 | `implementation-plan.md` 계약 | planner·plan-review·prompt-engineer 공유 Eval Case 스키마 |
 
 ## 동작
@@ -41,7 +48,7 @@ prompt-engineer 호출
   │
   ├── 2. stack-prompt/SKILL.md 로드
   │
-  ├── 3. PROPOSE — 프롬프트 초안 작성 → 파일 저장
+  ├── 3. PROPOSE — `reference/authoring-patterns.md` 참고해 프롬프트 초안 작성 → 파일 저장
   │
   ├── 4. EVAL — Eval Cases 전략별 실행 → pass_count 산출
   │     ├── direct: 예측 출력과 Expected 직접 비교
@@ -53,7 +60,7 @@ prompt-engineer 호출
   │     ├── STAGNATION: 연속 2회 pass_count 증가 없음 → 사용자 보고
   │     └── MAX_ITER: iteration == 5 → 사용자 보고
   │
-  └── 6. REFINE — 실패 패턴 분류·수정 → 파일 저장 → EVAL 반복
+  └── 6. REFINE — `reference/diagnostic-patterns.md`로 실패 패턴 분류·수정 → 파일 저장 → EVAL 반복
 ```
 
 ### 평가 전략

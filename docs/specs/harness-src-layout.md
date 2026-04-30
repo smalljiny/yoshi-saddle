@@ -101,8 +101,8 @@ version: N
 
 | 실행 방법 | 모드 | 동작 |
 |-----------|------|------|
-| `./scripts/deploy-harness.sh` | self-sync | `src/` → 루트. 모든 항목을 항상 덮어쓴다. 백업 생성 없음. |
-| `./scripts/deploy-harness.sh /path/to/project` | external | `src/` → 외부 프로젝트. 파일별 보존 정책 적용. 백업(`TARGET_DIR/.harness-backups/`) 생성. |
+| `./scripts/deploy-harness.sh` | self-sync | `src/` → 루트. 모든 항목을 동기화하며 `--delete` 옵션으로 src/에 없는 mirror 파일·디렉토리를 제거(rename·삭제 후 stale 잔존 방지). 백업 생성 없음. |
+| `./scripts/deploy-harness.sh /path/to/project` | external | `src/` → 외부 프로젝트. 파일별 보존 정책 적용. `--delete` 동일 적용. 백업(`TARGET_DIR/.harness-backups/`) 생성. |
 
 ### 파일별 보존 정책
 
