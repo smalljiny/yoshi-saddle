@@ -114,9 +114,9 @@ copy_item() {
 
   backup_existing "$rel"
   if [ "$DRY_RUN" -eq 1 ]; then
-    rsync "${COMMON_RSYNC_OPTS[@]}" "${SYNC_RSYNC_OPTS[@]}" ${extra_opts[@]+"${extra_opts[@]}"} --dry-run --itemize-changes "$source" "$TARGET_DIR/"
+    rsync "${COMMON_RSYNC_OPTS[@]}" ${SYNC_RSYNC_OPTS[@]+"${SYNC_RSYNC_OPTS[@]}"} ${extra_opts[@]+"${extra_opts[@]}"} --dry-run --itemize-changes "$source" "$TARGET_DIR/"
   else
-    rsync "${COMMON_RSYNC_OPTS[@]}" "${SYNC_RSYNC_OPTS[@]}" ${extra_opts[@]+"${extra_opts[@]}"} "$source" "$TARGET_DIR/"
+    rsync "${COMMON_RSYNC_OPTS[@]}" ${SYNC_RSYNC_OPTS[@]+"${SYNC_RSYNC_OPTS[@]}"} ${extra_opts[@]+"${extra_opts[@]}"} "$source" "$TARGET_DIR/"
   fi
 }
 
@@ -199,7 +199,12 @@ SOURCE_DIR="$REPO_DIR/src"
 CURRENT_FILES_LIST="$(mktemp)"
 THIS_DEPLOY_SKIPPED_LIST="$(mktemp)"
 MANIFEST_FILES_LIST="$(mktemp)"
-trap 'rm -f "$CURRENT_FILES_LIST" "$THIS_DEPLOY_SKIPPED_LIST" "$MANIFEST_FILES_LIST"' EXIT
+# OBSOLETE 계산용 임시 파일 (Task 3):
+# PREV_FILES_LIST = 이전 매니페스트의 files 배열 (없으면 빈 파일)
+# OBSOLETE_LIST   = PREV − CURRENT (이번 deploy 가 더 이상 설치하지 않는 파일)
+PREV_FILES_LIST="$(mktemp)"
+OBSOLETE_LIST="$(mktemp)"
+trap 'rm -f "$CURRENT_FILES_LIST" "$THIS_DEPLOY_SKIPPED_LIST" "$MANIFEST_FILES_LIST" "$PREV_FILES_LIST" "$OBSOLETE_LIST"' EXIT
 
 node "$REPO_DIR/.harness/scripts/deploy-manifest.js" list-src "$SOURCE_DIR" > "$CURRENT_FILES_LIST"
 
@@ -247,9 +252,9 @@ COMMON_RSYNC_OPTS=(
 )
 
 # rsync options for src→target sync (copy_item only — not used by backup_existing).
-# --delete removes destination files that no longer exist in source,
-# preventing stale artifacts (e.g., after a skill rename) from accumulating.
-SYNC_RSYNC_OPTS=(--delete)
+# selective cleanup is performed by the manifest-based pre-step below — rsync no longer
+# needs --delete and must not delete user-added files outside the harness contract.
+SYNC_RSYNC_OPTS=()
 
 ITEMS=(
   AGENTS.md
@@ -272,6 +277,35 @@ else
   else
     info "backup: disabled"
   fi
+fi
+
+# OBSOLETE 계산: 이전 매니페스트가 있으면 PREV − CURRENT.
+# read-files 는 비존재/손상 매니페스트에서도 exit 0 + stderr 경고이므로,
+# 첫 deploy 신호는 매니페스트 파일 자체의 존재 여부로 판정한다.
+PREV_MANIFEST_PATH="$TARGET_DIR/.harness/.deploy-manifest.json"
+if [ -f "$PREV_MANIFEST_PATH" ]; then
+  node "$REPO_DIR/.harness/scripts/deploy-manifest.js" read-files "$PREV_MANIFEST_PATH" \
+    > "$PREV_FILES_LIST" 2>/dev/null || true
+  # OBSOLETE = PREV − CURRENT. THIS_DEPLOY_SKIPPED 는 src/ 에 여전히 존재해 CURRENT 에 포함되므로
+  # 여기에서 자동으로 OBSOLETE 에서 제외된다 (별도 처리 불필요).
+  comm -23 <(sort -u "$PREV_FILES_LIST") <(sort -u "$CURRENT_FILES_LIST") > "$OBSOLETE_LIST"
+else
+  info "no previous manifest; skipping cleanup"
+fi
+
+if [ -s "$OBSOLETE_LIST" ]; then
+  while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    target_path="$TARGET_DIR/$rel"
+    [ -e "$target_path" ] || continue
+    if [ "$DRY_RUN" -eq 1 ]; then
+      info "would delete obsolete: $rel"
+    else
+      backup_existing "$rel"
+      rm -f "$target_path"
+      info "deleted obsolete: $rel"
+    fi
+  done < "$OBSOLETE_LIST"
 fi
 
 for item in "${ITEMS[@]}"; do
