@@ -101,8 +101,10 @@ version: N
 
 | 실행 방법 | 모드 | 동작 |
 |-----------|------|------|
-| `./scripts/deploy-harness.sh` | self-sync | `src/` → 루트. 모든 항목을 동기화하며 `--delete` 옵션으로 src/에 없는 mirror 파일·디렉토리를 제거(rename·삭제 후 stale 잔존 방지). 백업 생성 없음. |
-| `./scripts/deploy-harness.sh /path/to/project` | external | `src/` → 외부 프로젝트. 파일별 보존 정책 적용. `--delete` 동일 적용. 백업(`TARGET_DIR/.harness-backups/`) 생성. |
+| `./scripts/deploy-harness.sh` | self-sync | `src/` → 루트. 모든 항목을 동기화. 매니페스트 기반 selective cleanup 으로 이전 deploy 가 설치한 파일 중 현재 src/ 에 없는 것만 백업 후 삭제(stale 잔존 방지). 백업 생성 없음. |
+| `./scripts/deploy-harness.sh /path/to/project` | external | `src/` → 외부 프로젝트. 파일별 보존 정책 적용. 사용자가 추가한 `.claude/`/`.codex/`/`.harness/` 파일은 매니페스트에 없으므로 보존됨. 백업(`TARGET_DIR/.harness-backups/`) 생성. |
+
+selective cleanup 메커니즘과 매니페스트 스키마 상세는 [`deploy-harness-manifest.md`](deploy-harness-manifest.md).
 
 ### 파일별 보존 정책
 
@@ -114,7 +116,7 @@ version: N
 
 external 모드에서 `.harness/commit-scopes.md`를 skip할 때는 `--exclude='commit-scopes.md'` 옵션으로 나머지 `.harness/`를 그대로 복사한다.
 
-external 모드에서는 `--skip-gitignore`를 지정하지 않는 한 타깃 `.gitignore`에 harness 로컬 파일 ignore 블록(`# BEGIN harness local ignores`)을 추가한다. 이미 마커가 있으면 건너뛴다.
+external 모드에서는 `--skip-gitignore`를 지정하지 않는 한 타깃 `.gitignore`에 harness 로컬 파일 ignore 블록(`# BEGIN harness local ignores`)을 추가한다. 이미 마커가 있으면 건너뛴다. 블록은 세션 로그·체크포인트·로컬 설정·백업 디렉토리 외에 deploy 매니페스트(`.harness/.deploy-manifest.json`)도 포함한다 — 매니페스트는 per-machine deploy 상태이므로 commit 대상이 아니다.
 
 ### /dev:init 실행 흐름
 
