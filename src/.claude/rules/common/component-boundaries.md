@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 ---
 # Component Boundaries: Commands vs Skills
 
@@ -27,6 +27,14 @@ Load `.claude/skills/<name>/SKILL.md` and follow its process.
 ```
 
 Reference case: `dev/spec.md` → `wf-brainstorming/SKILL.md`
+
+When a component (agent/skill/command) needs to load a rule explicitly:
+
+```
+Load <rule-path> and follow its process.
+```
+
+Same form as the Skill delegation, applied to rule paths. Reference case: `meta-skill-creator/SKILL.md`, `agents/planner.md`, `agents/prompt-engineer.md` → `.claude/rules/common/prompt-authoring.md` (적용 예정 — `opus-47-prompt-authoring-guide` 토픽의 Task 3·4).
 
 ## Violation Criteria
 
