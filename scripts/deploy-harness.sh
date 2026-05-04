@@ -308,6 +308,41 @@ if [ -s "$OBSOLETE_LIST" ]; then
   done < "$OBSOLETE_LIST"
 fi
 
+# OBSOLETE 삭제로 비워진 부모 디렉토리도 깊은 순으로 정리한다 (stale 디렉토리 누적 방지).
+# 하네스 최상위(.claude/.codex/.harness) 는 비어 있어도 보호 — 다음 deploy 안정성을 위함.
+if [ -s "$OBSOLETE_LIST" ]; then
+  awk -F/ '{
+    for (i = NF - 1; i >= 1; i--) {
+      path = $1
+      for (j = 2; j <= i; j++) path = path "/" $j
+      print path
+    }
+  }' "$OBSOLETE_LIST" | sort -u | awk '{ print length, $0 }' | sort -rn | cut -d" " -f2- |
+  while IFS= read -r dir; do
+    case "$dir" in
+      .claude|.codex|.harness) continue ;;
+    esac
+    full="$TARGET_DIR/$dir"
+    [ -d "$full" ] || continue
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+      # dry-run: OBSOLETE 가 아직 삭제되지 않았으므로, 디렉토리의 모든 entry 가
+      # OBSOLETE_LIST 에 있을 때만 "would empty" 로 예측한다.
+      would_empty=true
+      for entry in "$full"/* "$full"/.[!.]* "$full"/..?*; do
+        [ -e "$entry" ] || continue
+        entry_rel="${entry#"$TARGET_DIR/"}"
+        grep -Fxq "$entry_rel" "$OBSOLETE_LIST" || { would_empty=false; break; }
+      done
+      $would_empty || continue
+      info "would remove empty dir: $dir"
+    else
+      [ -z "$(ls -A "$full" 2>/dev/null)" ] || continue
+      rmdir "$full" 2>/dev/null && info "removed empty dir: $dir"
+    fi
+  done
+fi
+
 for item in "${ITEMS[@]}"; do
   info "copying $item"
   if [ "$MODE" = "external" ]; then
