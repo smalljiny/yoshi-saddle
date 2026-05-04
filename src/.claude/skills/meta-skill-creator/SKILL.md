@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: meta-skill-creator
 description: This skill should be used whenever a user wants to create a new skill from scratch, update or refine an existing skill, understand how skills are structured in this harness, or learn best practices for writing effective skill descriptions and eval loops. Use it for any question about skill anatomy, skill authorship, or skill quality — even if the user doesn't explicitly say "create a skill."
 origin: sample-claude-env+anthropic-official
@@ -151,6 +151,10 @@ For projects with Python available, the official Anthropic skill-creator plugin 
 `scripts/init_skill.py` that scaffolds the full structure automatically.
 
 ### Step 4: Edit the SKILL.md
+
+Before editing SKILL.md content — the rules apply to skill prompt body as well as any agent/command prompts:
+
+Load .claude/rules/common/prompt-authoring.md and follow its process.
 
 Write for another Claude instance that has no prior context:
 - Explain *why* things matter, not just *what* to do
