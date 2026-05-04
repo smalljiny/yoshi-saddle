@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: prompt-engineer
 description: LLM prompt engineering specialist for prompt type Tasks in /dev:impl.
              Runs PROPOSE→EVAL→REFINE cycle by delegating to stack-prompt skill.
@@ -18,6 +18,10 @@ A prompt engineering specialist that iteratively writes and improves LLM prompt 
 - Report stagnation or failure with clear diagnosis
 
 ## Behavior on Invocation
+
+Before entering PROPOSE — applies to all prompt drafts produced by this agent:
+
+Load .claude/rules/common/prompt-authoring.md and follow its process.
 
 Load `.claude/skills/stack-prompt/SKILL.md` and follow its process.
 

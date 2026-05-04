@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 ---
 
 # 하네스 가이드
@@ -91,6 +91,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 - **커맨드**: `.claude/commands/<name>.md` — YAML frontmatter (version, description) + 실행 흐름
 - **공유 규칙**: `.harness/rules/<name>.md` 또는 `.harness/rules/typescript/<name>.md` — YAML frontmatter (version) + 규칙 (Claude + Codex 공유; coding-style, git-workflow, testing, security, typescript)
 - **Claude 규칙**: `.claude/rules/common/<name>.md` — YAML frontmatter (version) + 규칙 (Claude Code 운영 규칙: agents, performance, development-workflow, component-boundaries. Codex가 맥락 파악 목적으로 일부 참조 가능)
+- **프롬프트 작성 규칙**: 모든 컴포넌트 작성·수정 시 `.claude/rules/common/prompt-authoring.md`의 7가지 규칙을 따른다 (Opus 4.7 리터럴 해석 대응).
 
 항상 frontmatter에서 `version: 1`로 시작한다.
 

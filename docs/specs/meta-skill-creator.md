@@ -23,7 +23,7 @@
 
 | 필드 | 값 |
 |------|----|
-| `version` | `3` |
+| `version` | `4` |
 | `name` | `meta-skill-creator` |
 | `description` | 트리거 신호 — 사용자가 스킬 작성·수정·구조 이해·description/eval 품질 개선을 요청할 때 로드 |
 | `origin` | `sample-claude-env+anthropic-official` |
@@ -65,6 +65,10 @@ description 필드가 다음 상황에서 스킬을 로드한다:
 **eval 루프 개념**: with-skill run(스킬 접근 가능)과 baseline run(스킬 없음) 출력을 정성 비교한다. 테스트 케이스는 실제 사용자가 입력할 만한 구체적인 프롬프트 2~3개로 구성하며, 각 케이스에 예상 결과·트리거 여부·경계 케이스를 정의한다.
 
 **harness 컨벤션**: 경로는 `.claude/skills/<name>/SKILL.md`, frontmatter 필수 필드는 `version`(1부터 시작)·`name`·`description`·`origin`, 선택 필드는 `capabilities`(capability 기반 레지스트리 탐색 등록용, 규격·taxonomy는 `.claude/skills/skill-registry/SKILL.md` 참조), 지침 언어는 English. bundled resources는 구체적 필요(반복 코드, 대용량 참조 문서, 템플릿 파일)가 있을 때만 추가한다. `wf-*` 및 `meta-*` 스킬은 직접 로딩 패턴을 사용하므로 `capabilities:` 를 선언하지 않는다.
+
+### Step 4 prompt-authoring 명시 로드
+
+Skill Creation Process Step 4(SKILL.md 본문 작성) 도입부에서 `.claude/rules/common/prompt-authoring.md`를 명시 로드한다 — 새 스킬 본문이 Opus 4.7 리터럴 해석 강화에 부합하도록 hedge·anti-laziness 스캐폴딩·CoT 명시 지시 등 7가지 작성 규칙을 환기한다. 명시 문구는 표준 form `Load .claude/rules/common/prompt-authoring.md and follow its process.`로 통일한다. 자세한 내용은 `prompt-authoring-guide.md` 참조.
 
 ### `/harness:learn` 연계
 
