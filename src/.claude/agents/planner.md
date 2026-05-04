@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob
@@ -79,6 +79,12 @@ Eval Case 스키마 전체 명세는 `.harness/contracts/implementation-plan.md`
       Pass: score >= 4
   - [ ] Acceptance: 2/2 eval 통과
 ```
+
+### 4.6. Component Authoring — load prompt-authoring rule
+
+When a Task involves authoring or editing a component prompt file (agent / skill / command / rule), load the prompt-authoring rule to reinforce Opus 4.7 attention before drafting the Task body:
+
+Load .claude/rules/common/prompt-authoring.md and follow its process.
 
 ### 5. Design per-Task Commit Message
 
