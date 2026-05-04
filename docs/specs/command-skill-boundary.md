@@ -9,7 +9,7 @@
 ## 구조
 
 ```
-.claude/rules/common/component-boundaries.md   역할 경계 규칙 (version 1)
+.claude/rules/common/component-boundaries.md   역할 경계 규칙 (version 5)
 .claude/commands/harness/learn.md                  /harness:learn (version 4)
 .claude/commands/dev/verify.md                     /dev:verify (version 4)
 .claude/skills/wf-continuous-learning/SKILL.md     패턴 추출 스킬 (version 5)
@@ -38,6 +38,14 @@ Load `.claude/skills/<name>/SKILL.md` and follow its process.
 ```
 
 기준 사례: `dev/spec.md` → `wf-brainstorming/SKILL.md`
+
+컴포넌트(에이전트·스킬·커맨드)가 규칙 파일을 명시 로드할 때:
+
+```
+Load <rule-path> and follow its process.
+```
+
+Skill 위임과 동일 form을 규칙 경로에 적용한다. 기준 사례: `meta-skill-creator/SKILL.md`, `agents/planner.md`, `agents/prompt-engineer.md` → `.claude/rules/common/prompt-authoring.md`. 자세한 내용은 `prompt-authoring-guide.md` 참조.
 
 ### `/harness:learn` (`learn.md`)
 

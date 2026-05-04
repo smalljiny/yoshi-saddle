@@ -38,6 +38,10 @@
 
 ## 동작
 
+### Behavior on Invocation
+
+`prompt-engineer`는 PROPOSE 진입 직전에 두 파일을 모두 명시 로드한다 — `.claude/rules/common/prompt-authoring.md`(Opus 4.7 작성 규칙 환기 — `prompt-authoring-guide.md` 참조)와 `.claude/skills/stack-prompt/SKILL.md`(루프 절차).
+
 ### PROPOSE→EVAL→REFINE 사이클
 
 ```
