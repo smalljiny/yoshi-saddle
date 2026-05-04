@@ -1,14 +1,16 @@
 #!/usr/bin/env node
-'use strict';
 
 // validate-path.js — dev-context.json의 경로 필드를 읽어 검증·정규화 후 canonical 절대경로를 stdout에 출력.
 // 사용법: node .harness/scripts/validate-path.js --topic=<topic> --field=<field>
 // 성공: exit 0 + canonical 절대경로 출력
 // 실패: exit 1 + 오류 메시지를 stderr에 출력
 
-const { execSync, execFileSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execSync, execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function parseArgs(argv) {
   const args = {};
