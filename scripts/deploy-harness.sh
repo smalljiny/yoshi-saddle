@@ -188,6 +188,25 @@ SOURCE_DIR="$REPO_DIR/src"
 
 [ -d "$SOURCE_DIR" ] || die "src/ layout not found at $SOURCE_DIR — run this from the harness root after Task 1"
 
+# 매니페스트 작성용 임시 파일 3종.
+# CURRENT_FILES_LIST       : src/ 의 현재 모든 파일 (deploy-manifest.js list-src 결과)
+# THIS_DEPLOY_SKIPPED_LIST : 이번 deploy 에서 손대지 않은 특수 파일 (CLAUDE.md/AGENTS.md/commit-scopes.md skip 케이스)
+# MANIFEST_FILES_LIST      : 매니페스트의 files 필드에 기록할 파일 (= CURRENT − THIS_DEPLOY_SKIPPED)
+#
+# THIS_DEPLOY_SKIPPED ≠ OBSOLETE: SKIPPED 는 manifest.files 에서만 제외한다.
+# OBSOLETE(Task 3 도입 예정) = PREV_MANIFEST.files − CURRENT 이며, skip 된 특수 파일은
+# src/ 에 여전히 존재해 CURRENT 에 포함되므로 자동으로 OBSOLETE 에서 제외된다.
+CURRENT_FILES_LIST="$(mktemp)"
+THIS_DEPLOY_SKIPPED_LIST="$(mktemp)"
+MANIFEST_FILES_LIST="$(mktemp)"
+trap 'rm -f "$CURRENT_FILES_LIST" "$THIS_DEPLOY_SKIPPED_LIST" "$MANIFEST_FILES_LIST"' EXIT
+
+node "$REPO_DIR/.harness/scripts/deploy-manifest.js" list-src "$SOURCE_DIR" > "$CURRENT_FILES_LIST"
+
+# git 메타데이터: 실패 시 빈 값 → 헬퍼가 null 로 기록.
+SOURCE_COMMIT="$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null || true)"
+SOURCE_BRANCH="$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+
 if [ -z "$TARGET_INPUT" ]; then
   MODE=self-sync
   TARGET_DIR="$REPO_DIR"
@@ -262,6 +281,8 @@ for item in "${ITEMS[@]}"; do
       CLAUDE.md|AGENTS.md)
         if [ -f "$TARGET_DIR/$item" ]; then
           info "  skip: target has $item (external preserve)"
+          # 이번 deploy 가 손대지 않은 특수 파일 → manifest.files 에서 제외 (OBSOLETE 와 무관).
+          printf '%s\n' "$item" >> "$THIS_DEPLOY_SKIPPED_LIST"
           continue
         fi
         ;;
@@ -269,6 +290,8 @@ for item in "${ITEMS[@]}"; do
         if [ -f "$TARGET_DIR/.harness/commit-scopes.md" ]; then
           info "  preserving target .harness/commit-scopes.md"
           copy_item "$item" --exclude='commit-scopes.md'
+          # commit-scopes.md 만 복사에서 제외했으므로 manifest.files 에서도 제외.
+          printf '%s\n' '.harness/commit-scopes.md' >> "$THIS_DEPLOY_SKIPPED_LIST"
           continue
         fi
         ;;
@@ -283,6 +306,21 @@ else
   if [ "$UPDATE_GITIGNORE" -eq 0 ]; then
     info ".gitignore update: skipped"
   fi
+fi
+
+# 매니페스트 작성: manifest.files = CURRENT − THIS_DEPLOY_SKIPPED.
+# (process substitution 으로 sort -u 결과를 직접 comm 에 전달 — bash 전용; shebang 이 bash 인지 확인됨.)
+comm -23 <(sort -u "$CURRENT_FILES_LIST") <(sort -u "$THIS_DEPLOY_SKIPPED_LIST") > "$MANIFEST_FILES_LIST"
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  manifest_count="$(wc -l < "$MANIFEST_FILES_LIST" | tr -d ' ')"
+  info "dry run: would write manifest with $manifest_count files"
+else
+  node "$REPO_DIR/.harness/scripts/deploy-manifest.js" write \
+    "$TARGET_DIR/.harness/.deploy-manifest.json" \
+    "$MANIFEST_FILES_LIST" \
+    --commit="$SOURCE_COMMIT" --branch="$SOURCE_BRANCH"
+  info "wrote manifest: $TARGET_DIR/.harness/.deploy-manifest.json"
 fi
 
 info "done"
