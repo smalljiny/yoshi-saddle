@@ -185,6 +185,42 @@ describe('deploy-manifest.js', () => {
       const result = runExpectFail('read-files')
       assert.notEqual(result.status, 0)
     })
+
+    test('의심스러운 경로(.. / 절대경로 / 줄바꿈) 는 무시 + stderr 경고', () => {
+      const malicious = workPath('malicious.json')
+      writeFileSync(malicious, JSON.stringify({
+        manifest_version: 1,
+        files: [
+          '.claude/agents/safe.md',
+          '../../../etc/passwd',
+          '/etc/passwd',
+          'foo/../bar.md',
+          'with\nnewline.md',
+          '.harness/another-safe.md',
+        ],
+      }), 'utf8')
+
+      const result = run('read-files', malicious)
+      const lines = result.stdout.split('\n').filter(Boolean)
+      // 안전한 항목만 출력
+      assert.deepEqual(lines, ['.claude/agents/safe.md', '.harness/another-safe.md'])
+      // 의심스러운 경로 4건이 stderr 로 보고됨
+      assert.ok(result.stderr.includes('의심스러운 경로'), 'stderr 에 경고 필요')
+      assert.ok(result.stderr.includes('../../../etc/passwd'), '.. 경고')
+      assert.ok(result.stderr.includes('/etc/passwd'), '절대경로 경고')
+    })
+
+    test('files 배열에 string 이 아닌 엔트리는 무시 (조용히)', () => {
+      const mixed = workPath('mixed.json')
+      writeFileSync(mixed, JSON.stringify({
+        manifest_version: 1,
+        files: ['ok.md', 42, null, { nested: 'obj' }, 'also-ok.md'],
+      }), 'utf8')
+
+      const result = run('read-files', mixed)
+      const lines = result.stdout.split('\n').filter(Boolean)
+      assert.deepEqual(lines, ['ok.md', 'also-ok.md'])
+    })
   })
 
   describe('write', () => {

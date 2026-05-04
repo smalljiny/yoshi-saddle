@@ -99,8 +99,16 @@ function cmdReadFiles(positional) {
     warn(`read-files: 매니페스트의 files 배열이 없거나 형식이 잘못됨: ${manifestPath}`)
     return
   }
-  if (data.files.length > 0) {
-    process.stdout.write(data.files.join('\n') + '\n')
+  // 호출자(deploy 스크립트)가 매니페스트 경로를 rm/rsync/rmdir 의 인자로 사용하므로,
+  // 매니페스트가 사용자 편집·외부 도구로 손상돼 path traversal 시도가 들어와도
+  // TARGET_DIR 밖으로 escape 하지 않도록 emit 단계에서 가드한다 (defense-in-depth).
+  for (const entry of data.files) {
+    if (typeof entry !== 'string') continue
+    if (entry.startsWith('/') || /(?:^|\/)\.\.(?:\/|$)/.test(entry) || /[\0\n\r]/.test(entry)) {
+      warn(`read-files: 의심스러운 경로 무시: ${entry}`)
+      continue
+    }
+    process.stdout.write(entry + '\n')
   }
 }
 

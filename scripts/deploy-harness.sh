@@ -143,6 +143,7 @@ update_gitignore() {
 .claude/sessions/
 .claude/checkpoints.log
 .claude/settings.local.json
+.harness/.deploy-manifest.json
 docs/_local/
 # END harness local ignores
 EOF
@@ -284,8 +285,13 @@ fi
 # 첫 deploy 신호는 매니페스트 파일 자체의 존재 여부로 판정한다.
 PREV_MANIFEST_PATH="$TARGET_DIR/.harness/.deploy-manifest.json"
 if [ -f "$PREV_MANIFEST_PATH" ]; then
+  # 헬퍼는 손상된 매니페스트에서도 stderr 경고 + exit 0 정책이라 stderr 를 살려둬야
+  # cleanup 가 silent 비활성화되는 사고를 사용자가 인지할 수 있다.
   node "$REPO_DIR/.harness/scripts/deploy-manifest.js" read-files "$PREV_MANIFEST_PATH" \
-    > "$PREV_FILES_LIST" 2>/dev/null || true
+    > "$PREV_FILES_LIST" || true
+  if [ ! -s "$PREV_FILES_LIST" ]; then
+    info "previous manifest unreadable or empty; skipping cleanup"
+  fi
   # OBSOLETE = PREV − CURRENT. THIS_DEPLOY_SKIPPED 는 src/ 에 여전히 존재해 CURRENT 에 포함되므로
   # 여기에서 자동으로 OBSOLETE 에서 제외된다 (별도 처리 불필요).
   comm -23 <(sort -u "$PREV_FILES_LIST") <(sort -u "$CURRENT_FILES_LIST") > "$OBSOLETE_LIST"
