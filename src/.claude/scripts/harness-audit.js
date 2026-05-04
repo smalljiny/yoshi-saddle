@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-'use strict';
-
 /**
  * Harness Audit — deterministic health scorer for the harness repo.
  *
@@ -11,8 +9,8 @@
  * Scope: repo (default) | hooks | skills | commands | agents
  */
 
-const fs   = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
 const RUBRIC_VERSION = '2026-04-15';
 
@@ -502,6 +500,4 @@ function main() {
   }
 }
 
-if (require.main === module) main();
-
-module.exports = { score, getChecks, parseArgs };
+main();

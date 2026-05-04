@@ -4,11 +4,9 @@
  * Exit 0으로 종료 — 제안만 할 뿐 작업을 막지 않는다.
  */
 
-'use strict';
-
-const fs   = require('fs');
-const path = require('path');
-const os   = require('os');
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 
 const THRESHOLD    = parseInt(process.env.COMPACT_THRESHOLD || '50', 10);
 const REMIND_EVERY = 25;
