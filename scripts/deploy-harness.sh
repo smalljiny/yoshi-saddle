@@ -100,8 +100,12 @@ backup_existing() {
   [ "$DRY_RUN" -eq 0 ] || return 0
   [ -e "$source" ] || return 0
 
-  mkdir -p "$BACKUP_DIR"
-  rsync "${COMMON_RSYNC_OPTS[@]}" "$source" "$BACKUP_DIR/"
+  # nested rel (예: .claude/agents/foo.md) 의 디렉토리 구조를 백업 안에서도 보존한다.
+  # 그렇지 않으면 같은 basename 의 OBSOLETE 두 개가 백업에서 서로 덮어쓴다.
+  # 디렉토리 rel (예: .claude) 의 경우에도 dest_parent 가 BACKUP_DIR 자체가 되어 동일한 결과.
+  local dest_parent="$BACKUP_DIR/$(dirname "$rel")"
+  mkdir -p "$dest_parent"
+  rsync "${COMMON_RSYNC_OPTS[@]}" "$source" "$dest_parent/"
 }
 
 copy_item() {
