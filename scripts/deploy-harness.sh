@@ -209,7 +209,18 @@ MANIFEST_FILES_LIST="$(mktemp)"
 # OBSOLETE_LIST   = PREV − CURRENT (이번 deploy 가 더 이상 설치하지 않는 파일)
 PREV_FILES_LIST="$(mktemp)"
 OBSOLETE_LIST="$(mktemp)"
-trap 'rm -f "$CURRENT_FILES_LIST" "$THIS_DEPLOY_SKIPPED_LIST" "$MANIFEST_FILES_LIST" "$PREV_FILES_LIST" "$OBSOLETE_LIST"' EXIT
+# self-sync 모드에서 helper 자체 (.harness/scripts/deploy-manifest.js) 가 src/ 에서
+# 제거된 경우 cleanup 이 그것을 OBSOLETE 로 분류해 삭제할 수 있다. 그러면 cleanup 후의
+# manifest write 호출이 missing helper 로 실패한다. 마지막 write 호출에 사용할
+# helper 의 임시 복사본을 미리 확보해 mid-sync 실패를 차단한다 (A3).
+# Node 가 ESM 으로 인식하도록 .js 확장자가 필요하므로 임시 디렉토리에 그 이름으로 복사한다.
+TEMP_HELPER_DIR="$(mktemp -d)"
+TEMP_WRITE_HELPER="$TEMP_HELPER_DIR/deploy-manifest.js"
+trap 'rm -f "$CURRENT_FILES_LIST" "$THIS_DEPLOY_SKIPPED_LIST" "$MANIFEST_FILES_LIST" "$PREV_FILES_LIST" "$OBSOLETE_LIST"; rm -rf "$TEMP_HELPER_DIR"' EXIT
+
+[ -f "$REPO_DIR/.harness/scripts/deploy-manifest.js" ] \
+  || die "deploy-manifest.js helper missing at $REPO_DIR/.harness/scripts/deploy-manifest.js"
+cp "$REPO_DIR/.harness/scripts/deploy-manifest.js" "$TEMP_WRITE_HELPER"
 
 node "$REPO_DIR/.harness/scripts/deploy-manifest.js" list-src "$SOURCE_DIR" > "$CURRENT_FILES_LIST"
 
@@ -395,7 +406,8 @@ if [ "$DRY_RUN" -eq 1 ]; then
   manifest_count="$(wc -l < "$MANIFEST_FILES_LIST" | tr -d ' ')"
   info "dry run: would write manifest with $manifest_count files"
 else
-  node "$REPO_DIR/.harness/scripts/deploy-manifest.js" write \
+  # cleanup 이 helper 자체를 삭제했을 가능성이 있으므로 임시 복사본을 사용한다 (A3 fix).
+  node "$TEMP_WRITE_HELPER" write \
     "$TARGET_DIR/.harness/.deploy-manifest.json" \
     "$MANIFEST_FILES_LIST" \
     --commit="$SOURCE_COMMIT" --branch="$SOURCE_BRANCH"
