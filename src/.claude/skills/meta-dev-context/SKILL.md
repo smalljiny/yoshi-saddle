@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: meta-dev-context
 description: Shared contract for reading and writing dev-context.json via the dev-context.js CLI. Load this skill whenever a command needs to inspect or mutate topic lifecycle state.
 origin: harness
@@ -141,7 +141,7 @@ Then check `$PHASE:$STATUS` against the required state. If it does not match, ha
 |------|------|
 | Gate check | `read --topic=<name> --field=phase` + `read --topic=<name> --field=status` → must be `plan:confirmed` |
 | On first Task start | `update-state --topic=<name> --phase=impl --status=in-progress` |
-| After each Task | `set-field --topic=<name> --field=currentTask --value=<task-id>` |
+| After each Story | `set-field --topic=<name> --field=currentStory --value=<story-id>` |
 
 ### `/dev:review`
 

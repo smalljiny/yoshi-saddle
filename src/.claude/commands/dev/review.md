@@ -1,5 +1,5 @@
 ---
-version: 9
+version: 10
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 category: dev-workflow
 ---
@@ -32,15 +32,15 @@ Do not warn and continue — stop entirely.
 
 ### 2. Check all Tasks are complete
 
-Read `currentTask` and the plan file:
+Read `currentStory` and the plan file:
 
 ```bash
-node .harness/scripts/dev-context.js read --topic=<topic> --field=currentTask
+node .harness/scripts/dev-context.js read --topic=<topic> --field=currentStory
 node .harness/scripts/dev-context.js read --topic=<topic> --field=plan
 ```
 
 Block if either condition is true:
-- `currentTask` is not null (a task is still in progress)
+- `currentStory` is not null (a task is still in progress)
 - The plan file contains any unchecked `[ ]` task lines
 
 ```

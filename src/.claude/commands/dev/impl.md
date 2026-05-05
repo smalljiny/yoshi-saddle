@@ -1,5 +1,5 @@
 ---
-version: 15
+version: 16
 description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
 category: dev-workflow
 ---
@@ -79,10 +79,10 @@ Execute Tasks from the implementation plan one at a time, or all at once in batc
 5. Get the plan path and determine which Task to run:
    ```bash
    node .harness/scripts/dev-context.js read --topic=<topic> --field=plan
-   node .harness/scripts/dev-context.js read --topic=<topic> --field=currentTask
+   node .harness/scripts/dev-context.js read --topic=<topic> --field=currentStory
    ```
    - Explicit Task argument (not `--all`) → that Task
-   - `currentTask` value → that Task
+   - `currentStory` value → that Task
    - Otherwise → first incomplete `[ ]` Task in `implementation-plan.md`
 
 ### 2. Understand Task Details
@@ -286,13 +286,13 @@ Mark completed Tasks:
 
 ```bash
 node .harness/scripts/dev-context.js set-field \
-  --topic=<topic> --field=currentTask --value=<next-task-id>
+  --topic=<topic> --field=currentStory --value=<next-task-id>
 ```
 
 Use `null` when all Tasks are complete:
 ```bash
 node .harness/scripts/dev-context.js set-field \
-  --topic=<topic> --field=currentTask --value=null
+  --topic=<topic> --field=currentStory --value=null
 ```
 
 ### 10.5. Batch Loop Decision
@@ -310,7 +310,7 @@ Evaluate after Step 10 (sub-step 0 owns the full skip/recover/proceed logic):
    - If `currentBatchRunning == "true"` AND `currentBatchTopic` ≠ active topic, do not recover — topic mismatch; `batch` remains unchanged.
    - Then proceed only if `batch == true`.
 
-1. Read `currentTask` written by Step 10 — this must equal the first remaining `[ ]` Task in `implementation-plan.md`. If they disagree (plan edited mid-batch), use the plan file as the authoritative source and log a warning.
+1. Read `currentStory` written by Step 10 — this must equal the first remaining `[ ]` Task in `implementation-plan.md`. If they disagree (plan edited mid-batch), use the plan file as the authoritative source and log a warning.
 2. If a next Task exists → jump back to Step 2 (start next Task)
 3. If no more incomplete Tasks remain → proceed to Step 11 (terminal: batch complete)
 

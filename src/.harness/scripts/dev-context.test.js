@@ -217,11 +217,11 @@ describe('dev-context.js', () => {
       assert.equal(ctx.topics['sf-test'].specReview, 'docs/_local/backlog/sf-test/spec-review-001.md')
     })
 
-    test('currentTask null 설정', () => {
-      run('set-field', '--topic=sf-test', '--field=currentTask', '--value=T3')
-      run('set-field', '--topic=sf-test', '--field=currentTask', '--value=null')
+    test('currentStory null 설정', () => {
+      run('set-field', '--topic=sf-test', '--field=currentStory', '--value=Story3')
+      run('set-field', '--topic=sf-test', '--field=currentStory', '--value=null')
       const ctx = readCtx()
-      assert.equal(ctx.topics['sf-test'].currentTask, null)
+      assert.equal(ctx.topics['sf-test'].currentStory, null)
     })
 
     test('phase 변경 시도 → 에러 (PROTECTED)', async () => {
@@ -253,6 +253,70 @@ describe('dev-context.js', () => {
       const err = await runExpectFail('set-field', '--topic=sf-test', '--field=current_topic', '--value=sf-test')
       assert.notEqual(err.code, 0)
       assert.ok(err.stderr.includes('--topic과 함께 사용할 수 없습니다'))
+    })
+  })
+
+  describe('currentTask → currentStory 마이그레이션', () => {
+    test('기존 currentTask 필드만 있으면 currentStory로 자동 마이그레이션 + currentTask 제거', () => {
+      // 레거시 파일: currentTask만 존재
+      writeFileSync(CTX_PATH, JSON.stringify({
+        current_topic: 'legacy',
+        topics: {
+          legacy: {
+            phase: 'impl',
+            status: 'in-progress',
+            spec: 'docs/_local/active/legacy/spec.md',
+            specReview: null,
+            plan: 'docs/_local/active/legacy/implementation-plan.md',
+            planReview: null,
+            currentTask: 'Task5',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        },
+        updatedAt: new Date().toISOString(),
+      }), 'utf8')
+
+      // 어떤 쓰기 작업이든 readContext → writeContext 경로를 통과시키면 마이그레이션이 영속화된다
+      run('set-field', '--topic=legacy', '--field=planReview', '--value=docs/_local/active/legacy/plan-review-001.md')
+      const ctx = readCtx()
+      assert.equal(ctx.topics.legacy.currentStory, 'Task5')
+      assert.equal(Object.hasOwn(ctx.topics.legacy, 'currentTask'), false)
+    })
+
+    test('currentStory 이미 존재하면 마이그레이션 no-op (currentTask 보존)', () => {
+      // 두 필드 모두 존재 — 마이그레이션 불가 케이스
+      writeFileSync(CTX_PATH, JSON.stringify({
+        current_topic: 'both',
+        topics: {
+          both: {
+            phase: 'impl',
+            status: 'in-progress',
+            spec: 'docs/_local/active/both/spec.md',
+            specReview: null,
+            plan: 'docs/_local/active/both/implementation-plan.md',
+            planReview: null,
+            currentTask: 'OldT',
+            currentStory: 'NewS',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        },
+        updatedAt: new Date().toISOString(),
+      }), 'utf8')
+
+      run('set-field', '--topic=both', '--field=planReview', '--value=docs/_local/active/both/plan-review-001.md')
+      const ctx = readCtx()
+      // currentStory는 그대로, currentTask는 보존 (덮어쓰지 않음)
+      assert.equal(ctx.topics.both.currentStory, 'NewS')
+      assert.equal(ctx.topics.both.currentTask, 'OldT')
+    })
+
+    test('register-topic 초기화 시 currentStory: null 필드 생성, currentTask 키 부재', () => {
+      run('register-topic', '--topic=fresh', '--spec=docs/_local/backlog/fresh/spec.md')
+      const ctx = readCtx()
+      assert.equal(ctx.topics.fresh.currentStory, null)
+      assert.equal(Object.hasOwn(ctx.topics.fresh, 'currentTask'), false)
     })
   })
 
