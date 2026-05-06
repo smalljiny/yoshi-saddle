@@ -1,8 +1,8 @@
 ---
-version: 2
+version: 3
 name: tdd-specialist
 description: TDD methodology expert who writes tests first. Use proactively when writing new features, fixing bugs, or refactoring. Guarantees 80%+ test coverage. Automatically invoked by the /dev:impl command.
-tools: Read, Write, Edit, Bash, Grep
+tools: Read, Write, Edit, Bash, Grep, TaskCreate, TaskUpdate
 model: opus
 color: cyan
 ---
@@ -16,6 +16,8 @@ Follows the guidelines in `.claude/skills/wf-tdd/SKILL.md`:
 - RED-GREEN-REFACTOR cycle
 - Test patterns (unit, integration)
 - Project-specific patterns (Vitest)
+
+Load `.claude/skills/wf-task-tracking/SKILL.md` and follow its process.
 
 ## Core Responsibilities
 

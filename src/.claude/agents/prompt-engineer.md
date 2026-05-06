@@ -1,10 +1,10 @@
 ---
-version: 3
+version: 4
 name: prompt-engineer
 description: LLM prompt engineering specialist for prompt type Tasks in /dev:impl.
              Runs PROPOSE→EVAL→REFINE cycle by delegating to stack-prompt skill.
              Reports on stagnation or non-acceptance within 5 iterations.
-tools: Read, Write, Edit, Grep, Glob
+tools: Read, Write, Edit, Grep, Glob, TaskCreate, TaskUpdate
 model: opus
 color: purple
 ---
@@ -24,6 +24,8 @@ Before entering PROPOSE — applies to all prompt drafts produced by this agent:
 Load .claude/rules/common/prompt-authoring.md and follow its process.
 
 Load `.claude/skills/stack-prompt/SKILL.md` and follow its process.
+
+Load `.claude/skills/wf-task-tracking/SKILL.md` and follow its process.
 
 The calling context (`/dev:impl`) provides:
 - **Task Goal**: what the prompt should accomplish
