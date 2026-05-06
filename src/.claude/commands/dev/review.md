@@ -1,5 +1,5 @@
 ---
-version: 11
+version: 12
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 category: dev-workflow
 ---
@@ -39,15 +39,23 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=currentStory
 node .harness/scripts/dev-context.js read --topic=<topic> --field=plan
 ```
 
-Block if either condition is true:
+Block if any condition is true:
 - `currentStory` is not null (a Story is still in progress)
-- The plan file contains any unchecked `[ ]` Story lines
+- The plan file contains any unchecked `[ ]` Story header line (`### [ ] Story N`)
+- The plan file contains any unchecked `[ ]` nested Task line (`- [ ] T<storyN>.<taskM>`)
+
+게이트 검증 명령:
+```bash
+grep -nE "^### \[ \]|^- \[ \] T" docs/_local/active/<topic>/implementation-plan.md
+```
+
+위 grep이 1건 이상 hit하면 차단:
 
 ```
 /dev:review를 실행할 수 없습니다.
 구현이 완료되지 않았습니다.
-미완료 Story가 남아 있습니다: <story-id or list>
-먼저 /dev:impl로 모든 Story를 완료하세요.
+미완료 항목이 남아 있습니다: <unchecked Story·Task ID 목록>
+먼저 /dev:impl로 모든 Story와 nested Task를 완료하세요.
 ```
 
 ### 3. Transition to `review:in-progress`

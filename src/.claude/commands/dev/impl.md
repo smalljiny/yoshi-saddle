@@ -1,5 +1,5 @@
 ---
-version: 17
+version: 18
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
@@ -166,7 +166,9 @@ Step 4 완료 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도�
 
 **호출 트리거** (prompt-authoring 규칙 7): Step 4 완료 직후, 현재 Story의 Tasks 목록을 파싱해 모든 Task에 대해 `TaskCreate(taskId=T<storyN>.<taskM>, subject=<subject>, activeForm=<derived>, status='pending')`를 일괄 호출한다.
 
-**실패 처리**: TaskCreate 호출 실패 시 stderr에 경고를 출력하고 진행한다 — plan markdown 체크박스가 단일 진실 원천이므로 에이전트 동작은 영향 없다. 누락된 entry는 Step 9.5에서 sync 단계가 보정한다.
+**실패 처리**: TaskCreate 호출 실패 시 stderr에 경고를 출력하고 진행한다 — plan markdown 체크박스가 단일 진실 원천이므로 에이전트 동작은 영향 없다. 에이전트는 wf-task-tracking 스킬의 "실패 처리" fallback에 따라 entry 누락을 호출자에게 보고한 뒤 markdown을 단일 진실 원천으로 계속 작동한다 (Step 9.5는 누락된 entry를 재생성하지 않는다 — `[x]` 라인의 entry 상태만 `completed`로 정렬한다).
+
+**Story 재시도 시 멱등성**: batch_failed 후 같은 Story가 재호출될 수 있다. 동일 `T<storyN>.<taskM>` ID에 TaskCreate가 중복 호출되어 Task 도구가 거부하더라도 본 단계는 stderr 경고 후 계속하며 무해하다 (markdown 단일 진실 원천 + 에이전트 fallback 경로 발동).
 
 ### 5. **Automatically invoke agent by Story Type**
 
