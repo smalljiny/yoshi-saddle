@@ -63,11 +63,19 @@ Story 시작 시점에 `/dev:impl`이 그 Story의 모든 Task를 Claude Task �
 
 각 Story는 다음 순서로 실행된다:
 
-**Step 1 — 컨텍스트 읽기·플래그 파싱·게이트 체크**
+**Step 1 — 컨텍스트 읽기·플래그 파싱·게이트 체크 + transition**
 
 - `--all` 플래그 또는 `config.dev_impl.batch_mode=true`이면 batch 모드 활성화
 - 명시적 Story 인자(`S2` 등)가 있으면 batch_mode 무관하게 단일 Story 실행
-- `phase:status`가 `plan:confirmed` 또는 `impl:in-progress`가 아니면 중단
+- `phase:status` 상태 테이블로 게이트와 transition을 한 단계에 처리:
+
+  | `phase:status` | 동작 |
+  |----------------|------|
+  | `plan:confirmed` | `update-state --phase=impl --status=in-progress` 호출 후 다음 단계로 진행 |
+  | `impl:in-progress` | 그대로 다음 단계로 진행 (no-op) |
+  | (그 외) | 게이트 실패 메시지 출력 후 정지 |
+
+- `update-state` 비-zero exit 시 즉시 정지하고 에러 메시지 출력. `currentBatchRunning`·`currentBatchTopic`은 정리하지 않는다 — Step 11 미도달로 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그가 자연스럽게 발동한다.
 - batch 상태 stale 감지: `currentBatchRunning == "true"` 시 토픽 일치 여부로 재개/초기화 분기
 
 **Step 2 — Story 상세 파악**
@@ -89,13 +97,9 @@ plan 문서에서 추출:
 - 복잡한 Story 판정(infra 타입 또는 Tasks ≥ 5)이면 `advisor()`를 브리핑 직후 호출해 위험·엣지 케이스를 사전 점검한다.
 - `config.dev_impl.auto_start == "true"`이면 승인 없이 즉시 Step 4로 진행한다.
 
-**Step 4 — `impl:in-progress` 전환 (첫 번째 Story에서만)**
+**Step 4 — Story의 Task entries 일괄 생성**
 
-`phase:status`가 `plan:confirmed`이면 `impl:in-progress`로 전환한다.
-
-**Step 4.5 — Story의 Task entries 일괄 생성**
-
-Step 4 완료 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도구 entries를 일괄 생성한다.
+Step 3 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도구 entries를 일괄 생성한다.
 
 - 각 `- [ ] T<storyN>.<taskM> — <subject>` 라인의 ID와 subject를 추출한다 (sub-bullet 제외).
 - `activeForm`은 wf-task-tracking 스킬의 파생 규칙으로 생성한다 (한국어 종결형 → `X 중`, English imperative → `-ing` 형).
