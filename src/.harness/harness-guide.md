@@ -51,7 +51,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 |--------|------|
 | `/dev:spec <name>` | 스펙 초안 작성 (brainstorming 스킬) → `backlog/`에 저장, Codex 리뷰 루프 실행 |
 | `/dev:plan [<name>]` | backlog에서 선택 또는 토픽 지정 → `active/`로 이동, dev-context.json 등록, planner 에이전트 → implementation-plan.md 생성 (`**Commit**` 필드 포함) |
-| `/dev:impl` | Task 하나 실행 (tdd-specialist + code-reviewer 자동 호출). 각 Task 완료 후 플랜의 `**Commit**` 필드로 커밋. |
+| `/dev:impl` | Story 하나 실행 (tdd-specialist + code-reviewer 자동 호출). 각 Story 완료 후 플랜의 `**Commit**` 필드로 커밋. |
 | `/dev:review` | 최종 전체 리뷰 (code-reviewer + security-reviewer 병렬). 리뷰 수정은 별도 커밋. |
 | `/dev:verify` | 검증 게이트 (build → type-check → lint → test → security) |
 | `/dev:docs` | 구현된 하네스 파일로 참조 문서(`docs/specs/<name>.md`) 생성 + 커밋. `/dev:pr` 전에 실행. |
@@ -67,7 +67,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 |---------|------|------------|
 | planner | opus | 복잡한 기능 요청 시 |
 | tdd-specialist | opus | /dev:impl 중 |
-| code-reviewer | opus | 코드 작성 직후, /dev:impl Task 완료마다 |
+| code-reviewer | opus | 코드 작성 직후, /dev:impl Story 완료마다 |
 | security-reviewer | sonnet | /dev:review 중, 커밋 전 |
 | architect | opus | 아키텍처 결정 시 |
 | build-error-resolver | sonnet | 빌드 실패 시 |
@@ -175,14 +175,14 @@ codex "plan-review 스킬을 실행해줘"
 **실행 시점**: `/dev:plan`이 `implementation-plan.md`를 생성한 후, `/dev:impl` 전.
 
 **검토 항목**:
-1. 목표 커버리지 — 모든 스펙 목표가 최소 하나의 Task로 커버되는지
+1. 목표 커버리지 — 모든 스펙 목표가 최소 하나의 Story로 커버되는지
 2. Non-goals 준수 — 플랜이 스펙 Non-goals를 구현하지 않는지
-3. Task 독립성 — 각 Task가 독립적으로 실행 가능한지
+3. Story 독립성 — 각 Story가 독립적으로 실행 가능한지
 4. 완료 기준 명확성 — 완료 기준이 객관적으로 검증 가능한지
-5. Task 타입 정확성 — Task 타입이 작업 항목과 일치하는지
-6. Task 규모 적정성 — 각 Task가 단일 커밋 단위에 맞는지
-7. 구현 순서 타당성 — Task 순서가 의존 관계를 따르는지
-8. 범위 초과 없음 — 스펙 범위를 벗어난 Task가 없는지
+5. Story 타입 정확성 — Story 타입이 작업 항목과 일치하는지
+6. Story 규모 적정성 — 각 Story가 단일 커밋 단위에 맞는지
+7. 구현 순서 타당성 — Story 순서가 의존 관계를 따르는지
+8. 범위 초과 없음 — 스펙 범위를 벗어난 Story가 없는지
 
 **출력**: `docs/_local/active/<topic>/plan-review-<yymmddhhmmss>.md`
 

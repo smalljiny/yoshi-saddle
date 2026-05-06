@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob
@@ -56,12 +56,29 @@ Each phase should include:
 - Minimize context switching
 - Structure for incremental testability
 
-### 4.5. `prompt` 타입 Task 작성 지침
+### 4.4. Task 라인 first-line subject 규칙
 
-Task Type이 `prompt`인 경우 Completion Criteria를 다음 형식으로 작성한다.
+Story 내부 `**Tasks**:` 목록의 각 라인은 `- [ ] T<storyN>.<taskM> — <subject>` 형식을 따른다.
+
+- **subject 작성 규칙**: 한 줄 명령형으로 작성한다. 이 subject는 `/dev:impl`이 Story 시작 시점에 호출하는 TaskCreate의 `subject` 필드로 그대로 입력 가능해야 한다.
+- **권장 길이**: subject ≤ 80자
+- **sub-bullet·코드 블록·표**: 구현자 디테일로 허용 — 단, Claude Task 도구의 entry에는 first-line subject만 반영된다.
+- **예시**:
+  ```markdown
+  - [ ] T1.1 — Update version field in component files
+    - 영향 파일: .claude/agents/*.md (10개)
+    - frontmatter 정수 +1
+  - [ ] T1.2 — Verify version bump via grep
+  ```
+
+전체 스키마는 `.harness/contracts/implementation-plan.md`의 `## Task Line Format` 섹션을 참조한다.
+
+### 4.5. `prompt` 타입 Story 작성 지침
+
+Story Type이 `prompt`인 경우 Completion Criteria를 다음 형식으로 작성한다.
 Eval Case 스키마 전체 명세는 `.harness/contracts/implementation-plan.md`의 `## Prompt Task Eval Schema` 섹션을 참조한다.
 
-**언제 사용**: 에이전트·스킬·커맨드·규칙 등 Claude에게 전달되는 프롬프트 파일을 작성·개선하는 Task.
+**언제 사용**: 에이전트·스킬·커맨드·규칙 등 Claude에게 전달되는 프롬프트 파일을 작성·개선하는 Story.
 
 **Completion Criteria 작성 규칙**:
 - Eval Case 최소 **2개** 이상 작성
@@ -82,24 +99,24 @@ Eval Case 스키마 전체 명세는 `.harness/contracts/implementation-plan.md`
 
 ### 4.6. Component Authoring — load prompt-authoring rule
 
-When a Task involves authoring or editing a component prompt file (agent / skill / command / rule), load the prompt-authoring rule to reinforce Opus 4.7 attention before drafting the Task body:
+When a Story involves authoring or editing a component prompt file (agent / skill / command / rule), load the prompt-authoring rule to reinforce Opus 4.7 attention before drafting the Story body:
 
 Load .claude/rules/common/prompt-authoring.md and follow its process.
 
-### 5. Design per-Task Commit Message
+### 5. Design per-Story Commit Message
 
-For each Task, design a commit message that will be executed when the Task is complete:
+For each Story, design a commit message that will be executed when the Story is complete:
 
 - **Format**: `<type>(<scope>): <subject>` (Conventional Commits)
 - **Type**: one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci`
 - **Scope**: consult `.harness/commit-scopes.md` for project-specific scopes; free-form is also acceptable
 - **Subject**: 72 characters or fewer, imperative mood ("add X", "extend Y", not "added" or "adds")
-- **Principle**: commit message reflects only what this Task produces — not what a future Task will change
+- **Principle**: commit message reflects only what this Story produces — not what a future Story will change
 - **Optional body**: include when context is needed to understand the change (breaking changes, migration notes, etc.)
 
 ## Plan Output Format
 
-**When invoked from `/dev:plan`** (harness workflow): use `.harness/contracts/implementation-plan.md` as the canonical output format. Include a `**Commit**` field in every Task block as specified in that contract. Do NOT use the Phase/Architecture format below.
+**When invoked from `/dev:plan`** (harness workflow): use `.harness/contracts/implementation-plan.md` as the canonical output format. Include a `**Commit**` field in every Story block as specified in that contract. Do NOT use the Phase/Architecture format below.
 
 **When invoked for general planning** (not harness workflow): use the format below.
 
@@ -128,10 +145,10 @@ For each Task, design a commit message that will be executed when the Task is co
 - [ ] Criteria 1
 - [ ] Criteria 2
 
-#### Task 1. [Task Name] (File: path/to/file.ts)
+#### Story 1. [Story Name] (File: path/to/file.ts)
 - Action: Specific work to be done
 - Reason: Why this step is needed
-- Dependencies: None / Requires Task X
+- Dependencies: None / Requires Story X
 - Risk: Low/Medium/High
 - Acceptance Criteria:
   - [ ] Criteria 1
@@ -154,7 +171,7 @@ For each Task, design a commit message that will be executed when the Task is co
 
 ### Known Repository Paths
 
-When analyzing tasks that reference harness components or external references, use these
+When analyzing requests that reference harness components or external references, use these
 established paths. **Do not infer paths — verify with Glob/Grep first.**
 
 | Resource | Path |

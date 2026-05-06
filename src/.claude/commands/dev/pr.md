@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Push the current branch and create a GitHub Pull Request. Publish-only — run after /dev:docs so the reference document is included.
 category: dev-workflow
 ---
@@ -120,12 +120,12 @@ Defaults:
 
 ### 4. Draft PR title
 
-Read the implementation plan to extract Task Commit fields:
+Read the implementation plan to extract Story Commit fields:
 ```bash
 node .harness/scripts/dev-context.js read --topic=<topic> --field=plan
 ```
 
-From the plan's Task blocks, extract all `**Commit**:` values. Parse `type` and `scope` from each. Find the most frequent `type` and `scope`.
+From the plan's Story blocks, extract all `**Commit**:` values. Parse `type` and `scope` from each. Find the most frequent `type` and `scope`.
 
 Draft the PR title as:
 ```

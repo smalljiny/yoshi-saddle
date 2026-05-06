@@ -31,7 +31,7 @@ docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 | Step | 내용 |
 |---|---|
 | 1 | Gate Check: `impl:in-progress` 상태 확인 |
-| 2 | 모든 Task 완료 확인 (`currentTask=null`, 미체크 Task 없음) |
+| 2 | 모든 Story 완료 확인 (`currentStory=null`, 미체크 Story 헤더·nested Task 0건). `grep -nE "^### \[ \]|^- \[ \] T"` 로 두 조건을 동시 검사한다. |
 | 3 | `review:in-progress` 전환 + `SAVED_SHA = git rev-parse HEAD` 캡처 |
 | 4 | 변경 범위 식별 (`config.git.baseBranch`, `config.git.pullRemote`) |
 | 5 | code-reviewer + security-reviewer **병렬** 실행 |

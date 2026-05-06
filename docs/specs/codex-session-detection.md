@@ -62,7 +62,7 @@ TTL 기반 캐시(1시간)로 매 세션마다 발생하는 동기 블로킹을 
 ### SessionStart hook (`session-start.js`)
 
 Claude Code 세션 시작마다 실행된다:
-1. `dev-context.json`을 읽어 이전 작업 컨텍스트(topic·phase·currentTask·plan 경로)를 `console.log`로 출력
+1. `dev-context.json`을 읽어 이전 작업 컨텍스트(topic·phase·currentStory·plan 경로)를 `console.log`로 출력. 출력 메시지는 "다음 Story: ..."로 표시된다 (이전 "다음 Task: ..."에서 변경).
 2. `detect-and-cache.js`를 `spawnSync`로 호출 (TTL 미초과 시 자동 스킵)
 
 hook 오류는 전체를 `try/catch`로 감싸 세션 시작을 방해하지 않는다.

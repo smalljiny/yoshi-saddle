@@ -41,10 +41,10 @@ node .harness/scripts/dev-context.js read --topic=<current_topic> --field=spec
 ## Checklist
 - [PASS|FAIL|NOTE] 1. 목표 커버리지 - <evidence>
 - [PASS|FAIL|NOTE] 2. Non-goals 준수 - <evidence>
-- [PASS|FAIL|NOTE] 3. Task 독립성 - <evidence>
+- [PASS|FAIL|NOTE] 3. Story 독립성 - <evidence>
 - [PASS|FAIL|NOTE] 4. 완료 기준 명확성 - <evidence>
-- [PASS|FAIL|NOTE] 5. Task 타입 정확성 - <evidence>
-- [PASS|FAIL|NOTE] 6. Task 규모 적정성 - <evidence>
+- [PASS|FAIL|NOTE] 5. Story 타입 정확성 - <evidence>
+- [PASS|FAIL|NOTE] 6. Story 규모 적정성 - <evidence>
 - [PASS|FAIL|NOTE] 7. 구현 순서 타당성 - <evidence>
 - [PASS|FAIL|NOTE] 8. 범위 초과 없음 - <evidence>
 
@@ -59,13 +59,13 @@ node .harness/scripts/dev-context.js read --topic=<current_topic> --field=spec
 
 | # | Item | Evaluation Criteria |
 |---|------|---------------------|
-| 1 | 목표 커버리지 | 스펙의 모든 목표가 하나 이상의 Task에서 다뤄지는가 |
+| 1 | 목표 커버리지 | 스펙의 모든 목표가 하나 이상의 Story에서 다뤄지는가 |
 | 2 | Non-goals 준수 | 구현 계획이 스펙의 범위 밖 항목을 구현하지 않는가 |
-| 3 | Task 독립성 | 각 Task가 독립적으로 실행 가능한가 |
+| 3 | Story 독립성 | 각 Story가 독립적으로 실행 가능한가 |
 | 4 | 완료 기준 명확성 | Completion Criteria가 검증 가능한 조건인가 |
-| 5 | Task 타입 정확성 | Task 타입이 Work Items와 일치하는가 |
-| 6 | Task 규모 적정성 | 각 Task가 단일 커밋 단위로 적절한가 |
-| 7 | 구현 순서 타당성 | Task 실행 순서가 의존성과 일관된가 |
+| 5 | Story 타입 정확성 | Story 타입이 Tasks 항목과 일치하는가 |
+| 6 | Story 규모 적정성 | 각 Story가 단일 커밋 단위로 적절한가 |
+| 7 | 구현 순서 타당성 | Story 실행 순서가 의존성과 일관된가 |
 | 8 | 범위 초과 없음 | 스펙 범위를 벗어나는 추가 기능을 포함하지 않는가 |
 
 ## Decision Rules

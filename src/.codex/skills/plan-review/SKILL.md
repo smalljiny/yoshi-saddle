@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: plan-review
 description: >-
   Review an implementation plan against an 8-point quality gate. Resolves plan
@@ -76,13 +76,22 @@ Apply the checklist in `references/checklist-template.md`.
 
 **Commit 섹션 검증** (warning level, not a separate check — apply within check 4 "완료 기준 명확성"):
 
-For each Task block that contains a `**Commit**:` field (plans written after `pr-driven-commit-workflow` Task 4):
+For each Story block that contains a `**Commit**:` field (plans written after `pr-driven-commit-workflow` Task 4):
 - `type` must be one of: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci` → warn if not
 - `scope` should match an entry in `.harness/commit-scopes.md` (free-form is acceptable) → warn if not in list
 - `subject` must be 72 characters or fewer → warn if exceeded
-- Each Task's commit should reflect only that Task's output → flag if the message appears to cover multiple Tasks
+- Each Story's commit should reflect only that Story's output → flag if the message appears to cover multiple Stories
 
-**If a Task has no `**Commit**` field**: skip Commit validation for that Task (backward-compatible). Do not fail the plan for missing Commit fields.
+**If a Story has no `**Commit**` field**: skip Commit validation for that Story (backward-compatible). Do not fail the plan for missing Commit fields.
+
+**Task 라인 first-line subject 검증** (warning level, fold-in within check 4 "완료 기준 명확성"):
+
+For each Story's `**Tasks**:` list, validate every `- [ ] T<storyN>.<taskM> — <subject>` line:
+- Subject must be non-empty → warn if missing
+- Subject must be 80 characters or fewer → warn if exceeded
+- Subject must be a single-line imperative phrase (TaskCreate-compatible) → warn if line wraps or contains markup
+
+This check produces warnings; it does not add a 9th checklist item — Checklist remains 8 fixed lines.
 
 ### 3. Produce decision
 
@@ -120,10 +129,10 @@ The report written to disk must follow this structure exactly:
 ## Checklist
 - [PASS|FAIL|NOTE] 1. 목표 커버리지 - <evidence>
 - [PASS|FAIL|NOTE] 2. Non-goals 준수 - <evidence>
-- [PASS|FAIL|NOTE] 3. Task 독립성 - <evidence>
+- [PASS|FAIL|NOTE] 3. Story 독립성 - <evidence>
 - [PASS|FAIL|NOTE] 4. 완료 기준 명확성 - <evidence>
-- [PASS|FAIL|NOTE] 5. Task 타입 정확성 - <evidence>
-- [PASS|FAIL|NOTE] 6. Task 규모 적정성 - <evidence>
+- [PASS|FAIL|NOTE] 5. Story 타입 정확성 - <evidence>
+- [PASS|FAIL|NOTE] 6. Story 규모 적정성 - <evidence>
 - [PASS|FAIL|NOTE] 7. 구현 순서 타당성 - <evidence>
 - [PASS|FAIL|NOTE] 8. 범위 초과 없음 - <evidence>
 

@@ -78,6 +78,18 @@ function readContext() {
   if (!ctx.config || typeof ctx.config !== 'object' || Array.isArray(ctx.config)) {
     ctx.config = {}
   }
+  // 자동 마이그레이션: 기존 currentTask 필드 → currentStory.
+  // 두 필드 동시 존재 시 no-op으로 currentTask를 보존 (수동 정리 대상으로 남긴다).
+  for (const topicName of Object.keys(ctx.topics)) {
+    const t = ctx.topics[topicName]
+    if (!t || typeof t !== 'object') continue
+    const hasOld = Object.hasOwn(t, 'currentTask')
+    const hasNew = Object.hasOwn(t, 'currentStory')
+    if (hasOld && !hasNew) {
+      t.currentStory = t.currentTask
+      delete t.currentTask
+    }
+  }
   return ctx
 }
 
@@ -137,7 +149,7 @@ switch (subcommand) {
       specReview: null,
       plan: null,
       planReview: null,
-      currentTask: null,
+      currentStory: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }

@@ -1,8 +1,8 @@
 ---
-version: 1
+version: 2
 name: refactor-cleaner
 description: Expert in removing dead code and improving code quality. Use for code maintenance and intentional refactoring tasks.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, TaskCreate, TaskUpdate
 model: sonnet
 color: gray
 ---
@@ -22,6 +22,8 @@ A refactoring expert who keeps the codebase clean.
 2. Identify code that can be safely removed/modified
 3. Ensure behavior is preserved with tests
 4. Apply incremental improvements
+
+Load `.claude/skills/wf-task-tracking/SKILL.md` and follow its process.
 
 ## Refactoring Scope
 

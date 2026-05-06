@@ -1,13 +1,13 @@
 ---
-version: 4
+version: 6
 name: stack-prompt
-description: Prompt domain skill defining PROPOSE→EVAL→REFINE cycle for prompt type Tasks. Provides strategy-specific eval logic (direct/rubric/judge), pass_count metric, and stagnation signals. Lazy-loads reference/authoring-patterns.md and reference/diagnostic-patterns.md. Loop control and persistence owned by the calling agent. Workflow-only — direct-load by `prompt-engineer` agent; not exposed via skill-registry.
+description: Prompt domain skill defining PROPOSE→EVAL→REFINE cycle for prompt type Stories. Provides strategy-specific eval logic (direct/rubric/judge), pass_count metric, and stagnation signals. Lazy-loads reference/authoring-patterns.md and reference/diagnostic-patterns.md. Loop control and persistence owned by the calling agent. Workflow-only — direct-load by `prompt-engineer` agent; not exposed via skill-registry.
 origin: harness
 ---
 
 # stack-prompt
 
-`prompt` 타입 Task의 평가 절차를 정의한다.
+`prompt` 타입 Story의 평가 절차를 정의한다.
 `prompt-engineer` 에이전트가 이 스킬을 로드하고 따른다.
 
 ## Known Limitation: Prediction-Based Evaluation
@@ -25,7 +25,7 @@ origin: harness
 
 - **Loop control** — 반복 여부, 최대 반복 횟수, 반복 종료 결정은 호출자 에이전트가 담당
 - **Persistence** — 프롬프트 파일 저장은 호출자 에이전트가 담당
-- **전략 선택 외 Task 관리** — currentTask 갱신, 커밋, 상태 전환은 호출자 담당
+- **전략 선택 외 Story 관리** — currentStory 갱신, 커밋, 상태 전환은 호출자 담당
 
 ---
 
@@ -46,7 +46,7 @@ Consult `reference/authoring-patterns.md` for skeleton and Claude Code rules.
 
 호출자 에이전트에게 제공하는 작성 가이드:
 
-1. Task의 Goal·Work Items·Completion Criteria(Eval Cases)를 읽는다
+1. Story의 Goal·Tasks·Completion Criteria(Eval Cases)를 읽는다
 2. 변경 대상 파일의 현재 내용을 읽는다
 3. Eval Cases의 Input 패턴을 분석해 처리해야 할 시나리오를 파악한다
 4. 프롬프트 초안을 구성한다:
@@ -147,7 +147,7 @@ Consult `reference/diagnostic-patterns.md` for failure category lookup.
 
 | 신호 | 조건 |
 |---|---|
-| **SUCCESS** | pass_count ≥ Acceptance N (Task Completion Criteria에서 읽음) |
+| **SUCCESS** | pass_count ≥ Acceptance N (Story Completion Criteria에서 읽음) |
 | **MAX_ITER** | 반복 횟수 == 최대 한도 (호출자 정책, 권장값 5회) |
 | **STAGNATION** | 연속 2회 pass_count 증가 없음 |
 

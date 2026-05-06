@@ -24,8 +24,8 @@ function main() {
           // 이전 컨텍스트 출력 (Claude Code가 시스템 메시지로 인식)
           console.log(`[컨텍스트 복원] 주제: ${topic} | phase: ${topicData.phase}`)
 
-          if (topicData.currentTask) {
-            console.log(`[컨텍스트 복원] 다음 Task: ${topicData.currentTask}`)
+          if (topicData.currentStory) {
+            console.log(`[컨텍스트 복원] 다음 Story: ${topicData.currentStory}`)
             console.log(`  → /dev:impl 로 계속하세요.`)
           }
 

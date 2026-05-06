@@ -37,7 +37,7 @@ Resolve spec path using priority order:
       "specReview": null,
       "plan": null,
       "planReview": null,
-      "currentTask": null,
+      "currentStory": null,
       "createdAt": "<ISO 8601>",
       "updatedAt": "<ISO 8601>"
     }
