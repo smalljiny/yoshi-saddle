@@ -1,33 +1,33 @@
 ---
-version: 16
-description: Execute Tasks from the implementation plan. Supports `--all` for sequential batch execution of all remaining Tasks. Automatically invokes tdd-specialist and code-reviewer per Task. Stops after one Task by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Tasks sequentially.
+version: 17
+description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
 
 # /dev:impl
 
-Execute Tasks from the implementation plan one at a time, or all at once in batch mode.
+Execute Stories from the implementation plan one at a time, or all at once in batch mode.
 
 ## Usage
 
 ```
-/dev:impl               Auto-select the next incomplete Task
-/dev:impl "Task 1"      Run by specific Task name
-/dev:impl T2            Run by Task ID
-/dev:impl --all         Run all remaining incomplete Tasks sequentially (batch mode)
+/dev:impl               Auto-select the next incomplete Story
+/dev:impl "Story 1"     Run by specific Story name
+/dev:impl S2            Run by Story ID
+/dev:impl --all         Run all remaining incomplete Stories sequentially (batch mode)
 ```
 
 ## Execution Flow
 
 ### 1. Read Context, Parse Flags, and Gate Check
 
-1. Parse invocation flags — determine batch mode once before any Task runs:
+1. Parse invocation flags — determine batch mode once before any Story runs:
    - Check if `--all` is present in `$ARGUMENTS`
    - Read batch mode config:
      ```bash
      node .harness/scripts/dev-context.js read --field=config.dev_impl.batch_mode
      ```
-   - Set `batch = true` if `--all` is present OR (`batch_mode == "true"` AND no explicit Task ID/name argument is given). An explicit Task argument (e.g. `T2`) always runs a single Task regardless of `batch_mode`. Carry this value through all subsequent steps.
+   - Set `batch = true` if `--all` is present OR (`batch_mode == "true"` AND no explicit Story ID/name argument is given). An explicit Story argument (e.g. `S2`) always runs a single Story regardless of `batch_mode`. Carry this value through all subsequent steps.
 
    **`currentBatchRunning` lifecycle:**
    - (a) If `batch == true`, read `current_topic` and persist batch state (anticipates item 2):
@@ -37,7 +37,7 @@ Execute Tasks from the implementation plan one at a time, or all at once in batc
      node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchTopic --value=<current_topic>
      ```
    - (b) If `batch == false`, check for a stale batch state:
-     - **명시적 Task 인자가 주어진 경우 stale 감지를 건너뛴다** (explicit-Task-wins). 이 호출이 Step 11에 도달하면 `currentBatchRunning`은 그때 초기화된다. 배치를 재개하려면 이후 `/dev:impl --all`을 사용한다.
+     - **명시적 Story 인자가 주어진 경우 stale 감지를 건너뛴다** (explicit-Story-wins). 이 호출이 Step 11에 도달하면 `currentBatchRunning`은 그때 초기화된다. 배치를 재개하려면 이후 `/dev:impl --all`을 사용한다.
      - 그 외에는 stale 감지를 수행한다:
      ```bash
      node .harness/scripts/dev-context.js read --field=config.dev_impl.currentBatchRunning
@@ -47,15 +47,15 @@ Execute Tasks from the implementation plan one at a time, or all at once in batc
        node .harness/scripts/dev-context.js read --field=config.dev_impl.currentBatchTopic
        node .harness/scripts/dev-context.js read --field=current_topic
        ```
-       - If `currentBatchTopic` ≠ `current_topic` → **topic mismatch**: silently reset both fields and continue as single-Task:
+       - If `currentBatchTopic` ≠ `current_topic` → **topic mismatch**: silently reset both fields and continue as single-Story:
          ```bash
          node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchRunning --value=false
          node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchTopic --value=false
          ```
        - If topic matches (or `currentBatchTopic` is empty) → use `AskUserQuestion` (include topic name in message):
          - **재개 (Recommended)**: 이전 배치(`<topic>`)를 이어 실행 — override `batch = true`, then execute (a) above
-         - **초기화**: persisted batch 상태를 지우고 이 호출은 단일 Task만 실행 — run both reset commands above; continue as single-Task
-     - 그 외 모든 값(empty string, `"false"`, 기타) → not stale; continue as single-Task
+         - **초기화**: persisted batch 상태를 지우고 이 호출은 단일 Story만 실행 — run both reset commands above; continue as single-Story
+     - 그 외 모든 값(empty string, `"false"`, 기타) → not stale; continue as single-Story
 
 2. Get the current topic from dev-context.json:
    ```bash
@@ -76,38 +76,38 @@ Execute Tasks from the implementation plan one at a time, or all at once in batc
    codex "plan-review 스킬을 실행해줘"
    ```
 
-5. Get the plan path and determine which Task to run:
+5. Get the plan path and determine which Story to run:
    ```bash
    node .harness/scripts/dev-context.js read --topic=<topic> --field=plan
    node .harness/scripts/dev-context.js read --topic=<topic> --field=currentStory
    ```
-   - Explicit Task argument (not `--all`) → that Task
-   - `currentStory` value → that Task
-   - Otherwise → first incomplete `[ ]` Task in `implementation-plan.md`
+   - Explicit Story argument (not `--all`) → that Story
+   - `currentStory` value → that Story
+   - Otherwise → first incomplete `[ ]` Story in `implementation-plan.md`
 
-### 2. Understand Task Details
+### 2. Understand Story Details
 
 Extract from the plan document:
 - **Type**: tdd, config, infra, refactor, prompt
 - **Goal**: What to achieve
-- **Work Items**: Checklist
+- **Tasks**: Checklist of `- [ ] T<storyN>.<taskM> — <subject>` lines
 - **Completion Criteria**: Validation criteria
 
 ### 3. **Pre-work briefing and approval**
 
-**Batch mode (Task 2 onward)**: If `batch == true` AND this is not the first Task in the current invocation, skip the full briefing. Print a single line instead:
+**Batch mode (Story 2 onward)**: If `batch == true` AND this is not the first Story in the current invocation, skip the full briefing. Print a single line instead:
 ```
---- Starting Task <ID>: <Name> ---
+--- Starting Story <ID>: <Name> ---
 ```
 Then proceed to Step 4 immediately without waiting for approval.
 
-**All other cases (first Task, or non-batch)**: Present the full briefing:
+**All other cases (first Story, or non-batch)**: Present the full briefing:
 
 ```
 ---
-## Pre-work Briefing: [Task ID] [Task Name]
+## Pre-work Briefing: [Story ID] [Story Name]
 
-### Task Overview
+### Story Overview
 - Type: [tdd / config / infra / refactor / prompt]
 - Goal: [What to achieve]
 
@@ -126,9 +126,9 @@ Then proceed to Step 4 immediately without waiting for approval.
 
 After the briefing block is printed (closing `---`), **advisor 조건부 호출**을 먼저 수행한다:
 
-**복잡한 Task 판정 조건** — 아래 중 하나라도 해당하면 `advisor`를 호출한다:
-- Task Type이 `infra` (스크립트·코드 변경, 시스템 영향 큼)
-- Work Items 수 ≥ 5
+**복잡한 Story 판정 조건** — 아래 중 하나라도 해당하면 `advisor`를 호출한다:
+- Story Type이 `infra` (스크립트·코드 변경, 시스템 영향 큼)
+- Tasks 수 ≥ 5
 
 조건에 해당하면 `advisor()`를 호출해 설계 상 위험·엣지 케이스·대안을 사전 검토한다. advisor 응답을 반영한 뒤 다음 단계로 진행한다. 이 호출은 `auto_start`와 무관하게 항상 실행된다.
 
@@ -145,7 +145,7 @@ Branch on the result:
   ```
 - Otherwise (empty string, `"false"`, or any other value): preserve current behavior — do not start implementation without approval.
 
-### 4. Transition to `impl:in-progress` (first Task only)
+### 4. Transition to `impl:in-progress` (first Story only)
 
 If current `phase:status` is `plan:confirmed` (not yet `impl:in-progress`):
 
@@ -154,7 +154,21 @@ node .harness/scripts/dev-context.js update-state \
   --topic=<topic> --phase=impl --status=in-progress
 ```
 
-### 5. **Automatically invoke agent by Task Type**
+### 4.5. Create Task entries for the Story
+
+Step 4 완료 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도구 entries를 일괄 생성한다.
+
+**파싱 규칙:**
+- 각 `- [ ] T<storyN>.<taskM> — <subject>` 라인을 추출한다 (sub-bullet, 코드 블록, 표는 제외).
+- `T<storyN>.<taskM>`을 Task 도구 entry id로 매핑한다.
+- subject(라인 첫 줄)를 Task 도구 entry `subject` 필드로 그대로 사용한다.
+- `activeForm` 필드는 wf-task-tracking 스킬의 파생 규칙(한국어 종결형 → `X 중`, English imperative → `-ing` 형)으로 생성한다.
+
+**호출 트리거** (prompt-authoring 규칙 7): Step 4 완료 직후, 현재 Story의 Tasks 목록을 파싱해 모든 Task에 대해 `TaskCreate(taskId=T<storyN>.<taskM>, subject=<subject>, activeForm=<derived>, status='pending')`를 일괄 호출한다.
+
+**실패 처리**: TaskCreate 호출 실패 시 stderr에 경고를 출력하고 진행한다 — plan markdown 체크박스가 단일 진실 원천이므로 에이전트 동작은 영향 없다. 누락된 entry는 Step 9.5에서 sync 단계가 보정한다.
+
+### 5. **Automatically invoke agent by Story Type**
 
 **Type: `tdd`** → Invoke **tdd-specialist** agent:
 - Write failing tests (RED)
@@ -185,11 +199,11 @@ node .harness/scripts/dev-context.js update-state \
 
 ### 6. **Automatically invoke code-reviewer agent** (immediately after implementation)
 
-Immediately review the Task code:
+Immediately review the Story code:
 - Quality review
 - Immediate feedback + fixes
 
-**`tdd` 타입 전용 — simplify 스킬 후속 호출**: code-reviewer 완료 직후, Task Type이 `tdd`이면 `simplify` 스킬을 로드해 실행한다:
+**`tdd` 타입 전용 — simplify 스킬 후속 호출**: code-reviewer 완료 직후, Story Type이 `tdd`이면 `simplify` 스킬을 로드해 실행한다:
 
 ```
 Load `.claude/skills/simplify/SKILL.md` and follow its process.
@@ -220,21 +234,21 @@ Read the `auto_commit` config:
 node .harness/scripts/dev-context.js read --field=config.dev_impl.auto_commit
 ```
 
-**Find the Commit message** from the current Task's plan block:
-- Look for `- **Commit**:` line in the Task section of the plan document
+**Find the Commit message** from the current Story's plan block:
+- Look for `- **Commit**:` line in the Story section of the plan document
 - Extract the subject line (first backtick-quoted value after `**Commit**:`)
 - Optionally include the body lines (indented under the subject)
 
-**If no `**Commit**` field exists** in this Task (pre-contract plan or omitted):
+**If no `**Commit**` field exists** in this Story (pre-contract plan or omitted):
 ```
-이 Task에 **Commit** 필드가 없습니다. commit을 건너뛰시겠습니까? (y/skip)
+이 Story에 **Commit** 필드가 없습니다. commit을 건너뛰시겠습니까? (y/skip)
 ```
-- `y` or `skip`: skip commit for this Task and continue to Step 9
+- `y` or `skip`: skip commit for this Story and continue to Step 9
 - Any other response:
   - `batch == true`: set `batch_failed = true` with reason "user declined to skip commit (no **Commit** field)" and proceed to Step 11 (terminal)
   - `batch == false`: stop
 
-**Stage files**: stage only files changed by this Task. Do **NOT** use `git add -A` or `git add .`.
+**Stage files**: stage only files changed by this Story. Do **NOT** use `git add -A` or `git add .`.
 - Use the list of files from Step 5/6 (tdd-specialist and code-reviewer output) as the staging target.
 - **Quote every file path** when passing to `git add` — paths may contain spaces or glob characters: `git add "path/to/file" "other file.ts"`
 - Run `git status --short` first, confirm the staged file list with the user if `auto_commit=false`.
@@ -243,7 +257,7 @@ node .harness/scripts/dev-context.js read --field=config.dev_impl.auto_commit
 
 **If `auto_commit = "true"`**: execute commit automatically using a HEREDOC to avoid shell metacharacter injection:
 ```bash
-git add "<task-file-1>" "<task-file-2>"
+git add "<story-file-1>" "<story-file-2>"
 git commit -m "$(cat <<'COMMIT_MSG'
 <subject>
 <body>
@@ -254,7 +268,7 @@ Print: `auto_commit: <commit-message>`
 
 **If `auto_commit` is false/empty (default)**: show the planned message and prompt:
 ```
-이 Task의 commit 메시지:
+이 Story의 commit 메시지:
   <commit-subject>
   [<body>]
 
@@ -266,7 +280,7 @@ Print: `auto_commit: <commit-message>`
 - `n`:
   - `batch == true`: set `batch_failed = true` with reason "commit refused by user" and proceed to Step 11 (terminal)
   - `batch == false`: stop
-- `skip`: skip commit and continue to Step 9 (commit omitted for this Task; not a failure)
+- `skip`: skip commit and continue to Step 9 (commit omitted for this Story; not a failure)
 
 **amend is forbidden** — always create a new commit. Review-fix commits from `/dev:review` must also be separate commits (see `.harness/rules/git-workflow.md`).
 
@@ -279,17 +293,26 @@ Print: `auto_commit: <commit-message>`
 
 ### 9. Update Plan Document
 
-Mark completed Tasks:
-- `[ ]` → `[x]`
+Mark completed Story and Tasks:
+- Story checkbox: `### [ ] Story N` → `### [x] Story N`
+- Each completed Task in the Story's `**Tasks**:` list: `- [ ]` → `- [x]`
+
+### 9.5. Sync Task tool state from markdown
+
+Step 9 완료 직후, plan markdown의 `- [x]` 체크박스 상태를 Task 도구 entries 상태(`completed`)와 sync한다.
+
+**호출 트리거** (prompt-authoring 규칙 7): Step 9 완료 직후, 현재 Story의 Tasks 목록을 다시 파싱해 `- [x]` 라인의 `T<storyN>.<taskM>` 에 대해 Task 도구 entry 상태가 `completed`가 아니면 `TaskUpdate(taskId=T<storyN>.<taskM>, status='completed')`를 호출한다.
+
+**보정 대상**: 에이전트가 wf-task-tracking 스킬을 따라 TaskUpdate를 호출했더라도 누락이 있을 수 있다. 본 단계는 markdown을 단일 진실 원천으로 두고 Task 도구 상태를 정렬한다. TaskUpdate 호출 실패 시 stderr 경고만 출력하고 다음 단계로 진행한다.
 
 ### 10. Update dev-context.json
 
 ```bash
 node .harness/scripts/dev-context.js set-field \
-  --topic=<topic> --field=currentStory --value=<next-task-id>
+  --topic=<topic> --field=currentStory --value=<next-story-id>
 ```
 
-Use `null` when all Tasks are complete:
+Use `null` when all Stories are complete:
 ```bash
 node .harness/scripts/dev-context.js set-field \
   --topic=<topic> --field=currentStory --value=null
@@ -300,7 +323,7 @@ node .harness/scripts/dev-context.js set-field \
 Evaluate after Step 10 (sub-step 0 owns the full skip/recover/proceed logic):
 
 0. Recover persisted batch state (session memory loss guard):
-   - If the invocation included an **explicit Task argument** (e.g. `/dev:impl T2`), skip this step entirely (explicit-Task-wins overrides persisted batch state — do not loop).
+   - If the invocation included an **explicit Story argument** (e.g. `/dev:impl S2`), skip this step entirely (explicit-Story-wins overrides persisted batch state — do not loop).
    - Otherwise, read the persisted fields:
      ```bash
      node .harness/scripts/dev-context.js read --field=config.dev_impl.currentBatchRunning
@@ -310,17 +333,17 @@ Evaluate after Step 10 (sub-step 0 owns the full skip/recover/proceed logic):
    - If `currentBatchRunning == "true"` AND `currentBatchTopic` ≠ active topic, do not recover — topic mismatch; `batch` remains unchanged.
    - Then proceed only if `batch == true`.
 
-1. Read `currentStory` written by Step 10 — this must equal the first remaining `[ ]` Task in `implementation-plan.md`. If they disagree (plan edited mid-batch), use the plan file as the authoritative source and log a warning.
-2. If a next Task exists → jump back to Step 2 (start next Task)
-3. If no more incomplete Tasks remain → proceed to Step 11 (terminal: batch complete)
+1. Read `currentStory` written by Step 10 — this must equal the first remaining `[ ]` Story in `implementation-plan.md`. If they disagree (plan edited mid-batch), use the plan file as the authoritative source and log a warning.
+2. If a next Story exists → jump back to Step 2 (start next Story)
+3. If no more incomplete Stories remain → proceed to Step 11 (terminal: batch complete)
 
-### 11. **Output Task completion briefing and stop**
+### 11. **Output Story completion briefing and stop**
 
-**Per-Task briefing (non-terminal: batch mid-run)**
+**Per-Story briefing (non-terminal: batch mid-run)**
 
 Reached only when the Batch Loop Decision (Step 10.5) jumps back to Step 2. Not printed separately — the loop continues directly.
 
-**Terminal briefing (single-Task mode, batch complete, or batch stopped)**
+**Terminal briefing (single-Story mode, batch complete, or batch stopped)**
 
 단일/배치 모드 무관하게 터미널 브리핑 직전 batch 상태 필드를 초기화한다. reset 명령 실패 시에는 오류를 표시하고 터미널 브리핑을 중단한다:
 
@@ -331,10 +354,10 @@ node .harness/scripts/dev-context.js set-field \
   --field=config.dev_impl.currentBatchTopic --value=false
 ```
 
-*Single-Task mode (non-batch)*:
+*Single-Story mode (non-batch)*:
 ```
 ---
-## Task Complete: [Task ID] [Task Name]
+## Story Complete: [Story ID] [Story Name]
 
 ### Work Summary
 - [Implementation/change details]
@@ -344,20 +367,20 @@ node .harness/scripts/dev-context.js set-field \
 - Tests: PASS ([X] passed)
 - Coverage: [X]%
 
-### Next Task
-- [Next incomplete Task ID and name]
+### Next Story
+- [Next incomplete Story ID and name]
 - Continue with /dev:impl.
 ---
 ```
 
-*Batch complete (all Tasks finished)*:
+*Batch complete (all Stories finished)*:
 ```
 ---
 ## Batch Complete
 
-Completed [N] Tasks:
-  [x] Task 1: <name>
-  [x] Task 2: <name>
+Completed [N] Stories:
+  [x] Story 1: <name>
+  [x] Story 2: <name>
   ...
 
 Next: /dev:review
@@ -367,39 +390,40 @@ Next: /dev:review
 *Batch stopped (failure)*:
 ```
 ---
-## Batch Stopped at Task [ID]: [Name]
+## Batch Stopped at Story [ID]: [Name]
 
 Reason: <batch_failed reason>
 
 Completed before stopping:
-  [x] Task <n>: <name>  (if any)
+  [x] Story <n>: <name>  (if any)
 
 Resume after fixing the issue:
-  /dev:impl          Resume from the failed Task
-  /dev:impl --all    Re-run batch from the failed Task
+  /dev:impl          Resume from the failed Story
+  /dev:impl --all    Re-run batch from the failed Story
 ---
 ```
 
-**Stop immediately after outputting the terminal briefing. Do not automatically start the next Task.**
+**Stop immediately after outputting the terminal briefing. Do not automatically start the next Story.**
 
 ## Key Principles
 
-- **One Task at a time (default)** — only one Task per invocation unless `--all` or `config.dev_impl.batch_mode=true` is set; in batch mode all remaining Tasks run sequentially
+- **One Story at a time (default)** — only one Story per invocation unless `--all` or `config.dev_impl.batch_mode=true` is set; in batch mode all remaining Stories run sequentially
+- **Story-start TaskCreate batch** — at Step 4.5, parse the current Story's `**Tasks**:` list and emit one batched `TaskCreate(pending)` covering every Task before invoking the implementation agent
 - **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately; `currentBatchRunning` is reset on every terminal exit (Step 11)
 - **Batch persistence** — `currentBatchRunning`·`currentBatchTopic` 필드로 비정상 종료된 배치를 topic-scoped로 감지·재개한다; 토픽 불일치 시 silently reset, Step 11 모든 terminal exit 시 초기화. Step 1 게이트 실패 등 Step 11 미도달 시에는 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그를 트리거한다.
-- **Pre-work briefing for first Task only in batch mode** — Task 2 onward shows a single "Starting Task" line; full briefing and approval gate apply only to the first Task (subject to `auto_start`)
-- **Prior approval required** (unless `config.dev_impl.auto_start=true`) — do not start the first Task without approving the work plan
+- **Pre-work briefing for first Story only in batch mode** — Story 2 onward shows a single "Starting Story" line; full briefing and approval gate apply only to the first Story (subject to `auto_start`)
+- **Prior approval required** (unless `config.dev_impl.auto_start=true`) — do not start the first Story without approving the work plan
 - **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
 - **TDD enforced** — `tdd` type must write tests first
 - **Immediate review** — automatically invoke code-reviewer immediately after implementation
 - **simplify after code-review (tdd only)** — `tdd` 타입은 code-reviewer 직후 `simplify` 스킬을 추가 실행; `config`·`infra`·`refactor`·`prompt` 타입은 제외 (`prompt`는 REFINE 사이클이 담당)
-- **Pre-work advisor (complex tasks)** — `infra` 타입 또는 Work Items ≥ 5인 Task는 브리핑 직후 `advisor()`를 호출해 설계 위험·엣지 케이스를 사전 점검
-- **Commit from plan** — commit message comes from the Task's `**Commit**` field; never invent a message
+- **Pre-work advisor (complex Stories)** — `infra` 타입 또는 Tasks 수 ≥ 5인 Story는 브리핑 직후 `advisor()`를 호출해 설계 위험·엣지 케이스를 사전 점검
+- **Commit from plan** — commit message comes from the Story's `**Commit**` field; never invent a message
 - **auto_commit default is false** — user sees and approves each commit unless `config.dev_impl.auto_commit=true`
-- **batch + auto_start + auto_commit = fully unattended** — enabling all three removes every human gate after Task 1 approval; use only in trusted environments
-- **Explicit Task overrides batch_mode** — `/dev:impl T2` always runs a single Task regardless of `config.dev_impl.batch_mode`; `--all` always activates batch mode
+- **batch + auto_start + auto_commit = fully unattended** — enabling all three removes every human gate after Story 1 approval; use only in trusted environments
+- **Explicit Story overrides batch_mode** — `/dev:impl S2` always runs a single Story regardless of `config.dev_impl.batch_mode`; `--all` always activates batch mode
 - **amend forbidden** — always create a new commit; review-fix commits are separate
 
 ## Next Steps
 
-After all Tasks complete (single-Task or batch): final full review with `/dev:review`
+After all Stories complete (single-Story or batch): final full review with `/dev:review`
