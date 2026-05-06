@@ -259,7 +259,14 @@ switch (subcommand) {
 
   case 'read': {
     const { topic, field } = args
-    if (!field) die('read: --field 필요')
+    if (!field) die([
+      'read: --field 필요',
+      '',
+      '사용 가능한 호출 형태:',
+      '  read --field=current_topic',
+      '  read --field=config.<namespace>.<key>',
+      '  read --topic=<topic> --field=<phase|status|spec|specReview|plan|planReview|currentStory>',
+    ].join('\n'))
 
     const ctx = readContext()
 

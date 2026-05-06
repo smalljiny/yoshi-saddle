@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 ---
 # Agent Coordination Rules
 
@@ -75,3 +75,13 @@ Read(file-a) + Edit(file-a) in the same tool-call block
 
 When delegating file edits to Bash (e.g., `sed`, `awk`), the Read-before-Edit rule does not
 apply technically, but read the file first anyway to verify the content before modifying it.
+
+### Stated Invocation Form
+
+커맨드·스킬·문서의 명세에 적힌 CLI 호출 형태(`<cmd> <subcmd> --flag=val`)는 명세대로 사용한다. 인자를 생략해 dump나 도움말 동작을 추측하지 않는다.
+
+근거:
+- 하네스 CLI는 의도적으로 인자 단위 조회만 허용한다. 예: `dev-context.js read`는 `--field`가 필수이고, 인자 없는 호출은 사용법을 stderr로 출력하며 비제로 종료한다.
+- 명세에 적힌 호출은 설계 의도를 반영한 계약이다. 자체 단축은 계약을 깨고, 후속 호출자(다음 LLM 또는 사용자)에게 잘못된 휴리스틱을 학습시킨다.
+
+호출 형태가 불확실하면 명세 본문을 다시 읽는다. `--help`를 문서로 명시한 CLI에 한해 인자 없는 호출을 사용한다.

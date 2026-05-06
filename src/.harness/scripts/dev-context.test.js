@@ -355,6 +355,13 @@ describe('dev-context.js', () => {
       assert.notEqual(err.code, 0)
       assert.ok(err.stderr.includes('--topic과 함께 사용할 수 없습니다'))
     })
+
+    test('read --field 미지정 → 사용법 안내를 stderr에 출력하고 non-zero exit', async () => {
+      const err = await runExpectFail('read')
+      assert.notEqual(err.code, 0)
+      assert.ok(err.stderr.includes('--field'), 'stderr는 --field 키워드를 포함해야 한다')
+      assert.ok(err.stderr.includes('사용 가능한 호출 형태'), 'stderr는 사용법 안내 헤더를 포함해야 한다')
+    })
   })
 
   describe('config path (dot notation)', () => {
