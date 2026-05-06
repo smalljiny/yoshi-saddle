@@ -28,7 +28,7 @@
 
 | 주체 | Task 도구 책임 |
 |------|---------------|
-| `/dev:impl` (Step 4.5) | 현재 Story의 모든 Task에 대해 `TaskCreate(pending)` 일괄 호출 |
+| `/dev:impl` (Step 4) | 현재 Story의 모든 Task에 대해 `TaskCreate(pending)` 일괄 호출 |
 | `/dev:impl` (Step 9.5) | Story 완료 후 markdown `[x]` 상태를 Task 도구 `completed` 상태로 정렬 |
 | 3개 implementation 에이전트 | 각 Task 시작 시 `TaskUpdate(in_progress)`, 완료 시 `TaskUpdate(completed)` + markdown 체크박스 갱신 |
 | `wf-task-tracking` 스킬 | 에이전트가 따르는 패턴의 단일 진실 원천 (activeForm 파생 규칙, 실패 처리 포함) |
@@ -49,7 +49,7 @@
 
 ### TaskCreate 책임
 
-에이전트는 TaskCreate를 호출하지 않는다. `/dev:impl`이 Step 4.5에서 현재 Story의 `**Tasks**:` 목록을 파싱해 모든 Task에 대해 `TaskCreate(pending)`를 일괄 호출한다. 에이전트가 제어권을 넘겨받는 시점에는 이미 `T<storyN>.<taskM>` ID로 entries가 생성되어 있다.
+에이전트는 TaskCreate를 호출하지 않는다. `/dev:impl`이 Step 4에서 현재 Story의 `**Tasks**:` 목록을 파싱해 모든 Task에 대해 `TaskCreate(pending)`를 일괄 호출한다. 에이전트가 제어권을 넘겨받는 시점에는 이미 `T<storyN>.<taskM>` ID로 entries가 생성되어 있다.
 
 에이전트가 시작하려는 Task의 Task 도구 entry가 없으면 호출자(`/dev:impl`)에게 불일치를 보고하고 plan markdown을 단일 진실 원천으로 계속 진행한다. 누락 entry를 스스로 생성하지 않는다.
 
