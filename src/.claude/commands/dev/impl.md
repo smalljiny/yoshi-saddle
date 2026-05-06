@@ -1,5 +1,5 @@
 ---
-version: 18
+version: 19
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
@@ -68,12 +68,28 @@ Execute Stories from the implementation plan one at a time, or all at once in ba
    node .harness/scripts/dev-context.js read --topic=<topic> --field=status
    ```
 
-4. Gate: if `phase:status` is not `plan:confirmed` and not `impl:in-progress`, stop:
+4. Gate + transition: check `phase:status` against the table below. The table is exhaustive — any state not listed stops with the gate failure message.
+
+   | `phase:status` | 동작 |
+   |----------------|------|
+   | `plan:confirmed` | `node .harness/scripts/dev-context.js update-state --topic=<topic> --phase=impl --status=in-progress` 호출 → 이어서 다음 단계로 진행 |
+   | `impl:in-progress` | 그대로 다음 단계로 진행 (no-op) |
+   | (그 외) | 아래 메시지를 출력하고 정지 |
+
+   `(그 외)` 행의 게이트 실패 메시지:
+
    ```
    구현을 시작할 수 없습니다.
    현재 상태: <phase>:<status>
-   plan:confirmed 상태여야 합니다.
+   plan:confirmed 또는 impl:in-progress 상태여야 합니다.
    codex "plan-review 스킬을 실행해줘"
+   ```
+
+   **update-state 실패 처리**: `plan:confirmed` 행에서 `update-state` 호출이 비-zero exit이면 즉시 정지하고 다음 메시지를 출력한다. `currentBatchRunning`·`currentBatchTopic`은 정리하지 않는다 — Step 11 미도달로 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그가 자연스럽게 발동한다.
+
+   ```
+   phase 전환에 실패했습니다 (update-state 비-zero exit).
+   dev-context.json 권한 또는 디스크 상태를 확인하고 다시 시도하세요.
    ```
 
 5. Get the plan path and determine which Story to run:
@@ -145,18 +161,9 @@ Branch on the result:
   ```
 - Otherwise (empty string, `"false"`, or any other value): preserve current behavior — do not start implementation without approval.
 
-### 4. Transition to `impl:in-progress` (first Story only)
+### 4. Create Task entries for the Story
 
-If current `phase:status` is `plan:confirmed` (not yet `impl:in-progress`):
-
-```bash
-node .harness/scripts/dev-context.js update-state \
-  --topic=<topic> --phase=impl --status=in-progress
-```
-
-### 4.5. Create Task entries for the Story
-
-Step 4 완료 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도구 entries를 일괄 생성한다.
+Step 3 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도구 entries를 일괄 생성한다.
 
 **파싱 규칙:**
 - 각 `- [ ] T<storyN>.<taskM> — <subject>` 라인을 추출한다 (sub-bullet, 코드 블록, 표는 제외).
@@ -164,7 +171,7 @@ Step 4 완료 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도�
 - subject(라인 첫 줄)를 Task 도구 entry `subject` 필드로 그대로 사용한다.
 - `activeForm` 필드는 wf-task-tracking 스킬의 파생 규칙(한국어 종결형 → `X 중`, English imperative → `-ing` 형)으로 생성한다.
 
-**호출 트리거** (prompt-authoring 규칙 7): Step 4 완료 직후, 현재 Story의 Tasks 목록을 파싱해 모든 Task에 대해 `TaskCreate(taskId=T<storyN>.<taskM>, subject=<subject>, activeForm=<derived>, status='pending')`를 일괄 호출한다.
+**호출 트리거** (prompt-authoring 규칙 7): Step 3 직후, 현재 Story의 Tasks 목록을 파싱해 모든 Task에 대해 `TaskCreate(taskId=T<storyN>.<taskM>, subject=<subject>, activeForm=<derived>, status='pending')`를 일괄 호출한다.
 
 **실패 처리**: TaskCreate 호출 실패 시 stderr에 경고를 출력하고 진행한다 — plan markdown 체크박스가 단일 진실 원천이므로 에이전트 동작은 영향 없다. 에이전트는 wf-task-tracking 스킬의 "실패 처리" fallback에 따라 entry 누락을 호출자에게 보고한 뒤 markdown을 단일 진실 원천으로 계속 작동한다 (Step 9.5는 누락된 entry를 재생성하지 않는다 — `[x]` 라인의 entry 상태만 `completed`로 정렬한다).
 
@@ -410,12 +417,13 @@ Resume after fixing the issue:
 ## Key Principles
 
 - **One Story at a time (default)** — only one Story per invocation unless `--all` or `config.dev_impl.batch_mode=true` is set; in batch mode all remaining Stories run sequentially
-- **Story-start TaskCreate batch** — at Step 4.5, parse the current Story's `**Tasks**:` list and emit one batched `TaskCreate(pending)` covering every Task before invoking the implementation agent
+- **Story-start TaskCreate batch** — at Step 4, parse the current Story's `**Tasks**:` list and emit one batched `TaskCreate(pending)` covering every Task before invoking the implementation agent
 - **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately; `currentBatchRunning` is reset on every terminal exit (Step 11)
 - **Batch persistence** — `currentBatchRunning`·`currentBatchTopic` 필드로 비정상 종료된 배치를 topic-scoped로 감지·재개한다; 토픽 불일치 시 silently reset, Step 11 모든 terminal exit 시 초기화. Step 1 게이트 실패 등 Step 11 미도달 시에는 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그를 트리거한다.
 - **Pre-work briefing for first Story only in batch mode** — Story 2 onward shows a single "Starting Story" line; full briefing and approval gate apply only to the first Story (subject to `auto_start`)
 - **Prior approval required** (unless `config.dev_impl.auto_start=true`) — do not start the first Story without approving the work plan
-- **Gate: plan:confirmed | impl:in-progress** — requires `plan:confirmed` or `impl:in-progress`; if neither, show plan-review command and stop
+- **Gate + transition** — Step 1에서 `phase:status` 상태 테이블로 게이트 검사와 `plan:confirmed → impl:in-progress` 전환을 한 단계에 처리; `update-state` 비-zero exit 시 즉시 정지하고 `currentBatchRunning`·`currentBatchTopic`은 정리하지 않는다
+- **Approval rejection no rollback** — 사용자가 briefing 승인을 거절(`n`)해도 phase는 `impl:in-progress`로 유지된다. 게이트가 두 상태 모두 통과시키므로 다음 호출이 자연스럽게 재개된다.
 - **TDD enforced** — `tdd` type must write tests first
 - **Immediate review** — automatically invoke code-reviewer immediately after implementation
 - **simplify after code-review (tdd only)** — `tdd` 타입은 code-reviewer 직후 `simplify` 스킬을 추가 실행; `config`·`infra`·`refactor`·`prompt` 타입은 제외 (`prompt`는 REFINE 사이클이 담당)
