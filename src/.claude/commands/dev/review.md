@@ -1,12 +1,12 @@
 ---
-version: 10
+version: 11
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 category: dev-workflow
 ---
 
 # /dev:review
 
-After all Tasks are complete, perform a comprehensive review of the entire change scope.
+After all Stories are complete, perform a comprehensive review of the entire change scope.
 
 ## Execution Flow
 
@@ -30,7 +30,7 @@ impl:in-progress 상태여야 합니다.
 
 Do not warn and continue — stop entirely.
 
-### 2. Check all Tasks are complete
+### 2. Check all Stories are complete
 
 Read `currentStory` and the plan file:
 
@@ -40,14 +40,14 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=plan
 ```
 
 Block if either condition is true:
-- `currentStory` is not null (a task is still in progress)
-- The plan file contains any unchecked `[ ]` task lines
+- `currentStory` is not null (a Story is still in progress)
+- The plan file contains any unchecked `[ ]` Story lines
 
 ```
 /dev:review를 실행할 수 없습니다.
 구현이 완료되지 않았습니다.
-미완료 Task가 남아 있습니다: <task-id or list>
-먼저 /dev:impl로 모든 Task를 완료하세요.
+미완료 Story가 남아 있습니다: <story-id or list>
+먼저 /dev:impl로 모든 Story를 완료하세요.
 ```
 
 ### 3. Transition to `review:in-progress`
@@ -105,7 +105,7 @@ Invoke both agents simultaneously:
 
 **Commit 규칙** — 모든 수정은 별도 commit으로 분리한다. plan의 `**Commit**` 필드를 amend하거나 덮어쓰지 않는다.
 
-- **amend 금지**: 기존 Task commit을 수정하지 않는다.
+- **amend 금지**: 기존 Story commit을 수정하지 않는다.
 - **권장 commit 메시지 패턴** (강제 아님):
   ```
   fix: review feedback

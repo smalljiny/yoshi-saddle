@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 ---
 # Development Workflow
 
@@ -35,11 +35,11 @@ This rule extends the feature implementation workflow from git-workflow.md.
 - Run Codex plan-review: `codex "plan-review 스킬을 실행해줘"`
 - NOT READY → `plan:ready`, re-plan; READY → `plan:confirmed` (set by Codex plan-review)
 
-### 3. Implement Tasks (`/dev:impl`)
+### 3. Implement Stories (`/dev:impl`)
 
 - **Gate**: topic must be `plan:confirmed` — blocks if not met, shows plan-review command
-- Progress one task at a time in order
-- First Task: transitions to `impl:in-progress`
+- Progress one Story at a time in order
+- First Story: transitions to `impl:in-progress`
 - 1. **tdd-specialist** auto-called → RED-GREEN-REFACTOR cycle
 - 2. Immediately after implementation, **code-reviewer** auto-called → instant feedback + fixes
 - 3. Commit
@@ -148,5 +148,5 @@ cmd ${arr[@]+"${arr[@]}"}
 | `plan:ready` | `/dev:plan` after planner |
 | `plan:reviewing` | `/dev:plan` before Codex plan-review |
 | `plan:confirmed` | Codex plan-review READY |
-| `impl:in-progress` | `/dev:impl` first Task |
+| `impl:in-progress` | `/dev:impl` first Story |
 | `review:in-progress` | `/dev:review` on start |

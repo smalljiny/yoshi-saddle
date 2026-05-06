@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Create or verify a named checkpoint during implementation. Records git state and test results for safe rollback reference.
 category: dev-workflow
 ---
@@ -95,10 +95,10 @@ Keep the 5 most recent entries, remove the rest from `.claude/checkpoints.log`.
 ## Typical Workflow
 
 ```
-/dev:impl Task 1  →  /dev:checkpoint create "T1-done"
-/dev:impl Task 2  →  /dev:checkpoint create "T2-done"
-/dev:impl Task 3  →  something breaks...
-                  →  /dev:checkpoint verify "T2-done"   ← find what changed
+/dev:impl Story 1  →  /dev:checkpoint create "S1-done"
+/dev:impl Story 2  →  /dev:checkpoint create "S2-done"
+/dev:impl Story 3  →  something breaks...
+                  →  /dev:checkpoint verify "S2-done"   ← find what changed
                   →  git stash / git reset               ← restore if needed
 ```
 

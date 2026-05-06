@@ -1,5 +1,5 @@
 ---
-version: 10
+version: 11
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 category: dev-workflow
 ---
@@ -121,7 +121,7 @@ Pass the following to the planner agent:
 - Current topic name
 - Confirmed spec path: `docs/_local/active/<topic>/spec.md`
 - Dependency analysis result (JS/TS projects only): `<DEPENDENCY_ANALYSIS>` — empty string if skipped
-- Instruction: **use `.harness/contracts/implementation-plan.md` as the output format** and include a `**Commit**` field in every Task block (type/scope from `.harness/commit-scopes.md`, subject ≤ 72 chars)
+- Instruction: **use `.harness/contracts/implementation-plan.md` as the output format** and include a `**Commit**` field in every Story block (type/scope from `.harness/commit-scopes.md`, subject ≤ 72 chars)
 
 The planner agent produces **only**:
 - `docs/_local/active/<topic>/implementation-plan.md`
@@ -262,17 +262,17 @@ See `.harness/contracts/implementation-plan.md` for the canonical format.
 ## Spec Reference
 > Based on: `docs/_local/active/<topic>/spec.md`
 
-## Task List
+## Story List
 
-### [ ] Task 1: <title>
+### [ ] Story 1: <title>
 - **Type**: tdd | config | infra | refactor
-- **Goal**: [What this Task achieves]
-- **Work Items**:
-  - [ ] Item 1
+- **Goal**: [What this Story achieves]
+- **Tasks**:
+  - [ ] T1.1 — <imperative subject>
 - **Completion Criteria**:
   - [ ] Criterion 1
 
-### [ ] Task 2: ...
+### [ ] Story 2: ...
 ```
 
 ## Key Principles
@@ -282,8 +282,8 @@ See `.harness/contracts/implementation-plan.md` for the canonical format.
 - **backlog → active is atomic** — directory move happens before planner invocation; if planner fails, the directory stays in `active/`
 - **Plans are stored in `docs/_local/active/`** (git-ignored)
 - **plan:confirmed is set by Codex plan-review** — `/dev:plan` does not set `plan:confirmed`; that is owned by the Codex plan-review skill
-- After plan-review passes: run Tasks with `/dev:impl`
+- After plan-review passes: run Stories with `/dev:impl`
 
 ## Next Steps
 
-After plan-review passes (`plan:confirmed`): run Tasks with `/dev:impl`
+After plan-review passes (`plan:confirmed`): run Stories with `/dev:impl`
