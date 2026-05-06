@@ -51,7 +51,7 @@ docs/_local/active/<topic>/
 2. **게이트: spec:confirmed 확인** — 해당 상태가 아니면 중단
 2.5. **의존성 분석 (JS/TS, best-effort)** — `package.json` 존재 시 `wf-dependency-analysis` 스킬 실행
 3. **active로 이동** — `backlog/<topic>/` → `active/<topic>/`, `dev-context.json` 경로 업데이트
-4. **planner 에이전트 호출** — 스펙 + 의존성 분석 결과를 입력으로 `implementation-plan.md` 생성
+4. **planner 에이전트 호출** — 스펙 + 의존성 분석 결과를 입력으로 `implementation-plan.md` 생성. planner는 자체 워크플로우 5단계(P1~P5)를 `TaskCreate`/`TaskUpdate`로 진행 표시한다 — 상세는 [planner-progress-tracking.md](planner-progress-tracking.md)
 5. **플랜 승인** — 사용자에게 제시 후 수정 요청 시 planner 재호출
 6. **dev-context.json 업데이트** — `plan:ready` 전환, `plan` 경로 등록
 7. **Codex plan-review** — `plan:reviewing`으로 전환 후 `config.plan.auto_review` 확인:
