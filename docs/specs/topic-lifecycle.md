@@ -48,7 +48,7 @@
       "specReview": "<path>",
       "plan": "<path>",
       "planReview": "<path>",
-      "currentTask": "<task-id> | null",
+      "currentStory": "<story-id> | null",   // 이전 필드명 currentTask에서 rename. readContext() 시점에 자동 마이그레이션됨 (currentTask 존재 + currentStory 미존재 시 복사 후 삭제).
       "refDoc": "docs/specs/<name>.md",
       "branchType": "feature | fix | chore",
       "baseBranch": "<branch-or-null>",
@@ -140,4 +140,4 @@
 - `/dev:done`은 `pr:created` 상태에서만 실행 가능 — `remove-topic`으로 토픽 제거
 - `docs/specs/` 참조 문서만 git-tracked; `docs/_local/`은 git-ignored
 - 비-current 토픽 plan-review 실행 불가 — 먼저 `/dev:topic switch <topic>` 필요
-- `/dev:review`는 모든 Task가 완료된 경우에만 실행 가능 (`currentTask=null` + `[ ]` 없음)
+- `/dev:review`는 모든 Story가 완료된 경우에만 실행 가능 (`currentStory=null` + Story 헤더 `### [ ]` 0건 + nested Task `- [ ] T<storyN>.<taskM>` 0건). `grep -nE "^### \[ \]|^- \[ \] T"` 로 두 조건을 동시 검사한다.
