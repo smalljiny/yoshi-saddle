@@ -20,7 +20,7 @@ planner는 요구사항 분석·아키텍처 검토·Story 분해를 수 분 동
 | P4 | Story별 커밋 메시지 설계 | §5 Design per-Story Commit Message | 커밋 메시지 설계 중 |
 | P5 | Plan 출력 | §6 Plan Output Format | Plan 출력 중 |
 
-`P1`~`P5`는 planner 본문의 마일스톤 라벨이다. 실제 Task 도구 호출은 시스템이 부여한 정수 ID를 사용하며, P-라벨은 `TaskCreate` 호출의 subject 또는 metadata로 보존한다.
+`P1`~`P5`는 planner 본문의 마일스톤 라벨이다. 실제 Task 도구 호출은 시스템이 부여한 정수 ID를 사용하며, P-라벨은 `TaskCreate` 호출의 `subject` 콜론 프리픽스로 보존한다. 구체 매핑 형식은 아래 §[P-라벨 ↔ 정수 ID 매핑]에서 정의한다.
 
 ### planner 에이전트 frontmatter
 
@@ -38,6 +38,12 @@ tools: Read, Grep, Glob, TaskCreate, TaskUpdate
 2. **각 단계 진입 직전**: `TaskUpdate(status='in_progress', activeForm=<단계별 한국어 종결형>)`을 호출한다.
 3. **각 단계 완료 직후**: `TaskUpdate(status='completed')`를 호출한다.
 4. **planner 본 작업 정상 완료 시점**: P1~P5 중 `completed`가 아닌 항목이 있으면 마감 호출(`TaskUpdate(status='completed')`)을 발행해 모든 단계가 `completed`로 정렬된다.
+
+### P-라벨 ↔ 정수 ID 매핑
+
+`TaskCreate` 배치 호출 시 각 항목의 `subject` 필드에 `"P<n>: <단계 이름>"` 콜론 프리픽스 형식을 사용해 P-라벨을 보존한다 (예: `subject="P1: Spec 문서 분석"`). `TaskCreate`는 항목별로 시스템이 부여한 정수 ID를 반환하며 사용자 지정 `taskId` 인자는 받지 않는다 — planner는 반환된 정수 ID를 P-라벨에 매핑해 내부 보관한다.
+
+이후 모든 `TaskUpdate` 호출의 `taskId` 인자에는 매핑된 정수 ID를 사용하며, literal `"P<n>"` 문자열을 `taskId`로 사용하지 않는다.
 
 ### 호출자 무관 동작
 
