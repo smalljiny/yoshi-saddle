@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob, TaskCreate, TaskUpdate
@@ -33,10 +33,10 @@ planner는 자체 워크플로우의 5개 마일스톤을 Claude Code Task 도�
 
 ### 호출 흐름
 
-1. planner 시작 직후, Spec을 읽기 전에 단일 `TaskCreate` 배치 호출로 P1~P5 다섯 항목을 `pending` 상태로 등록한다.
-2. 각 단계 진입 직전 `TaskUpdate(taskId='P<n>', status='in_progress', activeForm=<위 표 값>)`을 호출한다.
-3. 각 단계 완료 직후 `TaskUpdate(taskId='P<n>', status='completed')`를 호출한다.
-4. planner 본 작업이 정상 완료된 시점에 P1~P5 중 `completed`가 아닌 항목이 있으면 `TaskUpdate(taskId='P<n>', status='completed')` 마감 호출을 발행해 모든 단계가 `completed`로 전환되도록 한다.
+1. planner 시작 직후, Spec을 읽기 전에 단일 `TaskCreate` 배치 호출로 P1~P5 다섯 항목을 `pending` 상태로 등록한다. 각 호출의 `subject`는 `"P<n>: <단계 이름>"` 콜론 프리픽스 형식을 사용하고(예: `subject="P1: Spec 문서 분석"`), `activeForm`은 위 단계 정의 표 값을, `description`은 표의 "매핑되는 본문 단계" 컬럼 풀어쓰기(예: `"§0 Check Spec Documents + §1 Requirements Analysis"`)를 사용한다. `TaskCreate`가 반환하는 system-assigned 정수 ID를 P-라벨과 매핑해 내부 보관한다 — 이후 `TaskUpdate` 호출은 매핑된 정수 ID를 `taskId`로 사용하며 literal `"P<n>"` 문자열을 `taskId`로 사용하지 않는다.
+2. 각 단계 진입 직전, 매핑된 정수 ID로 `TaskUpdate(taskId=<정수>, status='in_progress', activeForm=<위 표 값>)`을 호출한다.
+3. 각 단계 완료 직후, 매핑된 정수 ID로 `TaskUpdate(taskId=<정수>, status='completed')`를 호출한다.
+4. planner 본 작업이 정상 완료된 시점에 P1~P5 중 `completed`가 아닌 항목이 있으면, 그 항목의 매핑된 정수 ID로 `TaskUpdate(taskId=<정수>, status='completed')` 마감 호출을 발행해 모든 단계를 `completed`로 전환한다.
 
 ### 실패 처리
 
