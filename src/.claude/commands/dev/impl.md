@@ -1,5 +1,5 @@
 ---
-version: 22
+version: 23
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
@@ -247,11 +247,11 @@ Load `.claude/skills/simplify/SKILL.md` and follow its process.
 - 파일 내용 검사 (`grep`, `rg`, Read 도구)
 - 명령 실행 결과 검사 (Criterion이 명시한 명령에 한함)
 
-**4단계 — Bash 도구 호출 트리거 정책**:
-- **허용**: 파일 존재 검사, 파일 내용 grep, Criterion 텍스트에 백틱으로 감싼 리터럴 명령(예: `` `npm test` ``)이 있을 때 그 명령. 백틱 리터럴 없이 자연어로만 기술된 검증("모든 테스트가 통과") 은 Step 5 결과를 재사용한다.
-- **재실행 금지**: Step 5에서 이미 실행된 빌드·테스트 명령(`npm test`, `npm run build`, `jest`, `pytest` 등)은 재실행하지 않는다 — Step 5 결과가 권위 있는 출처다.
-- **예외**: Step 5가 빌드·테스트를 실행하지 않은 Story Type(예: `config`·`infra`)에서 Criterion이 명령 실행을 요구하면 Bash 호출 허용.
-- **기본값**: 모호한 경우 Bash 호출하지 않고 Step 5 증거 + LLM 파일 읽기로 판정한다.
+**4단계 — Bash 도구 호출 트리거 정책** (read-only 명령 allowlist):
+
+- **허용 명령 allowlist**: `test -f`, `test -d`, `ls`, `grep`, `rg`, `head`, `tail`, `cat`, `wc`, `find` (모두 read-only). Step 7에서 Bash로 실행 가능한 명령은 allowlist 내 명령으로 한정한다.
+- **빌드·테스트 결과 재사용**: Step 5에서 실행된 빌드·테스트 명령(예: `npm test`, `npm run build`, `jest`, `pytest`)의 결과는 재실행하지 않고 Step 5 보고 메시지의 마지막 결과 라인(GREEN 확인 라인 / 종료 코드 / stdout 마지막 줄)을 인용해 판정한다.
+- **명령 실행이 필요한 Criterion**: Criterion이 allowlist 외 명령(빌드·테스트·설치·네트워크·파일 변경 등)의 결과를 요구하는 경우, Bash로 실행하지 않고 Read 도구 + Step 5 증거로 판정한다. 판정 증거가 없으면 FAIL 처리하고 사유에 `evidence-not-available`을 명시한다.
 
 **5단계 — 결과 처리**:
 - 통과한 Criterion → markdown `- [ ]` → `- [x]` Edit (현재 Story의 Completion Criteria 한정 스코프).
@@ -364,13 +364,22 @@ Step 9 완료 직후, Task 도구 entries 상태를 단일 진실 원천으로 �
 
 **미체크 Task 게이트**
 
-**호출 트리거** (prompt-authoring 규칙 7): Step 9.5 분기 처리 후 미체크 `[ ]` Task가 1건 이상 남아 있으면 `AskUserQuestion`을 호출한다. 미체크 Task가 0건이면 본 게이트를 건너뛰고 Step 10으로 진행한다. 본 게이트는 단일 모드·batch 모드 모두 일시 중단한다.
+**호출 트리거** (prompt-authoring 규칙 7): Step 9.5 분기 처리 후 미체크 `[ ]` Task가 1건 이상 남아 있으면 `AskUserQuestion`을 호출한다. 미체크 Task가 0건이면 본 게이트를 건너뛰고 Step 10으로 진행한다. 본 게이트는 단일 모드·batch 모드 모두 일시 중단한다 (Key Principles "fully unattended" 예외 — 데이터 정합성 결정이 자동화 불가).
 
-질문 형식: "미체크 Task <N>건이 남아 있습니다. 의도를 알려주세요."
-
-옵션 (정확히 두 개):
-- **보고 누락 (Recommended)** — 수행은 됐지만 `TaskUpdate(completed)` 호출이 누락된 경우 (에이전트가 Task 도구 entry 갱신을 빠뜨림)
-- **실제 미수행** — Task가 정말 수행되지 않은 경우 또는 Story 정의 결함
+호출 형태:
+```
+AskUserQuestion({
+  questions: [{
+    question: "미체크 Task <N>건이 남아 있습니다. 의도를 알려주세요.",
+    header: "Task 게이트",
+    multiSelect: false,
+    options: [
+      { label: "보고 누락 (Recommended)", description: "수행은 됐지만 TaskUpdate(completed) 호출이 누락된 경우" },
+      { label: "실제 미수행", description: "Task가 정말 수행되지 않은 경우 또는 Story 정의 결함" }
+    ]
+  }]
+})
+```
 
 **옵션 1 (보고 누락) 처리 분기** (순서대로 실행):
 - **스코프**: 현재 Story 헤더(`### [ ] Story N` 또는 `### [x] Story N`) 다음 라인부터 다음 Story 헤더 직전까지의 라인만 대상으로 한다. 다른 Story의 체크박스는 변경하지 않는다.
@@ -508,7 +517,7 @@ Resume after fixing the issue:
 - **Pre-work advisor (complex Stories)** — `infra` 타입 또는 Tasks 수 ≥ 5인 Story는 브리핑 직후 `advisor()`를 호출해 설계 위험·엣지 케이스를 사전 점검
 - **Commit from plan** — commit message comes from the Story's `**Commit**` field; never invent a message
 - **auto_commit default is false** — user sees and approves each commit unless `config.dev_impl.auto_commit=true`
-- **batch + auto_start + auto_commit = fully unattended** — enabling all three removes every human gate after Story 1 approval; use only in trusted environments
+- **batch + auto_start + auto_commit = fully unattended** — enabling all three removes every human gate after Story 1 approval; use only in trusted environments. **예외**: Step 9.5 미체크 Task 게이트는 batch 모드에서도 사용자 응답을 기다린다 — 데이터 정합성(`보고 누락` vs `실제 미수행` 구분)이 자동 결정 불가능한 의도된 동작이다.
 - **Explicit Story overrides batch_mode** — `/dev:impl S2` always runs a single Story regardless of `config.dev_impl.batch_mode`; `--all` always activates batch mode
 - **amend forbidden** — always create a new commit; review-fix commits are separate
 
