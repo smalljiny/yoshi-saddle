@@ -1,5 +1,5 @@
 ---
-version: 21
+version: 22
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
@@ -229,9 +229,47 @@ Load `.claude/skills/simplify/SKILL.md` and follow its process.
 
 ### 7. Verify Completion Criteria
 
-Check completion criteria in the plan document.
+각 Completion Criterion을 단위 점검하고, 통과한 Criterion의 markdown 체크박스를 `[x]`로 갱신한 뒤 PASS/FAIL 근거를 리스트로 출력한다.
 
-**Batch failure condition**: If any Completion Criterion fails verification:
+**1단계 — Story Type 분기**:
+
+- **`prompt` 타입**: `prompt-engineer` Acceptance 결과를 재사용한다.
+  - Acceptance 통과 → 현재 Story의 모든 Eval Case 체크박스를 markdown `- [ ]` → `- [x]`로 Edit한다 (스코프: 현재 Story의 Completion Criteria 한정).
+  - Acceptance 미통과 → 기존 batch_failed 정책 적용 (아래 batch failure condition 참조).
+- **`tdd` / `config` / `infra` / `refactor` 타입**: 본 단계에서 LLM이 각 Criterion을 직접 점검한다 (2단계로 진행).
+
+**2단계 — Criterion 단위 점검** (스코프: 현재 Story의 모든 Completion Criteria 라인):
+
+현재 Story의 `**Completion Criteria**:` 목록에서 모든 `- [ ]` 라인을 순회하며 각 Criterion을 점검한다.
+
+**3단계 — 점검 방법**: Criterion 텍스트가 명시한 방법을 적용한다.
+- 파일 존재 확인 (`test -f`, `ls`)
+- 파일 내용 검사 (`grep`, `rg`, Read 도구)
+- 명령 실행 결과 검사 (Criterion이 명시한 명령에 한함)
+
+**4단계 — Bash 도구 호출 트리거 정책**:
+- **허용**: 파일 존재 검사, 파일 내용 grep, Criterion 텍스트에 백틱으로 감싼 리터럴 명령(예: `` `npm test` ``)이 있을 때 그 명령. 백틱 리터럴 없이 자연어로만 기술된 검증("모든 테스트가 통과") 은 Step 5 결과를 재사용한다.
+- **재실행 금지**: Step 5에서 이미 실행된 빌드·테스트 명령(`npm test`, `npm run build`, `jest`, `pytest` 등)은 재실행하지 않는다 — Step 5 결과가 권위 있는 출처다.
+- **예외**: Step 5가 빌드·테스트를 실행하지 않은 Story Type(예: `config`·`infra`)에서 Criterion이 명령 실행을 요구하면 Bash 호출 허용.
+- **기본값**: 모호한 경우 Bash 호출하지 않고 Step 5 증거 + LLM 파일 읽기로 판정한다.
+
+**5단계 — 결과 처리**:
+- 통과한 Criterion → markdown `- [ ]` → `- [x]` Edit (현재 Story의 Completion Criteria 한정 스코프).
+- 실패한 Criterion → `- [ ]` 유지.
+
+**6단계 — PASS/FAIL 출력 형식** (마크다운 표 아닌 단순 리스트로 출력 — batch 모드 출력량 우려 해소):
+
+각 Criterion 한 줄로 `[PASS] <Criterion 텍스트 요약> — <근거 한 줄>` 또는 `[FAIL] <Criterion 텍스트 요약> — <실패 근거>` 형태로 출력한다.
+
+예시:
+```
+## Completion Criteria 점검 결과
+[PASS] frontmatter version: 21 — grep 결과 일치
+[PASS] Step 9.5에 AskUserQuestion 키워드 존재 — 라인 312 매칭
+[FAIL] Key Principles에 신규 항목 추가 — 매칭 라인 없음
+```
+
+**Batch failure condition**: 1개 이상 Criterion이 FAIL이면:
 - `batch == true`: set `batch_failed = true` with reason "completion criteria not met" and proceed to Step 11 (terminal)
 - `batch == false`: surface the failure and stop
 
@@ -456,6 +494,8 @@ Resume after fixing the issue:
 - **Story-start TaskCreate batch** — at Step 4, parse the current Story's `**Tasks**:` list and emit one batched `TaskCreate(pending)` covering every Task before invoking the implementation agent
 - **Reverse Step 9.5** — Task 도구 entries 상태가 markdown 체크박스의 단일 진실 원천이며, `/dev:impl`이 Story 종료 시점에 entries → markdown 방향으로 sync한다 (`status=completed` → `[x]`, `pending`·`in_progress` → 미체크 유지, entry 없음 → markdown 그대로)
 - **Unchecked-Task gate** — Step 9.5 후 `[ ]` Task가 남으면 단일·batch 모드 모두 사용자에게 의도(보고 누락 / 실제 미수행)를 묻고 분기한다. '보고 누락' → markdown `[x]` + `TaskUpdate(completed)` 처리 후 Step 10 진행, '실제 미수행' → 단일 모드 stop / batch 모드 batch_failed (Step 11)
+- **Per-Criterion verification** — Step 7은 각 Completion Criterion을 LLM이 직접 점검 (`prompt` 타입은 prompt-engineer Acceptance 결과 재사용); 통과 Criterion만 `[x]` 갱신 + PASS/FAIL 근거 출력
+- **Bash re-run policy in Step 7** — Step 5에서 실행된 빌드·테스트 명령은 재실행하지 않는다; 파일 존재·grep·Criterion 명시 명령에 한해 Bash 호출 허용
 - **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately; `currentBatchRunning` is reset on every terminal exit (Step 11)
 - **Batch persistence** — `currentBatchRunning`·`currentBatchTopic` 필드로 비정상 종료된 배치를 topic-scoped로 감지·재개한다; 토픽 불일치 시 silently reset, Step 11 모든 terminal exit 시 초기화. Step 1 게이트 실패 등 Step 11 미도달 시에는 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그를 트리거한다.
 - **Pre-work briefing for first Story only in batch mode** — Story 2 onward shows a single "Starting Story" line; full briefing and approval gate apply only to the first Story (subject to `auto_start`)
