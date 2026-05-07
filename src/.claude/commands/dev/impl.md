@@ -1,5 +1,5 @@
 ---
-version: 23
+version: 24
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
@@ -247,11 +247,16 @@ Load `.claude/skills/simplify/SKILL.md` and follow its process.
 - 파일 내용 검사 (`grep`, `rg`, Read 도구)
 - 명령 실행 결과 검사 (Criterion이 명시한 명령에 한함)
 
-**4단계 — Bash 도구 호출 트리거 정책** (read-only 명령 allowlist):
+**4단계 — Bash 도구 호출 트리거 정책** (read-only 명령에 한정):
 
-- **허용 명령 allowlist**: `test -f`, `test -d`, `ls`, `grep`, `rg`, `head`, `tail`, `cat`, `wc`, `find` (모두 read-only). Step 7에서 Bash로 실행 가능한 명령은 allowlist 내 명령으로 한정한다.
+- **허용 명령** (파일·환경·네트워크를 변경하지 않는 read-only 명령에 한해 Bash 호출 허용):
+  - 파일 검사: `test -f`, `test -d`, `ls`
+  - 텍스트 검색: `grep`, `rg`, `head`, `tail`, `cat`, `wc`
+  - Git read-only: `git diff`, `git log`, `git show`, `git status`, `git branch`
+  - Criterion이 백틱 리터럴로 명시한 read-only 명령 (예: `node --test`, `bash -n`, `tsc --noEmit`). 호출 전 다음 mutating 토큰이 인자에 없는지 확인하고, 하나라도 발견되면 Bash 호출을 거부한다: `-delete`, `-exec`, `-execdir`, `-ok`, `>`, `>>`, `rm`, `mv`, `cp`, `chmod`, `chown`, `|` (외부 명령 파이프).
 - **빌드·테스트 결과 재사용**: Step 5에서 실행된 빌드·테스트 명령(예: `npm test`, `npm run build`, `jest`, `pytest`)의 결과는 재실행하지 않고 Step 5 보고 메시지의 마지막 결과 라인(GREEN 확인 라인 / 종료 코드 / stdout 마지막 줄)을 인용해 판정한다.
-- **명령 실행이 필요한 Criterion**: Criterion이 allowlist 외 명령(빌드·테스트·설치·네트워크·파일 변경 등)의 결과를 요구하는 경우, Bash로 실행하지 않고 Read 도구 + Step 5 증거로 판정한다. 판정 증거가 없으면 FAIL 처리하고 사유에 `evidence-not-available`을 명시한다.
+- **금지**: 파일·환경 변경, 패키지 설치, 네트워크 호출, 위 mutating 토큰을 포함하는 명령. 이들 명령이 필요한 Criterion은 Bash로 실행하지 않고 Read 도구 + Step 5 증거로 판정한다.
+- **판정 증거 부재**: Read 도구·Step 5 증거·허용 명령으로도 판정할 수 없으면 FAIL 처리하고 사유에 `evidence-not-available`을 명시한다.
 
 **5단계 — 결과 처리**:
 - 통과한 Criterion → markdown `- [ ]` → `- [x]` Edit (현재 Story의 Completion Criteria 한정 스코프).
