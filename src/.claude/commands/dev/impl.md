@@ -1,5 +1,5 @@
 ---
-version: 20
+version: 21
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
@@ -299,6 +299,7 @@ Print: `auto_commit: <commit-message>`
 3. Completion Criteria: one or more criteria fail verification (Step 7)
 4. Commit: user responds `n` (commit refused) (Step 8)
 5. No `**Commit**` field: user declines to skip (Step 8)
+6. Unchecked tasks gate: user selects '실제 미수행' (Step 9.5 게이트)
 
 ### 9. Update Plan Document (Story checkbox)
 
@@ -321,7 +322,33 @@ Step 9 완료 직후, Task 도구 entries 상태를 단일 진실 원천으로 �
    - entry 없음 (TaskCreate 실패로 누락) → markdown 상태 그대로 유지 (Edit 안 함)
 4. **미체크 Task 수집**: 분기 처리 후 markdown에 남아 있는 `- [ ]` Task 라인을 수집한다.
    - 0건 → Step 10으로 진행
-   - 1건 이상 → Story 2의 미체크 Task 게이트로 흐름 (Story 2에서 도입). Story 2 미적용 상태에서는 본 분기를 무시하고 Step 10으로 진행한다.
+   - 1건 이상 → 아래 미체크 Task 게이트 실행
+
+**미체크 Task 게이트**
+
+**호출 트리거** (prompt-authoring 규칙 7): Step 9.5 분기 처리 후 미체크 `[ ]` Task가 1건 이상 남아 있으면 `AskUserQuestion`을 호출한다. 미체크 Task가 0건이면 본 게이트를 건너뛰고 Step 10으로 진행한다. 본 게이트는 단일 모드·batch 모드 모두 일시 중단한다.
+
+질문 형식: "미체크 Task <N>건이 남아 있습니다. 의도를 알려주세요."
+
+옵션 (정확히 두 개):
+- **보고 누락 (Recommended)** — 수행은 됐지만 `TaskUpdate(completed)` 호출이 누락된 경우 (에이전트가 Task 도구 entry 갱신을 빠뜨림)
+- **실제 미수행** — Task가 정말 수행되지 않은 경우 또는 Story 정의 결함
+
+**옵션 1 (보고 누락) 처리 분기** (순서대로 실행):
+- **스코프**: 현재 Story 헤더(`### [ ] Story N` 또는 `### [x] Story N`) 다음 라인부터 다음 Story 헤더 직전까지의 라인만 대상으로 한다. 다른 Story의 체크박스는 변경하지 않는다.
+- **1단계 (markdown Edit)**: 위 스코프 내 모든 미체크 Task 라인을 markdown `- [ ]` → `- [x]`로 Edit한다.
+- **2단계 (TaskUpdate)**: 미체크였던 모든 `T<storyN>.<taskM>`에 대해 `TaskUpdate(taskId=T<storyN>.<taskM>, status='completed')`를 호출한다.
+- **entry 없는 Task** (TaskCreate 실패로 누락된 케이스): markdown `[x]`만 처리하고 entry 생성은 생략한다 — wf-task-tracking fallback 규약을 따른다.
+- 처리 후 Step 10으로 진행.
+
+**옵션 2 (실제 미수행) 처리 분기**:
+- markdown 체크박스와 Task 도구 entries 모두 변경하지 않는다.
+- `batch == false` (단일 모드): 작업 중단. 안내 메시지를 출력한다:
+  ```
+  미체크 Task가 남아 있습니다. Story를 재실행하거나 plan을 수정한 뒤 다시 시도하세요.
+    /dev:impl <story-id>
+  ```
+- `batch == true` (batch 모드): `batch_failed = true` 설정 (reason: `"user-declared unchecked tasks (real non-execution)"`) → Step 11 terminal로 진행.
 
 ### 10. Update dev-context.json
 
@@ -428,6 +455,7 @@ Resume after fixing the issue:
 - **One Story at a time (default)** — only one Story per invocation unless `--all` or `config.dev_impl.batch_mode=true` is set; in batch mode all remaining Stories run sequentially
 - **Story-start TaskCreate batch** — at Step 4, parse the current Story's `**Tasks**:` list and emit one batched `TaskCreate(pending)` covering every Task before invoking the implementation agent
 - **Reverse Step 9.5** — Task 도구 entries 상태가 markdown 체크박스의 단일 진실 원천이며, `/dev:impl`이 Story 종료 시점에 entries → markdown 방향으로 sync한다 (`status=completed` → `[x]`, `pending`·`in_progress` → 미체크 유지, entry 없음 → markdown 그대로)
+- **Unchecked-Task gate** — Step 9.5 후 `[ ]` Task가 남으면 단일·batch 모드 모두 사용자에게 의도(보고 누락 / 실제 미수행)를 묻고 분기한다. '보고 누락' → markdown `[x]` + `TaskUpdate(completed)` 처리 후 Step 10 진행, '실제 미수행' → 단일 모드 stop / batch 모드 batch_failed (Step 11)
 - **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately; `currentBatchRunning` is reset on every terminal exit (Step 11)
 - **Batch persistence** — `currentBatchRunning`·`currentBatchTopic` 필드로 비정상 종료된 배치를 topic-scoped로 감지·재개한다; 토픽 불일치 시 silently reset, Step 11 모든 terminal exit 시 초기화. Step 1 게이트 실패 등 Step 11 미도달 시에는 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그를 트리거한다.
 - **Pre-work briefing for first Story only in batch mode** — Story 2 onward shows a single "Starting Story" line; full briefing and approval gate apply only to the first Story (subject to `auto_start`)
