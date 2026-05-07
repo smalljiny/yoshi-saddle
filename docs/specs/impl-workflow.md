@@ -128,9 +128,30 @@ tdd-specialist·refactor-cleaner·prompt-engineer는 `wf-task-tracking` 스킬�
 
 code-reviewer blocking 이슈 자동 수정 불가 시: batch 모드는 `batch_failed = true`, 비배치는 중단.
 
-**Step 7 — Completion Criteria 검증**
+**Step 7 — Completion Criteria 검증** (Per-Criterion verification)
 
-plan 문서의 완료 기준 항목을 모두 검증한다. 미충족 시: batch 모드는 `batch_failed = true`, 비배치는 중단.
+각 Completion Criterion 단위로 점검하고, 통과한 Criterion 의 markdown 체크박스를 `[x]` 로 갱신한 뒤 PASS/FAIL 근거를 단순 리스트로 출력한다.
+
+1. **Story Type 분기**:
+   - `prompt` 타입: prompt-engineer Acceptance 결과 재사용. Acceptance 통과 → 모든 Eval Case 체크박스를 `[x]` Edit. 미통과 → 기존 batch_failed 정책.
+   - `tdd` / `config` / `infra` / `refactor` 타입: 본 단계에서 LLM 이 각 Criterion 을 직접 점검.
+
+2. **Bash 도구 호출 트리거 정책** (read-only 명령에 한정):
+   - 허용 명령: `test -f`, `test -d`, `ls`, `grep`, `rg`, `head`, `tail`, `cat`, `wc`, Git read-only (`git diff`, `git log`, `git show`, `git status`, `git branch`), Criterion 이 백틱 리터럴로 명시한 read-only 명령 (예: `node --test`, `bash -n`, `tsc --noEmit`).
+   - 거부 토큰: 백틱 리터럴 명령 인자에 `-delete`, `-exec`, `-execdir`, `-ok`, `>`, `>>`, `rm`, `mv`, `cp`, `chmod`, `chown`, `|` (외부 명령 파이프) 가 있으면 Bash 호출 거부.
+   - 빌드·테스트 결과 재사용: Step 5 에서 실행된 빌드·테스트 명령 (`npm test`, `npm run build`, `jest`, `pytest` 등) 은 재실행하지 않고 Step 5 보고 메시지의 마지막 결과 라인 (GREEN 확인 / 종료 코드 / stdout 마지막 줄) 을 인용.
+   - 판정 증거 부재 시 FAIL 처리하고 사유에 `evidence-not-available` 명시.
+
+3. **결과 처리**: 통과 Criterion → markdown `[ ]` → `[x]` Edit (현재 Story Completion Criteria 한정 스코프). 실패 Criterion → `[ ]` 유지.
+
+4. **PASS/FAIL 출력 형식** (마크다운 표 아닌 단순 리스트):
+
+   ```
+   [PASS] <Criterion 텍스트 요약> — <근거 한 줄>
+   [FAIL] <Criterion 텍스트 요약> — <실패 근거>
+   ```
+
+1개 이상 Criterion 이 FAIL 이면: batch 모드는 `batch_failed = true` (reason "completion criteria not met"), 비배치는 중단.
 
 **Step 8 — 커밋 실행**
 
@@ -140,17 +161,40 @@ plan 문서의 완료 기준 항목을 모두 검증한다. 미충족 시: batch
 - 그 외(기본): 사용자에게 y/n/skip 프롬프트. `n` 응답 시 batch 모드는 `batch_failed = true`, 비배치는 중단.
 - `**Commit**` 필드 없는 Story: skip 여부 프롬프트. skip 거부 시 batch는 중단.
 
-**Step 9 — Plan Document 갱신**
+**Step 9 — Plan Document 갱신** (Story 체크박스만)
 
-Story와 그 모든 Tasks의 체크박스를 완료로 표시한다:
+Story 헤더만 완료로 표시한다 (Task 체크박스 갱신은 Step 9.5 로 이관):
 - Story 헤더: `### [ ] Story N` → `### [x] Story N`
-- 각 Task 불릿: `- [ ]` → `- [x]`
 
-**Step 9.5 — markdown → Task 도구 상태 sync**
+**Step 9.5 — Task 도구 entries → markdown 체크박스 sync** (Reverse 방향)
 
-Step 9 완료 직후, 현재 Story의 Tasks 목록을 다시 파싱해 `- [x]` 라인의 `T<storyN>.<taskM>`에 대해 Task 도구 entry 상태가 `completed`가 아니면 `TaskUpdate(taskId=T<storyN>.<taskM>, status='completed')`를 호출한다.
+Step 9 완료 직후, Task 도구 entries 상태를 단일 진실 원천으로 두고 plan markdown 의 Task 체크박스를 갱신한다.
 
-에이전트가 wf-task-tracking 스킬을 따라 TaskUpdate를 호출했더라도 누락이 있을 수 있다. 본 단계는 markdown을 단일 진실 원천으로 두고 Task 도구 상태를 정렬한다. TaskUpdate 호출 실패 시 stderr 경고만 출력하고 다음 단계로 진행한다.
+1. 현재 Story 의 `**Tasks**:` 목록에서 모든 `- [ ] T<storyN>.<taskM> — <subject>` 라인을 추출한다.
+2. 각 `T<storyN>.<taskM>` ID 에 대해 Task 도구 entry 상태를 조회한다.
+3. 분기 처리 (각 Task 별):
+   - `status=completed` → markdown `- [ ]` → `- [x]` Edit
+   - `status=pending` 또는 `status=in_progress` → 미체크 유지 (markdown 변경 없음)
+   - entry 없음 (TaskCreate 실패로 누락) → markdown 상태 그대로 유지
+4. 미체크 Task 수집: 분기 처리 후 markdown 에 남아 있는 `- [ ]` Task 라인을 수집한다. 0건 → Step 10 으로 진행, 1건 이상 → 미체크 Task 게이트 실행.
+
+**미체크 Task 게이트** (단일·batch 모드 모두 일시 중단)
+
+`AskUserQuestion` 으로 사용자에게 두 가지 의도를 묻는다:
+- **보고 누락 (Recommended)** — 수행은 됐지만 `TaskUpdate(completed)` 호출 누락
+- **실제 미수행** — Task 가 정말 수행되지 않음 / Story 정의 결함
+
+옵션 1 (보고 누락) 처리 분기 (순서대로 실행):
+- 스코프: 현재 Story 헤더 다음 라인부터 다음 Story 헤더 직전까지의 라인만 대상.
+- 1단계 (markdown Edit): 위 스코프 내 모든 미체크 Task 라인을 markdown `- [ ]` → `- [x]` Edit.
+- 2단계 (TaskUpdate): 미체크였던 모든 `T<storyN>.<taskM>` 에 대해 `TaskUpdate(taskId=..., status='completed')` 호출.
+- entry 없는 Task (TaskCreate 실패로 누락): markdown `[x]` 만 처리하고 entry 생성은 생략 (wf-task-tracking fallback 규약).
+- 처리 후 Step 10 으로 진행.
+
+옵션 2 (실제 미수행) 처리 분기:
+- markdown 체크박스와 Task 도구 entries 모두 변경하지 않음.
+- `batch == false` (단일 모드): 작업 중단. Story 재실행 또는 plan 수정 안내 출력.
+- `batch == true` (batch 모드): `batch_failed = true` (reason `"user-declared unchecked tasks (real non-execution)"`) → Step 11 terminal 로 진행.
 
 **Step 10 — dev-context.json 갱신**
 
@@ -305,6 +349,7 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 | 3 | Completion Criteria 검증 실패 | Step 7 |
 | 4 | 사용자가 commit 거부 (`n`) | Step 8 |
 | 5 | `**Commit**` 필드 없는 Story에서 사용자가 skip 거부 | Step 8 |
+| 6 | 미체크 Task 게이트에서 사용자가 '실제 미수행' 선택 | Step 9.5 |
 
 **완전 자동화 조합**
 
@@ -352,4 +397,7 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 - `prompt` 타입 code-reviewer는 평가 대상 프롬프트 파일을 수정하지 않는다 (comment-only).
 - simplify 스킬은 `tdd` 타입에만 적용. `config`·`infra`·`refactor`·`prompt` 타입은 제외.
 - Task 도구 상태는 세션 단위. cross-session 복원은 지원하지 않는다. plan markdown 체크박스가 영속 단일 진실 원천이다.
-- Step 9.5는 `[x]` 라인 entry의 상태를 `completed`로 정렬한다. 누락 entry를 재생성하지 않는다.
+- Step 9.5는 Task 도구 entries 상태(`completed`)를 단일 진실 원천으로 두고 markdown `- [ ]` 라인을 `- [x]`로 Edit한다 (entries → markdown 방향). 누락 entry를 재생성하지 않는다.
+- Step 9.5 미체크 Task 게이트는 batch 모드에서도 사용자 응답을 기다린다 — 데이터 정합성(`보고 누락` vs `실제 미수행` 구분)이 자동 결정 불가능한 의도된 동작이다. `batch + auto_start + auto_commit` 완전 자동화 조합의 명시적 예외다.
+- Step 7 Bash 호출은 read-only 명령 allowlist에 한정한다. mutating 토큰(`-delete`, `-exec`, `>`, `>>`, `rm`, `mv`, `cp`, `chmod`, `chown`, 외부 명령 파이프)이 인자에 있으면 Bash 호출을 거부한다 — 악의적 plan 파일이 destructive 명령을 우회하지 못하도록.
+- Step 7 빌드·테스트 명령은 Step 5 결과를 인용하고 재실행하지 않는다.
