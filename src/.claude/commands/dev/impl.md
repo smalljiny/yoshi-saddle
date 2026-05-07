@@ -1,5 +1,5 @@
 ---
-version: 19
+version: 20
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
@@ -300,19 +300,28 @@ Print: `auto_commit: <commit-message>`
 4. Commit: user responds `n` (commit refused) (Step 8)
 5. No `**Commit**` field: user declines to skip (Step 8)
 
-### 9. Update Plan Document
+### 9. Update Plan Document (Story checkbox)
 
-Mark completed Story and Tasks:
+Mark the completed Story:
 - Story checkbox: `### [ ] Story N` → `### [x] Story N`
-- Each completed Task in the Story's `**Tasks**:` list: `- [ ]` → `- [x]`
 
-### 9.5. Sync Task tool state from markdown
+### 9.5. Sync markdown checkboxes from Task tool entries
 
-Step 9 완료 직후, plan markdown의 `- [x]` 체크박스 상태를 Task 도구 entries 상태(`completed`)와 sync한다.
+Step 9 완료 직후, Task 도구 entries 상태를 단일 진실 원천으로 두고 plan markdown의 Task 체크박스를 갱신한다 (entries → markdown 방향).
 
-**호출 트리거** (prompt-authoring 규칙 7): Step 9 완료 직후, 현재 Story의 Tasks 목록을 다시 파싱해 `- [x]` 라인의 `T<storyN>.<taskM>` 에 대해 Task 도구 entry 상태가 `completed`가 아니면 `TaskUpdate(taskId=T<storyN>.<taskM>, status='completed')`를 호출한다.
+**호출 트리거** (prompt-authoring 규칙 7): Step 9 완료 직후, 본 단계를 실행한다. 각 entry 상태를 조회하고 아래 분기 표에 따라 markdown을 Edit한다.
 
-**보정 대상**: 에이전트가 wf-task-tracking 스킬을 따라 TaskUpdate를 호출했더라도 누락이 있을 수 있다. 본 단계는 markdown을 단일 진실 원천으로 두고 Task 도구 상태를 정렬한다. TaskUpdate 호출 실패 시 stderr 경고만 출력하고 다음 단계로 진행한다.
+**4단계 흐름:**
+
+1. **Tasks 목록 파싱**: 현재 Story의 `**Tasks**:` 목록에서 모든 `- [ ] T<storyN>.<taskM> — <subject>` 라인을 추출한다 (sub-bullet, 코드 블록, 표 라인은 제외).
+2. **entry 상태 조회**: 추출된 모든 `T<storyN>.<taskM>` ID에 대해 Task 도구 entry 상태를 조회한다.
+3. **분기 처리** (각 Task별):
+   - `status=completed` → markdown `- [ ]` → `- [x]` Edit
+   - `status=pending` 또는 `status=in_progress` → 미체크 유지 (markdown 변경 없음)
+   - entry 없음 (TaskCreate 실패로 누락) → markdown 상태 그대로 유지 (Edit 안 함)
+4. **미체크 Task 수집**: 분기 처리 후 markdown에 남아 있는 `- [ ]` Task 라인을 수집한다.
+   - 0건 → Step 10으로 진행
+   - 1건 이상 → Story 2의 미체크 Task 게이트로 흐름 (Story 2에서 도입). Story 2 미적용 상태에서는 본 분기를 무시하고 Step 10으로 진행한다.
 
 ### 10. Update dev-context.json
 
@@ -418,6 +427,7 @@ Resume after fixing the issue:
 
 - **One Story at a time (default)** — only one Story per invocation unless `--all` or `config.dev_impl.batch_mode=true` is set; in batch mode all remaining Stories run sequentially
 - **Story-start TaskCreate batch** — at Step 4, parse the current Story's `**Tasks**:` list and emit one batched `TaskCreate(pending)` covering every Task before invoking the implementation agent
+- **Reverse Step 9.5** — Task 도구 entries 상태가 markdown 체크박스의 단일 진실 원천이며, `/dev:impl`이 Story 종료 시점에 entries → markdown 방향으로 sync한다 (`status=completed` → `[x]`, `pending`·`in_progress` → 미체크 유지, entry 없음 → markdown 그대로)
 - **Batch stops on failure** — any of the 5 failure conditions (test, review, criteria, commit refused, no-commit-field refused) halts the batch immediately; `currentBatchRunning` is reset on every terminal exit (Step 11)
 - **Batch persistence** — `currentBatchRunning`·`currentBatchTopic` 필드로 비정상 종료된 배치를 topic-scoped로 감지·재개한다; 토픽 불일치 시 silently reset, Step 11 모든 terminal exit 시 초기화. Step 1 게이트 실패 등 Step 11 미도달 시에는 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그를 트리거한다.
 - **Pre-work briefing for first Story only in batch mode** — Story 2 onward shows a single "Starting Story" line; full briefing and approval gate apply only to the first Story (subject to `auto_start`)
