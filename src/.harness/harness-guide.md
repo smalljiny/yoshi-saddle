@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 ---
 
 # 하네스 가이드
@@ -224,3 +224,59 @@ node .harness/scripts/dev-context.js set-field --field=config.plan.auto_review -
 |---------|------|
 | `references/everything-claude-code/` | Claude Code 플러그인 레퍼런스. 에이전트, 스킬, 커맨드, 훅, 규칙, mcp-configs 구조와 검증된 워크플로우 제공. |
 | `references/sample-claude-env/` | 이전 프로젝트 샘플. 문서 구조(docs, guides, specs, onboarding)와 Codex 리뷰 프롬프트 포함. |
+
+## graphify 사용 가이드
+
+graphify는 코드베이스·문서·연구 자료를 지식 그래프로 변환해 god nodes·surprising connections·community 구조를 시각화하는 Stage 1 평가 도구다. 본 하네스에서는 시범 빌드(Stage 1)로 채택 여부를 판단하며, 통과 시 Stage 2 spec을 별도로 작성한다.
+
+### 권장 호출 형태
+
+본 하네스 저장소(진실 원천이 `src/`에 있음):
+
+```
+graphify ./src
+```
+
+배포된 하네스를 사용하는 다른 프로젝트(루트에 `.claude/`·`.harness/`만 존재):
+
+```
+graphify ./.claude ./.harness
+```
+
+배포 프로젝트는 `src/` 구조가 없으므로 분석 대상 디렉토리를 직접 지정한다.
+
+### 출력 위치
+
+실행 디렉토리 기준 `graphify-out/`에 산출물이 생성된다:
+
+- `GRAPH_REPORT.md` — 사람이 읽는 요약 (god nodes, surprising connections, community 구조)
+- `cost.json` — 빌드 사용량 (input/output token, 비용 추이)
+- `graph.json`, `graph.html` — 시각화·기계 처리용 그래프 데이터
+- `cache/`, `.graphify_*` — 내부 캐시·메타데이터
+
+### gitignore 정책 요약
+
+루트 `.gitignore`에 다음 정책이 적용돼 있다:
+
+```
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/cost.json
+```
+
+`graphify-out/` 디렉토리 내부는 모두 ignore되며, `GRAPH_REPORT.md`(사람용 요약)와 `cost.json`(사용량 추이)만 tracked로 노출된다. graph.json·graph.html·cache·메타파일은 PR diff에 포함되지 않는다.
+
+### user-level 사전 조건
+
+graphify CLI는 사용자 환경에 1회 설치한다:
+
+```
+pip install graphifyy
+graphify install
+```
+
+Claude Code subagent 경유로 동작하므로 별도 API 키는 불필요하다. 설치는 사용자 책임이며 본 하네스 저장소에는 의존성을 추가하지 않는다.
+
+### Stage 2 진행 조건
+
+spec §4의 5개 검증 기준(시범 빌드 성공·god nodes 4개 이상 + 기대-외 1개 이상·surprising connections 1개 이상 + 미인지-관계 1개 이상·빌드 시간 < 10분·input token < 1M) 중 4개 이상을 충족하면 Stage 2 spec 작성을 권고한다. 기준 미달 시 평가 보고서에 보류 사유를 기록한다.
