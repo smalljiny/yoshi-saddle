@@ -17,6 +17,9 @@ node_modules/
 dist/
 .DS_Store
 
+# Python 가상 환경 (uv)
+.venv/
+
 # 민감한 파일 (절대 커밋하지 않음)
 .env
 .env.*
