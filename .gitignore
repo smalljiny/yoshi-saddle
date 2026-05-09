@@ -30,3 +30,8 @@ credentials.json
 .deps-report.txt
 .knip-report.json
 AGENTS.md
+
+# graphify Stage 1 — 출력 디렉토리 내부는 ignore, 사람이 읽는 요약과 사용량만 tracked
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/cost.json
