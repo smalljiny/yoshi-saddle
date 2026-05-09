@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 ---
 
 # 하네스 가이드
@@ -252,6 +252,7 @@ graphify ./.claude ./.harness
 - `GRAPH_REPORT.md` — 사람이 읽는 요약 (god nodes, surprising connections, community 구조)
 - `cost.json` — 빌드 사용량 (input/output token, 비용 추이)
 - `graph.json`, `graph.html` — 시각화·기계 처리용 그래프 데이터
+- `manifest.json` — incremental update(`graphify --update`) 기준이 되는 파일 매니페스트
 - `cache/`, `.graphify_*` — 내부 캐시·메타데이터
 
 ### gitignore 정책 요약
@@ -275,7 +276,15 @@ pip install graphifyy
 graphify install
 ```
 
-Claude Code subagent 경유로 동작하므로 별도 API 키는 불필요하다. 설치는 사용자 책임이며 본 하네스 저장소에는 의존성을 추가하지 않는다.
+uv 환경(권장 — 시스템 Python 오염 방지)에서는 동등한 명령으로 프로젝트 한정 가상 환경에 설치한다:
+
+```
+uv venv .venv
+uv pip install graphifyy
+uv run graphify install
+```
+
+이후 호출은 `uv run graphify ...` 형태를 사용한다 (또는 `.venv` 활성화). Claude Code subagent 경유로 동작하므로 별도 API 키는 불필요하다. 설치는 사용자 책임이며 본 하네스 저장소에는 의존성을 추가하지 않는다.
 
 ### Stage 2 진행 조건
 
