@@ -1,5 +1,5 @@
 ---
-version: 6
+version: 7
 ---
 
 # 하네스 가이드
@@ -285,6 +285,17 @@ uv run graphify install
 ```
 
 이후 호출은 `uv run graphify ...` 형태를 사용한다 (또는 `.venv` 활성화). Claude Code subagent 경유로 동작하므로 별도 API 키는 불필요하다. 설치는 사용자 책임이며 본 하네스 저장소에는 의존성을 추가하지 않는다.
+
+**배포된 하네스 프로젝트의 추가 사전 조건**: 위 gitignore 정책(`graphify-out/*` + `!GRAPH_REPORT.md` + `!cost.json`)과 `.venv/` ignore는 **본 하네스 저장소의 루트 `.gitignore`에만 적용**된다. `deploy-harness.sh`는 `.gitignore`를 동기화 대상에서 제외하므로, 배포된 하네스를 사용하는 프로젝트는 graphify를 실행하기 전에 자신의 `.gitignore`에 다음 5줄을 직접 추가한다:
+
+```
+.venv/
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/cost.json
+```
+
+추가하지 않으면 `graph.json`, `graph.html`, `cache/`, `manifest.json`, `.venv/` 같은 산출물이 커밋 대상으로 노출된다.
 
 ### Stage 2 진행 조건
 
