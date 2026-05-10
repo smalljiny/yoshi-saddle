@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: skill-registry
 description: >
   Use this skill whenever a command or skill needs to dynamically discover which
@@ -252,9 +252,10 @@ Additional fields are allowed; removing required fields breaks calling commands.
 
 ### Implementation status
 
-`firecrawl-search` and `exa-search` skills are **not yet implemented** — they are planned
-as separate topics. This pattern section documents the contract they must conform to when
-implemented.
+Two search-adapter skills are implemented and registered in this harness:
+`stack-firecrawl` (`capabilities: [search-adapter, firecrawl]`) and
+`stack-exa` (`capabilities: [search-adapter, exa]`). Additional providers (e.g. `tavily`)
+follow the same adapter contract documented in this section as separate topics.
 
 ---
 

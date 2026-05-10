@@ -43,7 +43,7 @@ The latest review report is determined by descending filename sort.
 
 | issue | severity | reviewer | status |
 |---|---|---|---|
-| <이슈 한 줄 요약 (80자 이내)> | CRITICAL \| HIGH \| MEDIUM | <reviewer> | fixed \| deferred |
+| <이슈 한 줄 요약 (80자 이내)> | CRITICAL \| HIGH \| MEDIUM \| LOW | <reviewer> | fixed \| deferred |
 ```
 
 ## Field Definitions
