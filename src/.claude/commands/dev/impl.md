@@ -1,5 +1,5 @@
 ---
-version: 24
+version: 25
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 category: dev-workflow
 ---
@@ -212,12 +212,9 @@ Immediately review the Story code:
 - Quality review
 - Immediate feedback + fixes
 
-**`tdd` 타입 전용 — simplify 스킬 후속 호출**: code-reviewer 완료 직후, Story Type이 `tdd`이면 `simplify` 스킬을 로드해 실행한다:
+**`tdd` 타입 전용 — simplify 스킬 후속 호출**: code-reviewer 완료 직후, Story Type이 `tdd`이면 외부 plugin 스킬 `simplify`를 Skill 도구로 호출해 실행한다.
 
-```
-Load `.claude/skills/simplify/SKILL.md` and follow its process.
-```
-
+- simplify는 외부 plugin으로 설치된 스킬이며, 사용 가능 스킬 목록에 `simplify`가 노출돼 있을 때만 동작한다. 등록되지 않은 환경에서는 이 단계를 건너뛴다.
 - simplify는 코드 재사용·효율성·품질을 재검토하고 개선이 있으면 즉시 수정한다.
 - `config`·`infra`·`refactor`·`prompt` 타입은 simplify를 적용하지 않는다. `prompt` 타입은 REFINE 사이클이 품질 개선을 담당한다.
 

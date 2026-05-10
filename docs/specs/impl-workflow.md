@@ -123,7 +123,7 @@ tdd-specialist·refactor-cleaner·prompt-engineer는 `wf-task-tracking` 스킬�
 
 모든 타입에 적용. 이슈 분류 후 CRITICAL·HIGH는 자동 수정.
 
-- `tdd` 타입 전용: code-reviewer 완료 직후 `simplify` 스킬을 로드해 코드 재사용·효율성·품질을 재검토한다. `config`·`infra`·`refactor`·`prompt` 타입은 적용하지 않는다.
+- `tdd` 타입 전용: code-reviewer 완료 직후 외부 plugin 스킬 `simplify`를 Skill 도구로 호출해 코드 재사용·효율성·품질을 재검토한다. simplify가 등록되지 않은 환경에서는 이 단계를 건너뛴다. `config`·`infra`·`refactor`·`prompt` 타입은 적용하지 않는다.
 - `prompt` 타입: code-reviewer는 comment-only. 평가 대상 프롬프트 파일을 수정하지 않는다. 수정이 필요하면 prompt-engineer를 재호출해 eval 게이트를 다시 통과해야 한다.
 
 code-reviewer blocking 이슈 자동 수정 불가 시: batch 모드는 `batch_failed = true`, 비배치는 중단.
