@@ -1,7 +1,7 @@
 ---
 last_modified: 2026-05-10
 author: @mario
-status: Active
+status: Active (Stage 1 — Stage 2는 docs/specs/harness-knowledge-index.md 참조)
 ---
 
 # graphify Stage 1 통합
@@ -42,6 +42,8 @@ graphify는 세 계층이 협력한다.
 
 ### 권장 호출 형태
 
+> **graphify v0.7.11 CLI 사양 주의 (Stage 2 검증 결과)**: 아래 직접 path 호출 형태(`graphify ./src`)는 v0.7.11에서 `error: unknown command './src'`로 실패한다. 풀 빌드는 `/graphify <path>` slash command (Claude Code/Codex 등 AI agent 환경) 또는 `graphify extract <path> --backend <claude|gemini|kimi|openai>` 헤드리스 서브커맨드로만 동작한다. 후속 토픽에서 본 절을 v1 CLI 사양에 맞춰 정정한다. 자세한 워크플로우 가이드는 `docs/specs/harness-knowledge-index.md`의 "권장 호출 형태 (targets-driven)" 절을 참조한다.
+
 본 하네스 저장소 (`src/`가 진실 원천):
 
 ```
@@ -81,4 +83,4 @@ Stage 1 빌드는 1회 수동 실행이다. 이후 재빌드는 동일 절차를
   ```
   추가하지 않으면 `graph.json`, `graph.html`, `cache/`, `.venv/` 등이 커밋 대상으로 노출된다.
 - `graphify codex install` (Codex 환경 통합), `graphify --update` 증분 빌드, `graphify hook install`, `graphify . --watch`, `--backend gemini` 등 직접 API 백엔드는 Stage 1 범위 밖이다.
-- Stage 1은 1회 시범 빌드만 포함한다. 자동 빌드·incremental update·CodexCLI 통합은 Stage 2에서 별도 spec으로 다룬다. Stage 1 평가 결과 5/5 기준 충족으로 Stage 2 spec 작성이 권고된다.
+- Stage 1은 1회 시범 빌드만 포함한다. 자동 빌드·incremental update·CodexCLI 통합은 Stage 2에서 별도 spec으로 다룬다. Stage 1 평가 결과 5/5 기준 충족으로 Stage 2 spec 작성이 권고됐고, 후속 토픽 `harness-knowledge-index`(`docs/specs/harness-knowledge-index.md`)가 Stage 2 메커니즘을 문서화한다 (`config.graphify.targets` 설정, `CLAUDE.md`/`AGENTS.md` 5-rule, `harness-guide.md` 워크플로우 확장).
