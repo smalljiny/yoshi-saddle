@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 ---
 
 # 하네스 가이드
@@ -232,21 +232,46 @@ node .harness/scripts/dev-context.js set-field --field=config.graphify.targets -
 
 graphify는 코드베이스·문서·연구 자료를 지식 그래프로 변환해 god nodes·surprising connections·community 구조를 시각화하는 Stage 1 평가 도구다. 본 하네스에서는 시범 빌드(Stage 1)로 채택 여부를 판단하며, 통과 시 Stage 2 spec을 별도로 작성한다.
 
+### 분석 대상 설정 (config.graphify.targets)
+
+graphify 빌드의 분석 대상은 `dev-context.json`의 `config.graphify.targets` 배열에 정의한다. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구한다 (hard error). 본 하네스 권장값은 `["./src", "./docs"]`, 배포된 하네스 권장값은 `["./.claude", "./.harness", "./docs"]`.
+
+```bash
+# 조회
+node .harness/scripts/dev-context.js read --field=config.graphify.targets
+
+# 설정 (본 하네스 예시)
+node .harness/scripts/dev-context.js set-field --field=config.graphify.targets --value='["./src","./docs"]'
+```
+
 ### 권장 호출 형태
 
-본 하네스 저장소(진실 원천이 `src/`에 있음):
+`config.graphify.targets` 배열의 길이에 따라 호출 형태가 달라진다.
+
+**targets 1개**: 단일 디렉토리를 직접 빌드한다.
 
 ```
-graphify ./src
+uv run graphify ./src
 ```
 
-배포된 하네스를 사용하는 다른 프로젝트(루트에 `.claude/`·`.harness/`만 존재):
+**targets 2개 이상 (본 하네스 — `["./src", "./docs"]`)**: 디렉토리별로 풀 빌드한 뒤 `merge-graphs`로 결합한다. 다중 인자 단일 호출(`graphify ./src ./docs`)은 graphify v1에서 안정 동작이 보장되지 않으므로 분리 빌드 후 머지 패턴을 권장한다.
 
 ```
-graphify ./.claude ./.harness
+uv run graphify ./src --out graphify-out/g-src.json
+uv run graphify ./docs --out graphify-out/g-docs.json
+uv run graphify merge-graphs graphify-out/g-src.json graphify-out/g-docs.json --out graphify-out/graph.json
 ```
 
-배포 프로젝트는 `src/` 구조가 없으므로 분석 대상 디렉토리를 직접 지정한다.
+**배포된 하네스 (`["./.claude", "./.harness", "./docs"]`)**: 동일하게 디렉토리별 빌드 + merge-graphs 패턴을 적용한다.
+
+```
+uv run graphify ./.claude --out graphify-out/g-claude.json
+uv run graphify ./.harness --out graphify-out/g-harness.json
+uv run graphify ./docs --out graphify-out/g-docs.json
+uv run graphify merge-graphs graphify-out/g-claude.json graphify-out/g-harness.json graphify-out/g-docs.json --out graphify-out/graph.json
+```
+
+배포 프로젝트는 `src/` 구조가 없으므로 분석 대상 디렉토리를 `targets`에 직접 명시한다. 단일 호출 동작이 graphify v2에서 안정화되면 본 가이드를 단순화할 수 있다.
 
 ### 출력 위치
 
@@ -299,6 +324,20 @@ graphify-out/*
 ```
 
 추가하지 않으면 `graph.json`, `graph.html`, `cache/`, `manifest.json`, `.venv/` 같은 산출물이 커밋 대상으로 노출된다.
+
+### 갱신 (uv run graphify update)
+
+코드·문서 변경 후 `graphify-out/`을 갱신할 때는 다음 명령을 사용한다. AST-only 분석이므로 LLM 호출이 없고 비용이 발생하지 않는다.
+
+```
+uv run graphify update <path>
+```
+
+`<path>`는 변경된 파일 또는 디렉토리. v1에서 새 파일 추가 시 manifest 갱신 동작은 미확정(Open Question 2)이므로, 신뢰할 수 있는 갱신이 필요하면 풀 빌드(`### 권장 호출 형태` 절차 재실행)로 폴백한다.
+
+### graphify CLI 미설치·호출 실패 시 fallback
+
+`uv run graphify ...` 호출이 실패하거나 graphify CLI가 설치되지 않은 환경에서는 grep/glob/Read 도구로 회귀해 작업을 진행한다. CLAUDE.md / AGENTS.md `## graphify` 5번째 규칙과 일관된 동작이다. CLI 설치는 위 `### user-level 사전 조건` 섹션의 `pip install graphifyy` (또는 `uv pip install graphifyy`) 절차를 참고한다. 풀 빌드는 사용자에게 명시 안내한 뒤 실행한다.
 
 ### Stage 2 진행 조건
 
