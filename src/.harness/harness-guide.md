@@ -1,5 +1,5 @@
 ---
-version: 9
+version: 10
 ---
 
 # 하네스 가이드
@@ -246,6 +246,8 @@ node .harness/scripts/dev-context.js set-field --field=config.graphify.targets -
 
 ### 권장 호출 형태
 
+> **graphify v0.7.11 CLI 변경 주의**: 본 절의 `uv run graphify <path>` 직접 호출 형태는 v0.7.11에서 `error: unknown command '<path>'`로 실패한다 (`docs/_local/active/harness-knowledge-index/validation-notes.md` T5.2 참조). 풀 빌드는 `/graphify <path>` slash command (Claude Code/Codex 등 AI agent 환경) 또는 `graphify extract <path> --backend <claude|gemini|kimi|openai>` 헤드리스 서브커맨드로만 동작한다. 본 가이드 코드 블록은 후속 토픽에서 v1 CLI 사양에 맞춰 정정한다.
+
 `config.graphify.targets` 배열의 길이에 따라 호출 형태가 달라진다.
 
 **targets 1개**: 단일 디렉토리를 직접 빌드한다.
@@ -280,7 +282,7 @@ uv run graphify merge-graphs graphify-out/g-claude.json graphify-out/g-harness.j
 - `GRAPH_REPORT.md` — 사람이 읽는 요약 (god nodes, surprising connections, community 구조)
 - `cost.json` — 빌드 사용량 (input/output token, 비용 추이)
 - `graph.json`, `graph.html` — 시각화·기계 처리용 그래프 데이터
-- `manifest.json` — incremental update(`graphify --update`) 기준이 되는 파일 매니페스트
+- `manifest.json` — incremental update(`graphify update <path>`) 기준이 되는 파일 매니페스트
 - `cache/`, `.graphify_*` — 내부 캐시·메타데이터
 
 ### gitignore 정책 요약
@@ -330,10 +332,10 @@ graphify-out/*
 코드·문서 변경 후 `graphify-out/`을 갱신할 때는 다음 명령을 사용한다. AST-only 분석이므로 LLM 호출이 없고 비용이 발생하지 않는다.
 
 ```
-uv run graphify update <path>
+uv run graphify update "<path>"
 ```
 
-`<path>`는 변경된 파일 또는 디렉토리. v1에서 새 파일 추가 시 manifest 갱신 동작은 미확정(Open Question 2)이므로, 신뢰할 수 있는 갱신이 필요하면 풀 빌드(`### 권장 호출 형태` 절차 재실행)로 폴백한다.
+`<path>`는 변경된 파일 또는 디렉토리. 공백이나 특수 문자가 포함된 경로는 따옴표로 감싼다. v1에서 새 파일 추가 시 manifest 갱신 동작은 미확정(Open Question 2)이므로, 신뢰할 수 있는 갱신이 필요하면 풀 빌드(`### 권장 호출 형태` 절차 재실행)로 폴백한다.
 
 ### graphify CLI 미설치·호출 실패 시 fallback
 
