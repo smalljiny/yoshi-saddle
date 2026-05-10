@@ -82,7 +82,7 @@ Task 완료의 단일 책임은 `T<storyN>.<taskM>` Task 도구 entry 상태가 
 
 - TaskCreate는 호출자(`/dev:impl`)가 Story 시작 시 일괄 수행한다. 본 스킬의 호출자(에이전트)는 TaskCreate를 호출하지 않는다.
 - dev-context.json 영속화는 `/dev:impl`이 담당한다. 본 스킬은 영속 상태를 직접 읽거나 쓰지 않는다.
-- Story 단위 체크박스(`### [ ] Story N` → `### [x] Story N`) 갱신은 `/dev:impl`이 담당한다. 에이전트는 Task 단위(`- [ ]` → `- [x]`) 갱신만 수행한다.
+- Story 단위 체크박스(`### [ ] Story N` → `### [x] Story N`) 갱신은 `/dev:impl`이 담당한다. Task 단위(`- [ ]` → `- [x]`) 갱신은 `/dev:impl` Step 9.5가 entries 상태로부터 sync한다 — 에이전트는 직접 수행하지 않는다.
 - Story 단위 Task 도구 entry를 생성하지 않는다. Task 도구는 Story 내부 Task(T<storyN>.<taskM>) 단위에만 사용한다.
 - Task 도구 상태는 세션 단위다. cross-session 복원은 지원하지 않는다. plan markdown 체크박스가 영속 단일 진실 원천이다.
 - missing entry 발견 시 에이전트가 스스로 TaskCreate를 호출하지 않는다 — 호출자에게 보고하고 작업을 계속 진행한다. Step 9.5 가 entries 상태로부터 markdown 을 sync 하며, entry 없는 Task 라인은 미체크 Task 게이트로 흐른다 (사용자가 '보고 누락' 선택 시 markdown `[x]` 처리, '실제 미수행' 선택 시 `[ ]` 유지).
