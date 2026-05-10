@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 ---
 
 # 하네스 가이드
@@ -194,6 +194,7 @@ codex "plan-review 스킬을 실행해줘"
 |----|--------|------|
 | `config.spec.auto_review` | `false` | `/dev:spec` Step 4에서 `wf-codex-review` 스킬을 자동 실행 (최대 3회 루프, READY/READY WITH NOTE 시 종료). `false` 또는 빈 출력이면 기존 수동 안내를 출력하고 정지. |
 | `config.plan.auto_review` | `false` | `/dev:plan` Step 7에서 `wf-codex-review` 스킬을 자동 실행 (최대 3회 루프, READY/READY WITH NOTE 시 종료). `false` 또는 빈 출력이면 기존 수동 안내를 출력하고 정지. |
+| `config.graphify.targets` | `[]` (빈 배열) | graphify 분석 대상 디렉토리 배열. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구(hard error). 본 하네스 권장값 `["./src", "./docs"]`. |
 
 **관례**: 빈 출력(`""`)은 `false`로 처리한다. `true` 문자열과 정확히 일치할 때만 자동 루프가 실행된다.
 
@@ -201,10 +202,12 @@ codex "plan-review 스킬을 실행해줘"
 # 조회
 node .harness/scripts/dev-context.js read --field=config.spec.auto_review
 node .harness/scripts/dev-context.js read --field=config.plan.auto_review
+node .harness/scripts/dev-context.js read --field=config.graphify.targets
 
 # 활성화 (로컬 dev-context.json)
 node .harness/scripts/dev-context.js set-field --field=config.spec.auto_review --value=true
 node .harness/scripts/dev-context.js set-field --field=config.plan.auto_review --value=true
+node .harness/scripts/dev-context.js set-field --field=config.graphify.targets --value='["./src","./docs"]'
 ```
 
 ## Codex CLI와의 차이점
