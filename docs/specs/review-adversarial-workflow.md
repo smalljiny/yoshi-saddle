@@ -12,7 +12,7 @@
 
 | 파일 | 역할 |
 |---|---|
-| `.claude/commands/dev/review.md` | `/dev:review` 실행 흐름 정의 (version 8) |
+| `.claude/commands/dev/review.md` | `/dev:review` 실행 흐름 정의 (version 12) |
 | `.harness/contracts/review-report.md` | review-report 파일 포맷 계약 |
 | `.claude/commands/dev/done.md` | 아카이브 대상 목록에 `review-report-*.md` 포함 (version 5) |
 

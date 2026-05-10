@@ -32,7 +32,7 @@
 }
 ```
 
-- `branchType`: `feature`·`fix`·`chore` 중 하나. 브랜치명 패턴 검증에 사용.
+- `branchType`: `feature`·`fix`·`chore` 중 하나. plan 단계에서 기록되며 PR 메타데이터로 보존된다 (브랜치명 패턴 검증은 `config.git.branchPattern`이 담당).
 - `baseBranch`: 토픽별 override. `null`이면 `config.git.baseBranch` 사용.
 - `refDoc`: PR body의 참조 문서 링크 삽입에 사용 (`reference-docs-workflow.md` 참조).
 

@@ -4,7 +4,7 @@
 
 ## 개요
 
-`.claude/settings.json`과 `.claude/hooks/hooks.json`은 SessionStart, PreToolUse, PostToolUse, Stop 훅에서 실행할 Node.js 스크립트의 절대 경로를 명시한다. 하네스가 제공하는 hook 스크립트 9종(`session-start.js`, `type-check.js`, `prettier-format.js`, `session-logger.js`, `suggest-compact.js`, `git-push-review.js`, `console-log-audit.js`, `memory-persist.js` 등)은 모두 `<repo-root>/.claude/scripts/hooks/` 아래에 위치한다.
+`.claude/settings.json`과 `.claude/hooks/hooks.json`은 SessionStart, PreToolUse, PostToolUse, Stop 훅에서 실행할 Node.js 스크립트의 절대 경로를 명시한다. 하네스가 제공하는 hook 스크립트 8종(`session-start.js`, `type-check.js`, `prettier-format.js`, `session-logger.js`, `suggest-compact.js`, `git-push-review.js`, `console-log-audit.js`, `memory-persist.js`)은 모두 `<repo-root>/.claude/scripts/hooks/` 아래에 위치한다.
 
 이 경로 prefix가 `${PWD}`이면 hook 명령은 *Claude Code 프로세스의 현재 작업 디렉토리*를 기준으로 해석된다 — 사용자가 저장소 하위 디렉토리(예: `cd src/`)에서 Claude Code를 실행하면 `${PWD}/.claude/scripts/hooks/...`가 잘못된 경로로 평가돼 hook이 실패한다. `${CLAUDE_PROJECT_DIR}`은 Claude Code가 세션 시작 시 자동 설정하는 환경 변수로, 항상 *프로젝트 루트*를 가리킨다. 따라서 두 파일 안의 hook command 경로 prefix는 `${CLAUDE_PROJECT_DIR}`로 작성한다.
 

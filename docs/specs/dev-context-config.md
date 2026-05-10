@@ -1,6 +1,6 @@
 # dev-context 전역 config 섹션
 
-> `dev-context.json`의 전역 `config` 섹션과 `dev-context.js` 점 경로 CLI의 동작 계약. 현재 정의된 네임스페이스: `config.dev_impl.*`, `config.git.*`, `config.docs.*`.
+> `dev-context.json`의 전역 `config` 섹션과 `dev-context.js` 점 경로 CLI의 동작 계약. 현재 정의된 네임스페이스: `config.dev_impl.*`, `config.spec.*`, `config.plan.*`, `config.review.*`, `config.git.*`, `config.docs.*`, `config.codex.*`, `config.graphify.*`.
 
 ## 개요
 
@@ -8,11 +8,14 @@
 
 현재 정의된 네임스페이스:
 
-- `config.dev_impl` — `/dev:impl` 실행 동작 제어
+- `config.dev_impl` — `/dev:impl` 실행 동작 제어 (`auto_start`, `auto_commit`, `batch_mode`, `currentBatchRunning`, `currentBatchTopic`)
+- `config.spec` — `/dev:spec` Codex 자동 리뷰 루프 제어 (`auto_review`)
+- `config.plan` — `/dev:plan` Codex 자동 리뷰 루프 제어 (`auto_review`)
 - `config.git` — `/dev:docs`·`/dev:pr` 에서 참조하는 git 원격 설정
 - `config.review` — `/dev:review` 옵션 설정 (adversarial-review opt-in)
 - `config.codex` — Codex CLI 감지 캐시 (쓰기 전용: `codex-session-detection` 시스템 소유. 소비: `/dev:review`·`meta-codex-bridge`)
 - `config.docs` — `/dev:docs` 파일 수집 동작 제어 (`/dev:init`이 저장소 유형 감지 후 자동 설정)
+- `config.graphify` — graphify 분석 대상 디렉토리 배열 (`targets`)
 
 ## 구조 / 스키마
 
@@ -25,7 +28,16 @@
   "config": {
     "dev_impl": {
       "auto_start": false,
-      "auto_commit": false
+      "auto_commit": false,
+      "batch_mode": false,
+      "currentBatchRunning": false,
+      "currentBatchTopic": false
+    },
+    "spec": {
+      "auto_review": false
+    },
+    "plan": {
+      "auto_review": false
     },
     "git": {
       "pushRemote": "origin",
@@ -44,6 +56,9 @@
     },
     "docs": {
       "sourceFilter": []
+    },
+    "graphify": {
+      "targets": []
     }
   },
   "updatedAt": "<ISO-8601>"
@@ -86,6 +101,34 @@
 - `false`(기본): 커밋 전 y/n/skip 프롬프트 출력
 
 커밋 대상 파일 결정 방식과 메시지 형식은 `commit-workflow.md` 참조.
+
+### `config.dev_impl.batch_mode` · `currentBatchRunning` · `currentBatchTopic` — 배치 실행 영속화
+
+`/dev:impl --all` 또는 `config.dev_impl.batch_mode=true`로 활성화되는 배치 모드의 실행 상태를 영속화한다.
+
+- `batch_mode` (boolean): `true`면 인자 없는 `/dev:impl` 호출도 배치 모드로 진행. 명시적 Story 인자(`/dev:impl S2`)는 항상 단일 Story 모드를 강제
+- `currentBatchRunning` (boolean): 배치 실행 중 표시. 첫 Story 진입 시 `true`로 설정되고, 마지막 Story 완료 또는 실패 시 `false`로 리셋
+- `currentBatchTopic` (string | `false`): 배치를 시작한 토픽 이름. 다른 토픽으로 전환되면 배치를 중단
+
+`/dev:impl` Step 1과 Step 11에서 read·set-field로 조작한다. 자세한 6가지 batch failure 조건과 reset 시점은 `impl-workflow.md` 참조.
+
+### `config.spec.auto_review` · `config.plan.auto_review` — Codex 자동 리뷰 루프
+
+`/dev:spec` Step 4와 `/dev:plan` Step 7에서 `wf-codex-review` 스킬의 자동 실행 여부를 결정한다.
+
+- `false`(기본) 또는 빈 출력: 사용자에게 `codex` 명령을 안내하고 정지 (수동 모드)
+- `true`: `wf-codex-review` 스킬을 자동 실행 — 최대 3회 루프, READY/READY WITH NOTE 도달 시 종료
+
+Availability Gate 실패·스킬 비정상 종료·3회 초과 시 수동 폴백으로 전환한다. 자세한 루프 동작은 각 워크플로우 spec 참조.
+
+### `config.graphify.targets` — graphify 분석 대상 디렉토리
+
+graphify 풀 빌드의 분석 대상 디렉토리 배열.
+
+- `[]` (빈 배열) 또는 미설정: 풀 빌드를 거부하고 사용자에게 명시 설정을 요구 (hard error). 글로벌 기본값 없음
+- 비어 있지 않은 배열: 1개면 단일 호출, 2개 이상이면 디렉토리별 빌드 + `merge-graphs` 패턴
+
+본 하네스 권장값 `["./src", "./docs"]`. 배포된 하네스 권장값 `["./.claude", "./.harness", "./docs"]`. 자세한 호출 형태는 `harness-guide.md`의 graphify 절 참조.
 
 ### `config.review.adversarial_enabled` — adversarial-review opt-in
 

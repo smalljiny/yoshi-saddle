@@ -14,7 +14,7 @@
 .harness/
 ├── scripts/
 │   ├── dev-context.js          CLI 스크립트 (6개 서브커맨드, config 점 경로 지원, boolean flag 파싱)
-│   └── dev-context.test.js     74개 테스트 (node:test)
+│   └── dev-context.test.js     89개 테스트 (node:test)
 └── contracts/
     ├── spec-review.md          spec-review 리포트 형식 계약
     ├── plan-review.md          plan-review 리포트 형식 계약
@@ -22,17 +22,17 @@
 
 .claude/
 ├── commands/dev/
-│   ├── spec.md (v6)    토픽 등록 + spec 작성
-│   ├── plan.md (v7)    spec:confirmed 게이트 + plan-review 안내
-│   ├── impl.md (v4)    plan:confirmed 게이트 + impl:in-progress 전환 + auto_start 소비
-│   ├── review.md (v4)  impl:in-progress 게이트 + 완료 검사
-│   └── done.md (v3)    pr:created 게이트 + 보존 정책 (삭제 없음)
+│   ├── spec.md (v16)   토픽 등록 + spec 작성
+│   ├── plan.md (v11)   spec:confirmed 게이트 + plan-review 안내
+│   ├── impl.md (v24)   plan:confirmed 게이트 + impl:in-progress 전환 + auto_start 소비
+│   ├── review.md (v12) impl:in-progress 게이트 + 완료 검사
+│   └── done.md (v5)    pr:created 게이트 + 보존 정책 (삭제 없음)
 └── skills/
-    └── dev-context/SKILL.md    dev-context.js 사용 계약 스킬
+    └── meta-dev-context/SKILL.md    dev-context.js 사용 계약 스킬
 
 .codex/skills/
-├── spec-review/ (v5)   8점 스펙 품질 게이트
-└── plan-review/ (v1)   8점 구현 계획 품질 게이트
+├── spec-review/ (v6)   8점 스펙 품질 게이트
+└── plan-review/ (v4)   8점 구현 계획 품질 게이트
 ```
 
 ### dev-context.json 스키마

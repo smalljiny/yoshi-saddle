@@ -19,7 +19,7 @@
 
 | 필드 | 값 |
 |------|----|
-| `version` | `1` |
+| `version` | `4` |
 | `name` | `skill-registry` |
 | `description` | capability 기반 스킬 탐색이 필요할 때 로드. 스킬 이름을 모를 때, 여러 후보 중 동적 선택이 필요할 때, search-adapter 계약 구현 시 |
 | `origin` | `harness` |
@@ -93,7 +93,7 @@ capabilities: [search-adapter, <provider-tag>]
 { query, results: [{ title, url, snippet }], source }
 ```
 
-`stack-firecrawl` 어댑터가 구현되었다(`capabilities: [search-adapter, firecrawl]`). `exa-search` 어댑터는 별도 토픽에서 구현 예정.
+두 search-adapter 어댑터가 구현되어 있다: `stack-firecrawl`(`capabilities: [search-adapter, firecrawl]`)과 `stack-exa`(`capabilities: [search-adapter, exa]`). 추가 provider는 동일 계약을 따라 구현한다.
 
 ## stack-* 스킬 capabilities 매핑
 
@@ -115,10 +115,11 @@ capabilities: [search-adapter, <provider-tag>]
 | stack-deploy | `[deployment]` |
 | stack-docker | `[deployment, docker]` |
 | stack-firecrawl | `[search-adapter, firecrawl]` |
+| stack-exa | `[search-adapter, exa]` |
 
 ## 제약사항
 
 - **Node.js 스크립트 없음**: 탐색 절차는 Claude가 Glob/Read 도구로 직접 실행한다. `.harness/scripts/registry.js` 같은 스크립트는 구현하지 않음
 - **우선순위 정책 없음**: 다중 매치 시 선택 로직은 레지스트리 범위 밖 — 호출측 커맨드가 결정한다
-- **exa-search 미포함**: `stack-firecrawl`은 구현 완료. `exa-search` 어댑터는 별도 토픽
+- **추가 provider는 별도 토픽**: `stack-firecrawl`·`stack-exa`가 현재 구현된 search-adapter. `tavily` 등 추가 provider는 동일 어댑터 계약을 따르는 별도 토픽으로 진행
 - **wf-*/meta-* 미적용**: 직접 로딩 패턴을 사용하는 스킬은 capabilities를 선언하지 않으므로 레지스트리 탐색 대상에서 제외됨
