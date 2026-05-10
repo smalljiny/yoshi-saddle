@@ -81,35 +81,43 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 ## 문서 간 관계
 
 ```
-topic-lifecycle                    ← 상태 기계 중앙 참조
-  └─ dev-context-config            ← config.* 스키마 단일 진실 원천
-       ├─ config.dev_impl.*        ← /dev:impl 동작 제어
-       ├─ config.git.*             ← git-project-config (설정 커맨드)
-       ├─ config.review.*          ← review-adversarial-workflow (소비)
-       ├─ config.codex.*           ← codex-session-detection (쓰기 전용)
-       │                              ├─ review-adversarial-workflow (소비)
-       │                              └─ wf-codex-review (소비)
-       └─ config.docs.*            ← reference-docs-workflow (소비)
-  └─ spec-workflow                 ← spec:* 상태
-       └─ wf-codex-review          ← spec-review 단일 실행
-  └─ plan-workflow                 ← plan:* 상태
-       └─ wf-codex-review          ← plan-review 단일 실행
-  └─ impl-workflow                 ← impl:* 상태 (커밋 계약 + 배치 모드)
-       ├─ wf-task-tracking         ← Task 도구 추적 패턴
-       └─ review-adversarial-workflow ← review-fix 상세
-  └─ review-adversarial-workflow   ← review:* 상태
-  └─ reference-docs-workflow       ← docs:* 상태 (참조 문서 생성·갱신 1차 책임)
-  └─ pr-workflow                   ← pr:* 상태
-  └─ done-workflow                 ← pr:created 게이트 → 토픽 제거
+topic-lifecycle                          ← 상태 기계 중앙 참조
+  └─ dev-context-config                  ← config.* 스키마 단일 진실 원천
+       ├─ config.dev_impl.*              ← /dev:impl 동작 제어
+       ├─ config.git.*                   ← /dev:setup git 동작 (dev-context-config 흡수)
+       ├─ config.review.*                ← workflows/review (소비)
+       ├─ config.codex.*                 ← codex/session-detection (쓰기 전용)
+       │                                    ├─ workflows/review (소비)
+       │                                    └─ codex/codex-review (소비)
+       └─ config.docs.*                  ← workflows/docs (소비)
+  └─ workflows/spec                      ← spec:* 상태
+       └─ codex/codex-review             ← spec-review 단일 실행
+  └─ workflows/plan                      ← plan:* 상태
+       └─ codex/codex-review             ← plan-review 단일 실행
+  └─ workflows/impl                      ← impl:* 상태 (커밋 계약 + 배치 모드)
+       ├─ wf-task-tracking               ← Task 도구 추적 패턴
+       └─ workflows/review               ← review-fix 상세
+  └─ workflows/review                    ← review:* 상태
+  └─ workflows/docs                      ← docs:* 상태 (참조 문서 생성·갱신 1차 책임)
+  └─ workflows/pr                        ← pr:* 상태
+  └─ workflows/done                      ← pr:created 게이트 → 토픽 제거
 
 스킬 인프라:
-  skill-registry                   ← 동적 탐색 계약
-       ├─ stack-exa                ← search-adapter 구현
-       ├─ stack-firecrawl          ← search-adapter 구현
-       └─ wf-deep-research         ← search-adapter 소비
+  meta/skill-registry                    ← 동적 탐색 계약
+       ├─ search-adapters/exa            ← search-adapter 구현
+       ├─ search-adapters/firecrawl      ← search-adapter 구현
+       └─ wf-deep-research               ← search-adapter 소비
 
 배포·인프라:
-  harness-src-layout               ← src/ → 루트·외부 프로젝트 배포
-       ├─ deploy-harness-manifest  ← selective cleanup 메커니즘
-       └─ harness-scripts-esm-compat ← Node 스크립트 ESM 표준
+  infrastructure/src-layout              ← src/ → 루트·외부 프로젝트 배포
+       ├─ infrastructure/deploy-manifest ← selective cleanup 메커니즘
+       └─ infrastructure/scripts-esm-compat ← Node 스크립트 ESM 표준
+
+디렉토리 그룹:
+  workflows/                             ← spec·plan·impl·review·docs·pr·done
+  infrastructure/                        ← src-layout·deploy-manifest·scripts-esm-compat
+  search-adapters/                       ← exa·firecrawl
+  prompt/                                ← authoring-guide·eval-workflow
+  codex/                                 ← session-detection·codex-review
+  meta/                                  ← skill-creator·skill-registry·eval-harness·command-skill-boundary
 ```
