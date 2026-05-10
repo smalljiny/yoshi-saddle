@@ -5,8 +5,15 @@
       "input_tokens": 758017,
       "output_tokens": 189505,
       "files": 150
+    },
+    {
+      "date": "2026-05-10T06:48:00.207773+00:00",
+      "input_tokens": 332000,
+      "output_tokens": 58000,
+      "files": 37,
+      "note": "docs build (specs+notes+README), merged with src"
     }
   ],
-  "total_input_tokens": 758017,
-  "total_output_tokens": 189505
+  "total_input_tokens": 1090017,
+  "total_output_tokens": 247505
 }
