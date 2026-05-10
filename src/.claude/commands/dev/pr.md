@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 description: Push the current branch and create a GitHub Pull Request. Publish-only — run after /dev:docs so the reference document is included.
 category: dev-workflow
 ---
@@ -104,14 +104,12 @@ node .harness/scripts/dev-context.js read --field=config.git.pushRemote
 node .harness/scripts/dev-context.js read --field=config.git.pullRemote
 node .harness/scripts/dev-context.js read --field=config.git.baseBranch
 node .harness/scripts/dev-context.js read --topic=<topic> --field=baseBranch
-node .harness/scripts/dev-context.js read --topic=<topic> --field=branchType
 ```
 
 Defaults:
 - `pushRemote`: `origin`
 - `pullRemote`: `origin`
 - `baseBranch`: `main` (topic-level override takes precedence if set)
-- `branchType`: `feature`
 
 **Validate config-derived values before use**:
 - Remote names (`pushRemote`, `pullRemote`): must match `^[a-zA-Z0-9_.-]+$` and must not start with `-`. Verify existence with `git remote get-url <remote>`; stop with an error if not found.
