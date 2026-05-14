@@ -4,11 +4,12 @@
 //   node .harness/scripts/deploy-manifest.js list-src <src-dir>
 //   node .harness/scripts/deploy-manifest.js read-files <manifest-path>
 //   node .harness/scripts/deploy-manifest.js write <target-manifest> <files-list-path> --commit=<sha> --branch=<name>
+//   node .harness/scripts/deploy-manifest.js strip-gitignore-block <gitignore-path>
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
 
-const SUBCOMMANDS = ['list-src', 'read-files', 'write']
+const SUBCOMMANDS = ['list-src', 'read-files', 'write', 'strip-gitignore-block']
 
 function die(msg) {
   process.stderr.write(msg + '\n')
@@ -159,6 +160,49 @@ function cmdWrite(positional, opts) {
   renameSync(tmp, target)
 }
 
+function cmdStripGitignoreBlock(positional) {
+  if (positional.length < 1) {
+    die('strip-gitignore-block: .gitignore 경로 인자 필요')
+  }
+  const gitignorePath = positional[0]
+  if (!existsSync(gitignorePath)) {
+    warn(`strip-gitignore-block: .gitignore 파일이 없습니다: ${gitignorePath}`)
+    return
+  }
+  let raw
+  try {
+    raw = readFileSync(gitignorePath, 'utf8')
+  } catch (e) {
+    die(`strip-gitignore-block: 파일 읽기 실패: ${e.message}`)
+  }
+  const BEGIN = '# BEGIN harness local ignores'
+  const END = '# END harness local ignores'
+  const lines = raw.split('\n')
+  const out = []
+  let skip = false
+  for (const line of lines) {
+    if (line === BEGIN) {
+      // BEGIN 직전 빈 줄 제거
+      while (out.length > 0 && out[out.length - 1] === '') {
+        out.pop()
+      }
+      skip = true
+    }
+    if (skip) {
+      if (line === END) skip = false
+      continue
+    }
+    out.push(line)
+  }
+  // 내용이 있으면 단일 개행으로 끝냄
+  let content = out.join('\n').trimEnd()
+  if (content.length > 0) content += '\n'
+
+  const tmp = gitignorePath + '.tmp'
+  writeFileSync(tmp, content, 'utf8')
+  renameSync(tmp, gitignorePath)
+}
+
 const [,, subcommand, ...rest] = process.argv
 const { opts, positional } = parseArgs(rest)
 
@@ -171,6 +215,9 @@ switch (subcommand) {
     break
   case 'write':
     cmdWrite(positional, opts)
+    break
+  case 'strip-gitignore-block':
+    cmdStripGitignoreBlock(positional)
     break
   default:
     die(`알 수 없는 서브커맨드: ${subcommand ?? '(없음)'}\n사용 가능: ${SUBCOMMANDS.join(', ')}`)

@@ -126,19 +126,58 @@ copy_item() {
 
 update_gitignore() {
   local gitignore_path="$TARGET_DIR/.gitignore"
-  local marker="# BEGIN harness local ignores"
+  local marker_begin="# BEGIN harness local ignores"
 
-  if [ -f "$gitignore_path" ] && grep -Fq "$marker" "$gitignore_path"; then
-    info ".gitignore already has harness ignore block"
+  # 기대하는 블록 내용 (BEGIN/END 마커 제외)
+  local expected_inner
+  expected_inner="$(cat <<'INNER'
+.harness-backups/
+.claude/sessions/
+.claude/checkpoints.log
+.claude/settings.local.json
+.harness/.deploy-manifest.json
+docs/_local/
+INNER
+)"
+
+  # 현재 블록 상태 판별: 0=없음, 1=있지만 내용 다름, 2=최신
+  local block_state=0
+  if [ -f "$gitignore_path" ] && grep -Fq "$marker_begin" "$gitignore_path"; then
+    local current_inner
+    current_inner="$(awk '
+      /^# BEGIN harness local ignores$/ { f=1; next }
+      /^# END harness local ignores$/   { f=0; next }
+      f { print }
+    ' "$gitignore_path")"
+    if [ "$current_inner" = "$expected_inner" ]; then
+      block_state=2
+    else
+      block_state=1
+    fi
+  fi
+
+  if [ "$block_state" -eq 2 ]; then
+    info ".gitignore already has up-to-date harness block"
     return 0
   fi
 
   if [ "$DRY_RUN" -eq 1 ]; then
-    info "would append harness ignore block to .gitignore"
+    if [ "$block_state" -eq 1 ]; then
+      info "would update harness ignore block in .gitignore (content changed)"
+    else
+      info "would append harness ignore block to .gitignore"
+    fi
     return 0
   fi
 
-  backup_existing ".gitignore"
+  if [ "$block_state" -eq 1 ]; then
+    backup_existing ".gitignore"
+    node "$REPO_DIR/.harness/scripts/deploy-manifest.js" strip-gitignore-block "$gitignore_path"
+    info "stripped outdated harness block from .gitignore"
+  else
+    backup_existing ".gitignore"
+  fi
+
   touch "$gitignore_path"
   cat >>"$gitignore_path" <<'EOF'
 
