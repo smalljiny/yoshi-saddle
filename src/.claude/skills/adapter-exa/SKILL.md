@@ -1,12 +1,12 @@
 ---
-version: 6
-name: stack-exa
+version: 7
+name: adapter-exa
 description: Search-adapter skill that calls Exa REST API via Bash curl. Loaded by skill-registry with [search-adapter, exa] tags. Requires $EXA_API_KEY. Provides /search, /contents, /answer, and /findSimilar operations.
 origin: harness
 capabilities: [search-adapter, exa]
 ---
 
-# stack-exa
+# adapter-exa
 
 Targets Exa REST API at `https://api.exa.ai`.
 
@@ -28,7 +28,7 @@ Targets Exa REST API at `https://api.exa.ai`.
 
 All requests use base URL `https://api.exa.ai`, authentication header `x-api-key: $EXA_API_KEY`, and default timeout `--max-time 30`. Timeout overrides are noted per-operation below.
 
-> **Security note:** `$EXA_API_KEY` appears as a `-H` argument in curl command lines. On shared systems, other users may see it via `ps aux`. In single-user developer environments this risk is acceptable (same pattern as `stack-firecrawl`). On shared servers, prefer injecting the key via `curl -K -`.
+> **Security note:** `$EXA_API_KEY` appears as a `-H` argument in curl command lines. On shared systems, other users may see it via `ps aux`. In single-user developer environments this risk is acceptable (same pattern as `adapter-firecrawl`). On shared servers, prefer injecting the key via `curl -K -`.
 
 Use `jq -cn --arg val "$VALUE" '{field: $val}'` to safely escape user input before passing to curl.
 

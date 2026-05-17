@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: skill-registry
 description: >
   Use this skill whenever a command or skill needs to dynamically discover which
@@ -253,8 +253,8 @@ Additional fields are allowed; removing required fields breaks calling commands.
 ### Implementation status
 
 Two search-adapter skills are implemented and registered in this harness:
-`stack-firecrawl` (`capabilities: [search-adapter, firecrawl]`) and
-`stack-exa` (`capabilities: [search-adapter, exa]`). Additional providers (e.g. `tavily`)
+`adapter-firecrawl` (`capabilities: [search-adapter, firecrawl]`) and
+`adapter-exa` (`capabilities: [search-adapter, exa]`). Additional providers (e.g. `tavily`)
 follow the same adapter contract documented in this section as separate topics.
 
 ---

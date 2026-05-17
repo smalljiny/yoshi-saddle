@@ -1,12 +1,12 @@
 ---
-version: 2
-name: stack-firecrawl
+version: 3
+name: adapter-firecrawl
 description: Search-adapter skill that calls Firecrawl REST API v1 via Bash curl. Loaded by skill-registry with [search-adapter, firecrawl] tags. Requires $FIRECRAWL_API_KEY. Provides /v1/search, /v1/scrape, and /v1/crawl operations.
 origin: harness
 capabilities: [search-adapter, firecrawl]
 ---
 
-# stack-firecrawl
+# adapter-firecrawl
 
 Targets Firecrawl REST API v1 at `https://api.firecrawl.dev/v1/`. Migration to v2 is a separate change.
 

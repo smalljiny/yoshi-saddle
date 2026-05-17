@@ -1,11 +1,11 @@
 ---
-version: 14
-name: wf-codex-review
+version: 15
+name: adapter-codex-review
 description: Run a single Codex spec-review or plan-review via `codex exec` and return the parsed Decision. Phase auto-detected from `dev-context.json`. Loop control is owned by the calling command, not this skill.
 origin: harness
 ---
 
-# wf-codex-review
+# adapter-codex-review
 
 ## Non-Goals
 
@@ -40,7 +40,7 @@ STATUS=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=stat
 
 해당하지 않는 상태일 경우:
 ```
-현재 상태 (<phase>:<status>)에서 wf-codex-review를 실행할 수 없습니다.
+현재 상태 (<phase>:<status>)에서 adapter-codex-review를 실행할 수 없습니다.
 spec-review: /dev:spec에서 spec:reviewing 상태로 전환 후 실행하세요.
 plan-review: /dev:plan에서 plan:reviewing 상태로 전환 후 실행하세요.
 ```
@@ -77,7 +77,7 @@ node .harness/scripts/dev-context.js read --field=config.codex.authenticated
 ```
 
 If either returns a value other than `"true"`:
-1. Print a warning: `Codex not available or not authenticated — wf-codex-review cannot proceed.`
+1. Print a warning: `Codex not available or not authenticated — adapter-codex-review cannot proceed.`
 2. Show the manual fallback command (see "Fallback" section below)
 3. Exit the skill without invoking `codex exec`
 

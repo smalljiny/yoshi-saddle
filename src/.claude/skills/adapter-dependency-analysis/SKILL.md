@@ -1,17 +1,17 @@
 ---
-version: 1
-name: wf-dependency-analysis
+version: 2
+name: adapter-dependency-analysis
 description: JS/TS dependency analysis workflow orchestrator. Loads stack-knip and stack-dependency-cruiser when package.json exists. Use during planning or refactoring to get a full picture of dead code and architecture violations. Skips silently if package.json is absent (non-JS/TS projects).
 origin: harness
 ---
 
-# wf-dependency-analysis
+# adapter-dependency-analysis
 
 JS/TS 의존성 분석 워크플로우 오케스트레이터.
 
-> **Note**: `wf-` 프리픽스 사용 이유 — 이 스킬은 특정 기술 스택의 사용 가이드가 아니라
-> 두 어댑터 스킬(`stack-knip`, `stack-dependency-cruiser`)을 조건에 따라 로드하는
-> 워크플로우 오케스트레이터다. `wf-tdd`, `wf-verification`과 동일한 분류.
+> **Note**: `adapter-` 프리픽스 사용 이유 — 이 스킬은 외부 도구(`knip`, `dependency-cruiser`)
+> 어댑터 스킬 두 개를 조건에 따라 로드하는 오케스트레이터다. 외부 도구가 부재하면 스킵된다는
+> 어댑터 특성에 따라 5-tier 체계의 `adapter-*`로 분류한다.
 
 ## When to Activate
 

@@ -1,16 +1,16 @@
 ---
-version: 1
-name: wf-deep-research
+version: 2
+name: adapter-deep-research
 description: >
   Multi-source deep research workflow using skill-registry search adapters.
-  Searches the web via installed search-adapter skills (stack-firecrawl, stack-exa, etc.),
+  Searches the web via installed search-adapter skills (adapter-firecrawl, adapter-exa, etc.),
   synthesizes findings, and delivers cited reports with source attribution.
   Use when the user wants thorough research on any topic with evidence and citations.
   Does NOT require MCP configuration — uses skill-registry [search-adapter] discovery.
 origin: harness
 ---
 
-# wf-deep-research
+# adapter-deep-research
 
 Produce thorough, cited research reports from multiple web sources using skill-registry
 search-adapter skills. No MCP configuration required.
@@ -24,7 +24,7 @@ search-adapter skills. No MCP configuration required.
 - User says "research", "deep dive", "investigate", or "what's the current state of"
 
 **Prerequisites:**
-- At least one search-adapter skill installed (stack-firecrawl or stack-exa)
+- At least one search-adapter skill installed (adapter-firecrawl or adapter-exa)
 - Corresponding API key set (`$FIRECRAWL_API_KEY` or `$EXA_API_KEY`)
 
 ## Workflow
@@ -35,8 +35,8 @@ Load `.claude/skills/skill-registry/SKILL.md` and run its Discovery Procedure wi
 capability query `[search-adapter]`.
 
 The registry returns a list of matching skills. Each entry contains:
-- `name` — skill identifier (e.g. `stack-exa`, `stack-firecrawl`)
-- `path` — path to the skill's `SKILL.md` (e.g. `.claude/skills/stack-exa/SKILL.md`)
+- `name` — skill identifier (e.g. `adapter-exa`, `adapter-firecrawl`)
+- `path` — path to the skill's `SKILL.md` (e.g. `.claude/skills/adapter-exa/SKILL.md`)
 - `capabilities` — capability tags array
 
 Read each matched skill's `SKILL.md` to load its Search Procedure before Step 3.
@@ -47,7 +47,7 @@ Read each matched skill's `SKILL.md` to load its Search Procedure before Step 3.
 
 | Adapters Found | Action |
 |----------------|--------|
-| 0 | Stop immediately: `search-adapter 스킬이 없습니다. stack-firecrawl 또는 stack-exa를 설치하세요.` |
+| 0 | Stop immediately: `search-adapter 스킬이 없습니다. adapter-firecrawl 또는 adapter-exa를 설치하세요.` |
 | 1 | Use that adapter only |
 | 2 or more | Use all adapters sequentially per sub-question; merge results and deduplicate |
 
@@ -55,7 +55,7 @@ Read each matched skill's `SKILL.md` to load its Search Procedure before Step 3.
 
 Select the representative adapter from the **adapters that succeeded in Step 3**
 (i.e., returned at least one result without a fatal error), using priority order:
-`stack-exa` > `stack-firecrawl` > other adapters in discovery order.
+`adapter-exa` > `adapter-firecrawl` > other adapters in discovery order.
 
 If the top-priority adapter fails during content fetching (Step 4), fall back to the
 next healthy adapter. If all healthy adapters fail content fetching, report the gap and
@@ -108,8 +108,8 @@ For EACH sub-question, call all discovered adapters sequentially. Follow each ad
 
 | Adapter | Search Operation | Params |
 |---------|-----------------|--------|
-| stack-firecrawl | `/v1/search` | `query`, `limit: 8` |
-| stack-exa | `/search` | `query`, `numResults: 8`, `type: "auto"` (default; deep/deep-reasoning out of scope — 90s timeout) |
+| adapter-firecrawl | `/v1/search` | `query`, `limit: 8` |
+| adapter-exa | `/search` | `query`, `numResults: 8`, `type: "auto"` (default; deep/deep-reasoning out of scope — 90s timeout) |
 
 **Search strategy:**
 - Use 2-3 different keyword variations per sub-question
@@ -141,14 +141,14 @@ agent's prompt. Sub-agents do not re-query skill-registry.
 ### Step 4: Deep-Read Key Sources
 
 Fetch full content for the 5-8 selected URLs using the **representative adapter** selected
-in Step 0 (priority: `stack-exa` > `stack-firecrawl` > other adapters in discovery order).
+in Step 0 (priority: `adapter-exa` > `adapter-firecrawl` > other adapters in discovery order).
 
 Follow the representative adapter's **Search Procedure** section for content fetching:
 
 | Adapter | Content Operation |
 |---------|-----------------|
-| stack-firecrawl | `/v1/scrape` | Single-URL — loop per URL |
-| stack-exa | `/contents` | JSON array input — batch all target URLs in one call |
+| adapter-firecrawl | `/v1/scrape` | Single-URL — loop per URL |
+| adapter-exa | `/contents` | JSON array input — batch all target URLs in one call |
 
 Fetch all 5-8 selected URLs; read the 3-5 most relevant in depth, skim the rest.
 Do not rely only on search snippets.

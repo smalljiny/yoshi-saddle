@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: stack-dependency-cruiser
 description: Architecture and dependency analysis for JavaScript/TypeScript projects using dependency-cruiser. Detects circular dependencies, layer violations, orphan modules, and generates dependency graphs. Activate when package.json exists and circular deps or architecture validation is needed.
 origin: SCE
@@ -119,7 +119,7 @@ grep -r "import(" apps/ packages/ --include="*.ts"
 
 After running, use the `refactor-cleaner` agent to safely fix violations.
 For unused files and exports, use `stack-knip`.
-The `wf-dependency-analysis` skill orchestrates both tools for full project analysis.
+The `adapter-dependency-analysis` skill orchestrates both tools for full project analysis.
 
 ## References
 

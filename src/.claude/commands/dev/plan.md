@@ -1,5 +1,5 @@
 ---
-version: 11
+version: 12
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 category: dev-workflow
 ---
@@ -71,7 +71,7 @@ spec:confirmed 상태여야 합니다.
 프로젝트 루트에 `package.json`이 존재하면:
 
 ```
-Load `.claude/skills/wf-dependency-analysis/SKILL.md` and follow its process.
+Load `.claude/skills/adapter-dependency-analysis/SKILL.md` and follow its process.
 성공 시 결과를 DEPENDENCY_ANALYSIS 변수로 보관한다.
 실패(도구 미설치, 스크립트 없음 등) 시 DEPENDENCY_ANALYSIS = "dependency analysis skipped: <reason>"으로 설정하고 계속 진행한다.
 ```
@@ -192,7 +192,7 @@ Then run the auto-review loop (`attempt=1`, `max_attempts=3`):
 
 1. **Availability Gate**: read `config.codex.available` and `config.codex.authenticated` from `dev-context.json`. If either is not `true`: show **Manual Fallback** (below) and stop.
 
-2. Load `.claude/skills/wf-codex-review/SKILL.md` and follow its Availability Gate → Path Validation → Invocation Pattern (plan-review) → Parsing the Decision sections. The skill reads the current phase/status from `dev-context.json` and invokes `codex exec -s workspace-write "plan-review 스킬을 실행해줘"`.
+2. Load `.claude/skills/adapter-codex-review/SKILL.md` and follow its Availability Gate → Path Validation → Invocation Pattern (plan-review) → Parsing the Decision sections. The skill reads the current phase/status from `dev-context.json` and invokes `codex exec -s workspace-write "plan-review 스킬을 실행해줘"`.
 
    **If the skill exits without producing a new `plan-review-*.md`** (internal Availability Gate failure, `codex exec` non-zero exit, or sandbox-blocked write): show **Manual Fallback** (below) and stop.
 
