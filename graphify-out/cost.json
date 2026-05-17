@@ -12,8 +12,15 @@
       "output_tokens": 58000,
       "files": 37,
       "note": "docs build (specs+notes+README), merged with src"
+    },
+    {
+      "date": "2026-05-15T01:47:38.213143+00:00",
+      "input_tokens": 18500,
+      "output_tokens": 4200,
+      "files": 39,
+      "mode": "update"
     }
   ],
-  "total_input_tokens": 1090017,
-  "total_output_tokens": 247505
+  "total_input_tokens": 1108517,
+  "total_output_tokens": 251705
 }
