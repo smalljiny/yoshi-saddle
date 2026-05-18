@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: flow-init
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 origin: harness
@@ -24,20 +24,20 @@ user-invocable: true
 
 루트 `CLAUDE.md`와 `AGENTS.md` 각각 독립적으로 판정한다:
 
-**CLAUDE.md 모드** (4-state 표):
+**CLAUDE.md 모드** (3 actionable states):
 
 | 상태 | 모드 |
 |------|------|
 | `CLAUDE.md` 파일 없음 | **신규 생성** |
-| `@.harness/harness-guide.md` 라인 있음 + `.harness/rules/` glob 결과와 현 import 라인이 집합·순서 모두 정확히 일치 (양쪽 모두 0건인 경우 포함) | **변경 없음** |
-| `@.harness/harness-guide.md` 라인 있음 + glob 결과와 현 import 라인이 집합 또는 순서 차이 | **업데이트** |
+| `@.harness/harness-guide.md` 라인 있음 | **업데이트** |
 | `@.harness/harness-guide.md` 라인 없음 (마커 없음) | **경계 탐지 불가** → 경고 출력 + `AskUserQuestion`: `(Recommended) CLAUDE.md.bak.<timestamp> 백업 후 재생성 모드로 진행` / `중단` |
 
-판정 입력:
-- `.harness/rules/` glob 결과: `find .harness/rules -name "*.md" -type f | sort`의 출력 (디렉토리 부재 시 빈 목록)
-- 현 import 라인 집합: 기존 CLAUDE.md에서 `@.harness/harness-guide.md` 직후부터 **연속된 `@.harness/rules/<rel-path>` 라인이 끝나는 지점까지** 순서대로 수집한다. 비-rules 라인(예: 사용자 추가 `@import` 또는 일반 마크다운)이나 빈 줄을 만나면 즉시 수집을 종료하고, 해당 라인부터는 사용자 정의 영역으로 본다. 이 boundary 규칙은 Step 3 파싱 단계와 동일하다.
+Step 1은 흐름 분기(신규 생성 / 업데이트 / 경계 탐지 불가)만 결정한다. 터미널 "변경 없음" 판정은 Step 3 step 6의 SHA-256 hash 비교가 단일 권위자다 — 업데이트 모드는 항상 Step 2(프로젝트 정보 수집)·Step 3 작성 흐름(파싱→조립)·Step 3 step 6 hash 비교를 그대로 진행한다.
 
-"불일치"는 **집합 또는 순서가 다른 경우**를 의미한다. 두 목록이 같은 파일을 같은 순서로 나열할 때만 일치로 본다.
+판정 입력:
+- `.harness/rules/` glob 결과: `find .harness/rules -name "*.md" -type f | sort`의 출력 (디렉토리 부재 시 빈 목록).
+- 기존 rules import 라인 집합: 기존 CLAUDE.md 파일 전체에서 `@.harness/rules/<rel-path>` 접두사를 가진 라인을 **위치 무관**으로 모두 수집한다. 이 라인들은 import 블록의 단일 진실 원천이며 사용자 영역으로 분류하지 않는다 — `@.harness/harness-guide.md` 라인과 자동 관리 import 블록 사이에 사용자 콘텐츠가 끼어들어도, 또는 사용자 영역에 흩어져 있어도 dedupe·재배치 대상으로 흡수된다.
+- `@.harness/harness-guide.md` 라인은 위치 기준 마커로, import 블록 시작 위치(신규 import 블록을 삽입할 지점)와 모드 분기 기준을 표시한다.
 
 **AGENTS.md 모드**:
 - `AGENTS.md`가 없으면 → **신규 생성**
@@ -110,15 +110,16 @@ Claude Code가 이 저장소에서 작업할 때의 안내 파일.
 
 - import 블록은 `@.harness/harness-guide.md` 라인부터 시작한다.
 - `@.harness/harness-guide.md` 직후에 `.harness/rules/**/*.md` glob 결과로 자동 생성된 `@.harness/rules/<rel-path>` 라인 N개가 정렬된 순서로 이어진다.
-- import 블록 끝에 빈 줄 1개를 두어 사용자 정의 영역과 분리한다.
-- import 블록 직후 빈 줄 이후의 모든 라인(harness 외부 `@import`, 일반 마크다운, 사용자 추가 콘텐츠)은 **그대로 보존**된다.
+- import 블록 자체는 마지막 import 라인 뒤 newline `\n` 1개로 끝난다 — trailing 빈 줄은 포함하지 않는다. 사용자 영역과의 구분 빈 줄 1개는 Step 3 조립 식의 `+ [빈 줄]`이 단독 소유한다 (이중 빈 줄 방지).
+- 기존 파일에서 `@.harness/rules/<rel-path>` 접두사 라인은 위치 무관으로 모두 수집해 dedupe·재배치 대상으로 본다 — 사용자 영역에 흩어진 라인도 import 블록으로 흡수된다.
+- 그 외 라인(harness 외부 `@import`, 일반 마크다운, 사용자 추가 콘텐츠)은 **그대로 보존**된다.
 
 **import 블록 정렬·생성 규칙** (§3.2):
 
 - **수집**: `find .harness/rules -name "*.md" -type f | sort` 명령으로 룰 파일 목록을 수집한다. `.harness/rules/`로 시작하는 상대 경로로 변환한다.
 - **정렬**: `sort`의 lexicographic 결과를 그대로 사용한다 — top-level 파일이 sub-dir 파일보다 alphabetically 앞서므로 자연스럽게 top-level 우선.
 - **변환**: 각 경로 앞에 `@` 접두사를 부여한다. 결과 라인 형식은 `@.harness/rules/<rel-path>`.
-- **삽입 위치**: `@.harness/harness-guide.md` 직후 줄부터 차례로 삽입하고, 마지막 import 라인 뒤에 빈 줄 1개를 둔다.
+- **삽입 위치**: `@.harness/harness-guide.md` 직후 줄부터 차례로 삽입한다. import 블록 자체에는 trailing 빈 줄을 포함하지 않는다 (구분 빈 줄은 조립 식이 단독 소유).
 
 **`.harness/rules/` 부재 시**:
 
@@ -128,10 +129,10 @@ Claude Code가 이 저장소에서 작업할 때의 안내 파일.
 
 **Step 3 작성 흐름** (§3.4):
 
-1. **파싱** — 기존 CLAUDE.md를 세 부분으로 나눈다:
-   - frontmatter + 프로젝트 섹션 (파일 시작 ~ `@.harness/harness-guide.md` 직전)
-   - import 블록 (`@.harness/harness-guide.md` 라인부터 **직후 연속된 `@.harness/rules/<rel-path>` 라인이 끝나는 지점까지**. 비-rules 라인 또는 빈 줄을 만나면 즉시 블록 종료. Step 1의 import 라인 수집 boundary와 동일 규칙)
-   - 사용자 정의 영역 (import 블록 종료 직후 라인 ~ 파일 끝. import 블록과 사용자 영역 사이의 빈 줄 1개는 구분자로 흡수하고 그 다음 라인부터 사용자 영역으로 본다)
+1. **파싱** — 기존 CLAUDE.md를 세 부분으로 나눈다 (prefix-based 수집):
+   - frontmatter + 프로젝트 섹션 (파일 시작 ~ `@.harness/harness-guide.md` 라인 직전)
+   - 기존 rules import 라인 집합 (`@.harness/harness-guide.md` 라인 + 파일 전체에서 `@.harness/rules/<rel-path>` 접두사 라인을 위치 무관으로 모두 수집한 집합). 신규 import 블록 생성 시 dedupe·재정렬 입력으로만 사용하며, 사용자 영역에는 포함하지 않는다.
+   - 사용자 정의 영역 (`@.harness/harness-guide.md` 라인 직후부터 파일 끝까지의 모든 라인에서 위에서 수집한 `@.harness/rules/<rel-path>` 접두사 라인을 제거하고, import 블록과 사용자 영역을 구분하는 선두 빈 줄 1개를 구분자로 흡수한 나머지). 사용자 영역에 흩어진 rules import는 자동으로 import 블록으로 재배치되며 중복 누적되지 않는다.
 2. **신규 프로젝트 섹션 작성** — Step 2 수집 정보로 frontmatter·프로젝트 섹션을 구성한다. 프로젝트 섹션 본문 끝에 trailing blank 1줄을 둔다.
 3. **신규 import 블록 생성** — 위 정렬·생성 규칙으로 `@.harness/harness-guide.md` + `@.harness/rules/<rel-path>` N개 라인을 만든다. `.harness/rules/` 부재 시 `@.harness/harness-guide.md` 한 줄만 생성한다.
 4. **graphify 중복 섹션 제거** — 신규 프로젝트 섹션 본문에 `## graphify`로 시작하는 헤더 라인이 있으면 해당 섹션 전체(헤더부터 다음 `## ` 헤더 직전까지 또는 섹션 끝까지)를 삭제한다. canonical 위치는 `@.harness/harness-guide.md` import이며 import 라인이 graphify 콘텐츠를 자동 제공하므로 본문 내 별도 `## graphify` 섹션은 중복이다.
@@ -217,14 +218,13 @@ node .harness/scripts/dev-context.js set-field \
   [신규/업데이트/변경 없음] CLAUDE.md
   [신규/업데이트/변경 없음] AGENTS.md
   [감지] config.docs.sourceFilter = [".claude/",".codex/",".harness/","CLAUDE.md","AGENTS.md"]
-  [정보] .harness/rules/ 부재로 룰 import 생략
 ```
 (일반 프로젝트의 경우: `[감지] config.docs.sourceFilter = [] (필터 없음)`)
 
 - `[신규]`: 파일이 새로 생성됨
 - `[업데이트]`: 내용이 달라져 파일을 다시 씀
 - `[변경 없음]`: 내용이 동일하여 파일을 건드리지 않음
-- `[정보] .harness/rules/ 부재로 룰 import 생략`: `.harness/rules/` 디렉토리가 없거나 glob 결과가 0건이어서 룰 import 블록을 생성하지 않은 경우에 한해 1줄 추가한다. 그 외 경우 본 라인을 출력하지 않는다.
+- `[정보] .harness/rules/ 부재로 룰 import 생략`: `.harness/rules/` 디렉토리가 없거나 glob 결과가 0건이어서 룰 import 블록을 생성하지 않은 경우에 한해 4번째 라인으로 추가 출력한다. 그 외 경우 본 라인을 출력하지 않는다 (위 예시는 `.harness/rules/` 존재 시나리오이므로 본 라인을 포함하지 않는다).
 
 ## 오류 처리
 
