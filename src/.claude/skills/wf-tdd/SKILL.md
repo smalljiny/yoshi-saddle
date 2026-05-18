@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: wf-tdd
 description: Follow the RED-GREEN-REFACTOR cycle of writing tests first when implementing new features, fixing bugs, or refactoring.
 origin: harness
@@ -11,7 +11,7 @@ category: dev-process
 - When implementing a new function or class
 - When fixing a bug
 - When refactoring existing code
-- When executing a `tdd` type task via the `/dev:impl` command
+- When executing a `tdd` type task via the `/flow-impl` command
 
 ## Iron Law
 

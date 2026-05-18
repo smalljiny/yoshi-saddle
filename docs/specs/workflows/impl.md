@@ -1,12 +1,12 @@
-# /dev:impl 워크플로우
+# /flow-impl 워크플로우
 
 > Story 단위 실행·커밋 계약과 `--all` 배치 모드. 각 Story 시작 시 그 Story의 Tasks를 Claude Task 도구 entries(pending)로 일괄 생성하고, 에이전트가 Task별 진행을 추적하며, Story 완료 후 markdown 체크박스 상태로 Task 도구 상태를 sync한다.
 
 ## 개요
 
-기본적으로 `/dev:impl`은 Story 하나를 실행하고 멈춘다. 각 Story는 에이전트 호출 → code-reviewer → commit의 세 단계를 밟는다. Story 타입에 따라 호출되는 에이전트가 다르다.
+기본적으로 `/flow-impl`은 Story 하나를 실행하고 멈춘다. 각 Story는 에이전트 호출 → code-reviewer → commit의 세 단계를 밟는다. Story 타입에 따라 호출되는 에이전트가 다르다.
 
-Story 시작 시점에 `/dev:impl`이 그 Story의 모든 Task를 Claude Task 도구 entries(pending)로 일괄 생성한다. 이후 implementation 에이전트(tdd-specialist·refactor-cleaner·prompt-engineer)가 `wf-task-tracking` 스킬을 따라 각 Task의 시작·완료 시 TaskUpdate를 호출한다. Story 완료 후 markdown 체크박스 상태를 Task 도구 상태와 최종 sync한다.
+Story 시작 시점에 `/flow-impl`이 그 Story의 모든 Task를 Claude Task 도구 entries(pending)로 일괄 생성한다. 이후 implementation 에이전트(tdd-specialist·refactor-cleaner·prompt-engineer)가 `wf-task-tracking` 스킬을 따라 각 Task의 시작·완료 시 TaskUpdate를 호출한다. Story 완료 후 markdown 체크박스 상태를 Task 도구 상태와 최종 sync한다.
 
 배치 모드(`--all` 또는 `config.dev_impl.batch_mode=true`)를 활성화하면 미완료 Story 전체를 순차 자동 실행한다.
 
@@ -94,7 +94,7 @@ plan 문서에서 추출:
 ```
 
 그 외(첫 번째 Story 또는 비배치): 전체 브리핑 블록 출력 후 승인 대기.
-- 복잡한 Story 판정(infra 타입 또는 Tasks ≥ 5)이면 `advisor()`를 브리핑 직후 호출해 위험·엣지 케이스를 사전 점검한다.
+- 복잡한 Story 판정(infra 타입 또는 Tasks ≥ 5)이면 `advisor()`를 브리핑 직후 호출해 위험·엣지 케이스를 사전 점검한다. `advisor` 도구가 노출되지 않은 환경(headless Codex 등)에서는 호출이 실패하므로 경고 메시지를 출력한 뒤 advisor 단계를 건너뛰고 다음 단계로 진행한다 — `simplify`와 동일한 가용성 fallback 패턴이다.
 - `config.dev_impl.auto_start == "true"`이면 승인 없이 즉시 Step 4로 진행한다.
 
 **Step 4 — Story의 Task entries 일괄 생성**
@@ -222,7 +222,7 @@ node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBa
 ```
 
 - 단일 Story 모드: Story Complete 브리핑 + 다음 Story 안내
-- 배치 완료: Batch Complete 목록 + `/dev:review` 안내
+- 배치 완료: Batch Complete 목록 + `/flow-review` 안내
 - 배치 실패 중단: Batch Stopped 브리핑 + 재개 방법 안내
 
 ### prompt 타입 상세
@@ -298,9 +298,9 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 4. amend 금지 — 항상 새 commit
 5. `**Commit**` 필드 없으면 skip/continue 프롬프트
 
-**review-fix 커밋** (`/dev:review` Step 6.1)
+**review-fix 커밋** (`/flow-review` Step 6.1)
 
-- `/dev:review`에서 CRITICAL/HIGH 이슈 수정 시 별도 commit 생성
+- `/flow-review`에서 CRITICAL/HIGH 이슈 수정 시 별도 commit 생성
 - 권장 메시지: `fix: review feedback` (강제 아님)
 - amend 금지, plan Commit 필드 불변 유지
 
@@ -322,10 +322,10 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 
 | 방법 | 설명 |
 |------|------|
-| `/dev:impl --all` | 해당 호출에 한해 배치 모드 진입 |
+| `/flow-impl --all` | 해당 호출에 한해 배치 모드 진입 |
 | `config.dev_impl.batch_mode=true` | 항상 배치 모드로 동작 |
 
-명시적 Story 인수(예: `/dev:impl S2`)가 있으면 `batch_mode` 설정과 무관하게 단일 Story만 실행한다.
+명시적 Story 인수(예: `/flow-impl S2`)가 있으면 `batch_mode` 설정과 무관하게 단일 Story만 실행한다.
 
 **배치 상태 영속화**
 
@@ -370,7 +370,7 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 - `.claude/rules/common/` — Claude Code 운영 규칙만 (agents, performance, development-workflow, component-boundaries)
 - `.harness/commit-scopes.md` — 프로젝트별 scope 목록. 다른 프로젝트 복사 시 이 파일만 교체.
 
-### PR 병합 단위 체크 (`/dev:spec` + `.harness/contracts/spec.md`)
+### PR 병합 단위 체크 (`/flow-spec` + `.harness/contracts/spec.md`)
 
 스펙 작성 중 다음 기준으로 단일 PR 적합성을 검증한다 (전체 기준은 `.harness/contracts/spec.md` 참조):
 
@@ -387,7 +387,7 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 - 병렬 실행 없음 — Story는 반드시 순차 실행된다.
 - 실패 Story 자동 재시도 없음 — 중단 후 사용자가 직접 수정하고 재실행해야 한다.
 - 실패 시 건너뛰기 없음 — 실패한 Story를 무시하고 다음 Story로 넘어가지 않는다.
-- `/dev:review` 자동 호출 없음 — 모든 Story 완료 후에도 수동 실행이다.
+- `/flow-review` 자동 호출 없음 — 모든 Story 완료 후에도 수동 실행이다.
 - 민감 파일 자동 제외 — `auto_commit=true`일 때도 `.env*`, `*.pem`, `*.key`, `credentials.json`이 스테이징 대상에 포함되면 commit을 중단한다.
 - 플랜 파일 권위 — batch 실행 중 `implementation-plan.md`가 편집되면 plan 파일의 미완료 Story 목록을 `currentStory` 값보다 우선한다.
 - git hooks 자동화 없음 (commit-msg·pre-push hook 미설치).
@@ -396,6 +396,7 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 - `prompt` 타입 정체 감지: 연속 2회 pass_count 증가 없으면 즉시 중단 보고.
 - `prompt` 타입 code-reviewer는 평가 대상 프롬프트 파일을 수정하지 않는다 (comment-only).
 - simplify 스킬은 `tdd` 타입에만 적용. `config`·`infra`·`refactor`·`prompt` 타입은 제외.
+- `advisor()`는 Claude Code 런타임 built-in 도구이며 별도 스킬 로드 없이 호출한다. 도구가 노출되지 않은 환경에서는 simplify와 동일하게 경고 후 건너뛴다 (가용성 fallback 패턴).
 - Task 도구 상태는 세션 단위. cross-session 복원은 지원하지 않는다. plan markdown 체크박스가 영속 단일 진실 원천이다.
 - Step 9.5는 Task 도구 entries 상태(`completed`)를 단일 진실 원천으로 두고 markdown `- [ ]` 라인을 `- [x]`로 Edit한다 (entries → markdown 방향). 누락 entry를 재생성하지 않는다.
 - Step 9.5 미체크 Task 게이트는 batch 모드에서도 사용자 응답을 기다린다 — 데이터 정합성(`보고 누락` vs `실제 미수행` 구분)이 자동 결정 불가능한 의도된 동작이다. `batch + auto_start + auto_commit` 완전 자동화 조합의 명시적 예외다.

@@ -1,10 +1,10 @@
 # 토픽 라이프사이클
 
-> dev-context.json 기반 상태 기계로 /dev:spec부터 /dev:done까지 토픽 전체 생명주기를 관리한다.
+> dev-context.json 기반 상태 기계로 /flow-spec부터 /flow-done까지 토픽 전체 생명주기를 관리한다.
 
 ## 개요
 
-토픽 라이프사이클은 Claude Code 개발 하네스에서 작업 단위(토픽)의 상태를 일관되게 추적하고, 각 단계의 게이트를 강제 적용하는 시스템이다. `/dev:spec` 시점부터 토픽을 `dev-context.json`에 등록하고, `phase:status` 쌍으로 상태를 표현하며, `dev-context.js` CLI를 통해 모든 읽기/쓰기를 단일화한다. Codex `plan-review` 스킬을 통해 구현 계획을 검증하고, `/dev:done`에서 모든 산출물을 보존한다.
+토픽 라이프사이클은 Claude Code 개발 하네스에서 작업 단위(토픽)의 상태를 일관되게 추적하고, 각 단계의 게이트를 강제 적용하는 시스템이다. `/flow-spec` 시점부터 토픽을 `dev-context.json`에 등록하고, `phase:status` 쌍으로 상태를 표현하며, `dev-context.js` CLI를 통해 모든 읽기/쓰기를 단일화한다. Codex `plan-review` 스킬을 통해 구현 계획을 검증하고, `/flow-done`에서 모든 산출물을 보존한다.
 
 ## 구조 / 스키마
 
@@ -21,13 +21,12 @@
     └── implementation-plan.md  구현 계획 형식 계약
 
 .claude/
-├── commands/dev/
-│   ├── spec.md (v16)   토픽 등록 + spec 작성
-│   ├── plan.md (v11)   spec:confirmed 게이트 + plan-review 안내
-│   ├── impl.md (v24)   plan:confirmed 게이트 + impl:in-progress 전환 + auto_start 소비
-│   ├── review.md (v12) impl:in-progress 게이트 + 완료 검사
-│   └── done.md (v5)    pr:created 게이트 + 보존 정책 (삭제 없음)
 └── skills/
+    ├── flow-spec/SKILL.md       토픽 등록 + spec 작성
+    ├── flow-plan/SKILL.md       spec:confirmed 게이트 + plan-review 안내
+    ├── flow-impl/SKILL.md       plan:confirmed 게이트 + impl:in-progress 전환 + auto_start 소비
+    ├── flow-review/SKILL.md     impl:in-progress 게이트 + 완료 검사
+    ├── flow-done/SKILL.md       pr:created 게이트 + 보존 정책 (삭제 없음)
     └── meta-dev-context/SKILL.md    dev-context.js 사용 계약 스킬
 
 .codex/skills/
@@ -61,8 +60,8 @@
 }
 ```
 
-- `refDoc`: `/dev:docs` 완료 시 저장. PR body의 참조 문서 링크로 사용.
-- `branchType`: `/dev:pr`의 브랜치명 패턴 검증에 사용.
+- `refDoc`: `/flow-docs` 완료 시 저장. PR body의 참조 문서 링크로 사용.
+- `branchType`: `/flow-pr`의 브랜치명 패턴 검증에 사용.
 - `baseBranch`: 토픽별 override. `null`이면 `config.git.baseBranch` 사용.
 
 최상위 필드:
@@ -108,12 +107,12 @@
 
 | 커맨드 | 진입 게이트 | 전환 |
 |--------|------------|------|
-| `/dev:plan` | spec:confirmed | → plan:ready → plan:reviewing |
-| `/dev:impl` | plan:confirmed \| impl:in-progress | plan:confirmed → impl:in-progress |
-| `/dev:review` | impl:in-progress + 모든 Task 완료 | → review:in-progress |
-| `/dev:docs` | review:in-progress \| docs:generated | → docs:generated |
-| `/dev:pr` | docs:generated \| pr:created | docs:generated → pr:created |
-| `/dev:done` | pr:created | (remove-topic으로 제거) |
+| `/flow-plan` | spec:confirmed | → plan:ready → plan:reviewing |
+| `/flow-impl` | plan:confirmed \| impl:in-progress | plan:confirmed → impl:in-progress |
+| `/flow-review` | impl:in-progress + 모든 Task 완료 | → review:in-progress |
+| `/flow-docs` | review:in-progress \| docs:generated | → docs:generated |
+| `/flow-pr` | docs:generated \| pr:created | docs:generated → pr:created |
+| `/flow-done` | pr:created | (remove-topic으로 제거) |
 
 ### Codex 스킬 연동
 
@@ -127,17 +126,17 @@
 
 | 계약 파일 | Producer | Consumer |
 |-----------|----------|----------|
-| `spec-review.md` | Codex spec-review | Claude /dev:spec, /dev:plan |
-| `plan-review.md` | Codex plan-review | Claude /dev:impl |
-| `implementation-plan.md` | Claude planner | Codex plan-review, Claude /dev:impl |
+| `spec-review.md` | Codex spec-review | Claude /flow-spec, /flow-plan |
+| `plan-review.md` | Codex plan-review | Claude /flow-impl |
+| `implementation-plan.md` | Claude planner | Codex plan-review, Claude /flow-impl |
 
 ## 제약사항
 
-- 토픽은 `/dev:spec` 이전에 등록 불가 — `register-topic`은 spec 초안 저장 직후 호출
+- 토픽은 `/flow-spec` 이전에 등록 불가 — `register-topic`은 spec 초안 저장 직후 호출
 - `phase`/`status` 직접 수정 불가 — `update-state` 전용 (역방향 복구에는 `force-state` 사용)
 - 허용되지 않은 상태 전환 시 non-zero exit, 허용 전환 목록 stderr 출력
 - `force-state` 순방향 점프는 `--allow-unsafe-force` 플래그 필요 — 워크플로우 게이트를 우회하지 않기 위해
-- `/dev:done`은 `pr:created` 상태에서만 실행 가능 — `remove-topic`으로 토픽 제거
+- `/flow-done`은 `pr:created` 상태에서만 실행 가능 — `remove-topic`으로 토픽 제거
 - `docs/specs/` 참조 문서만 git-tracked; `docs/_local/`은 git-ignored
-- 비-current 토픽 plan-review 실행 불가 — 먼저 `/dev:topic switch <topic>` 필요
-- `/dev:review`는 모든 Story가 완료된 경우에만 실행 가능 (`currentStory=null` + Story 헤더 `### [ ]` 0건 + nested Task `- [ ] T<storyN>.<taskM>` 0건). `grep -nE "^### \[ \]|^- \[ \] T"` 로 두 조건을 동시 검사한다.
+- 비-current 토픽 plan-review 실행 불가 — 먼저 `/flow-topic switch <topic>` 필요
+- `/flow-review`는 모든 Story가 완료된 경우에만 실행 가능 (`currentStory=null` + Story 헤더 `### [ ]` 0건 + nested Task `- [ ] T<storyN>.<taskM>` 0건). `grep -nE "^### \[ \]|^- \[ \] T"` 로 두 조건을 동시 검사한다.

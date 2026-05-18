@@ -1,5 +1,5 @@
 ---
-version: 9
+version: 11
 ---
 # Development Workflow
 
@@ -8,14 +8,14 @@ This rule extends the feature implementation workflow from git-workflow.md.
 ## Overall Flow
 
 ```
-/dev:spec → /dev:plan → (plan-review) → /dev:impl (repeat) → /dev:review → /dev:verify → /dev:done → PR
+/flow-spec → /flow-plan → (plan-review) → /flow-impl (repeat) → /flow-review → /flow-verify → /flow-docs → /flow-pr → /flow-done
 ```
 
 ## Step-by-Step Rules
 
-### 1. Write Spec (`/dev:spec`)
+### 1. Write Spec (`/flow-spec`)
 
-- Start a new topic with `/dev:spec <topic>`
+- Start a new topic with `/flow-spec <topic>`
 - Load the brainstorming skill to write a spec draft collaboratively
 - Save draft to `docs/_local/backlog/<topic>/spec.md`
 - **Register topic** in `dev-context.json` at `spec:drafting` immediately after saving
@@ -24,7 +24,7 @@ This rule extends the feature implementation workflow from git-workflow.md.
 - NOT READY → rollback to `spec:drafting`, fix and re-review
 - Spec is confirmed (`spec:confirmed`) when the latest `spec-review-*.md` has decision `READY` or `READY WITH NOTE`
 
-### 2. Plan (`/dev:plan`)
+### 2. Plan (`/flow-plan`)
 
 - **Gate**: topic must be `spec:confirmed` — checked via `dev-context.js read --field=phase/status`
 - Run with a topic argument or select from backlog list
@@ -35,7 +35,7 @@ This rule extends the feature implementation workflow from git-workflow.md.
 - Run Codex plan-review: `codex "plan-review 스킬을 실행해줘"`
 - NOT READY → `plan:ready`, re-plan; READY → `plan:confirmed` (set by Codex plan-review)
 
-### 3. Implement Stories (`/dev:impl`)
+### 3. Implement Stories (`/flow-impl`)
 
 - **Gate**: topic must be `plan:confirmed` — blocks if not met, shows plan-review command
 - Progress one Story at a time in order
@@ -44,14 +44,14 @@ This rule extends the feature implementation workflow from git-workflow.md.
 - 2. Immediately after implementation, **code-reviewer** auto-called → instant feedback + fixes
 - 3. Commit
 
-### 4. Final Review (`/dev:review`)
+### 4. Final Review (`/flow-review`)
 
 - **Gate**: topic must be `impl:in-progress` — blocks if not met
 - Transitions to `review:in-progress` on start
 - **code-reviewer** + **security-reviewer** run in parallel
 - Quality review of full change scope
 
-### 5. Verify (`/dev:verify`)
+### 5. Verify (`/flow-verify`)
 
 Must pass before completing:
 - `build` — build succeeds
@@ -60,29 +60,42 @@ Must pass before completing:
 - `test` — tests pass (80%+ coverage)
 - `security` — security scan passes
 
-### 6. Done (`/dev:done`)
+### 6. Docs (`/flow-docs`)
 
 - **Gate**: topic must be `review:in-progress` — blocks if not met
-- Reads implemented harness files via `git diff` against `develop` (includes `.harness/`) and generates a reference document → `docs/specs/<confirmed-name>.md` (permanent)
-- Moves **all** artifacts to `docs/_local/done/<topic>/` — no deletions: spec.md, spec-review-*.md, plan-review-*.md, implementation-plan.md
+- Reconciles spec with implementation, updates existing `docs/specs/` files (or creates new ones), and commits
+- On completion: transitions to `docs:generated`
+
+### 7. PR (`/flow-pr`)
+
+- **Gate**: topic must be `docs:generated` — blocks if not met
+- Pushes the current branch to `pushRemote` and creates a GitHub Pull Request
+- PR title and body come from the plan `**Commit**` field + `.harness/templates/pr-body.md`
+- On completion: transitions to `pr:created`
+
+### 8. Done (`/flow-done`)
+
+- **Gate**: topic must be `pr:created` — blocks if not met
+- Moves **all** artifacts to `docs/_local/done/<topic>/` — no deletions: spec.md, spec-review-*.md, plan-review-*.md, implementation-plan.md, review-report-*.md
 - Removes topic from `dev-context.json` via `remove-topic`
 - Switches `current_topic` to next active topic (or null if none remain)
+- Reference document generation is handled by `/flow-docs` — `/flow-done` does not regenerate or modify `docs/specs/`
 
 ## Topic Management
 
 ```
-/dev:topic                   현재 active 토픽과 backlog 목록 확인
-/dev:topic switch <name>     다른 active 토픽으로 전환 (backlog 토픽은 /dev:plan 필요)
+/flow-topic                   현재 active 토픽과 backlog 목록 확인
+/flow-topic switch <name>     다른 active 토픽으로 전환 (backlog 토픽은 /flow-plan 필요)
 ```
 
-Topic registration happens at `/dev:spec` (not `/dev:plan`). Running `/dev:topic <name>` directly is deprecated.
+Topic registration happens at `/flow-spec` (not `/flow-plan`). Running `/flow-topic <name>` directly is deprecated.
 
 ## Document Lifecycle
 
 ```
 스펙 초안  →  docs/_local/backlog/<topic>/spec.md        (git-ignored)
               dev-context.json: phase=spec, status=drafting
-              /dev:spec 리뷰 루프 → status=reviewing → confirmed
+              /flow-spec 리뷰 루프 → status=reviewing → confirmed
 
 플랜 수립  →  docs/_local/active/<topic>/                (backlog/에서 이동)
               implementation-plan.md 생성
@@ -93,9 +106,14 @@ Topic registration happens at `/dev:spec` (not `/dev:plan`). Running `/dev:topic
 
 리뷰       →  dev-context.json: phase=review, status=in-progress
 
-완료       →  docs/specs/<confirmed-name>.md             (git-tracked, 참조 문서 자동 생성)
-              docs/_local/done/<topic>/                  (git-ignored, 모든 산출물 보존)
-              dev-context.json에서 토픽 제거
+문서       →  docs/specs/<confirmed-name>.md             (git-tracked, /flow-docs가 생성·갱신)
+              dev-context.json: phase=docs, status=generated
+
+PR         →  GitHub PR 생성, 브랜치 push
+              dev-context.json: phase=pr, status=created
+
+완료       →  docs/_local/done/<topic>/                  (git-ignored, 모든 산출물 보존)
+              dev-context.json에서 토픽 제거 (/flow-done은 docs/specs/를 변경하지 않음)
 ```
 
 ## Shell Portability
@@ -142,11 +160,13 @@ cmd ${arr[@]+"${arr[@]}"}
 
 | State | Trigger |
 |-------|---------|
-| `spec:drafting` | `/dev:spec` registers topic |
-| `spec:reviewing` | `/dev:spec` before Codex review |
-| `spec:confirmed` | `/dev:spec` after READY decision |
-| `plan:ready` | `/dev:plan` after planner |
-| `plan:reviewing` | `/dev:plan` before Codex plan-review |
+| `spec:drafting` | `/flow-spec` registers topic |
+| `spec:reviewing` | `/flow-spec` before Codex review |
+| `spec:confirmed` | `/flow-spec` after READY decision |
+| `plan:ready` | `/flow-plan` after planner |
+| `plan:reviewing` | `/flow-plan` before Codex plan-review |
 | `plan:confirmed` | Codex plan-review READY |
-| `impl:in-progress` | `/dev:impl` first Story |
-| `review:in-progress` | `/dev:review` on start |
+| `impl:in-progress` | `/flow-impl` first Story |
+| `review:in-progress` | `/flow-review` on start |
+| `docs:generated` | `/flow-docs` after commit |
+| `pr:created` | `/flow-pr` after PR creation |

@@ -7,7 +7,7 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 ## 워크플로우 전체 흐름
 
 ```
-/dev:spec → /dev:plan → /dev:impl* → /dev:review → /dev:verify → /dev:docs → /dev:pr → /dev:done
+/flow-spec → /flow-plan → /flow-impl* → /flow-review → /flow-verify → /flow-docs → /flow-pr → /flow-done
 ```
 
 ---
@@ -19,24 +19,24 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 | 파일 | 내용 |
 |------|------|
 | [topic-lifecycle.md](topic-lifecycle.md) | 전체 토픽 상태 기계. `phase:status` 전환표, 커맨드 게이트, `dev-context.js` CLI 계약, Codex 스킬 연동 |
-| [dev-context-config.md](dev-context-config.md) | `dev-context.json`의 전역 `config` 섹션 계약. `config.dev_impl.*`·`config.git.*`·`config.review.*`·`config.codex.*`·`config.docs.*`·`config.graphify.*` 스키마 및 `/dev:setup git` 동작 |
+| [dev-context-config.md](dev-context-config.md) | `dev-context.json`의 전역 `config` 섹션 계약. `config.dev_impl.*`·`config.git.*`·`config.review.*`·`config.codex.*`·`config.docs.*`·`config.graphify.*` 스키마 및 `/flow-setup git` 동작 |
 | [hook-command-paths.md](hook-command-paths.md) | Claude Code hook 설정의 command 경로 prefix는 `${CLAUDE_PROJECT_DIR}` 사용. 작업 디렉토리 무관 정상 동작 |
 | [planner-progress-tracking.md](planner-progress-tracking.md) | `planner` 에이전트 5개 마일스톤(P1~P5)을 Claude Code Task 도구로 표면화하는 진행 추적 프로토콜 |
 | [statusline.md](statusline.md) | Claude Code 상태줄 설정. 토픽·phase 표시 |
-| [wf-deep-research.md](wf-deep-research.md) | skill-registry search-adapter 기반 6단계 심층 연구 워크플로우 (firecrawl·exa 동적 선택) |
+| [adapter-deep-research](wf-deep-research.md) | skill-registry search-adapter 기반 6단계 심층 연구 워크플로우 (firecrawl·exa 동적 선택). 파일명은 후속 cleanup 토픽에서 rename. |
 | [wf-task-tracking.md](wf-task-tracking.md) | implementation 에이전트(tdd-specialist·refactor-cleaner·prompt-engineer)의 Task 도구 추적 정형 패턴 |
 
 ### workflows/ — 단계별 워크플로우 (커맨드)
 
 | 파일 | 담당 커맨드 | 내용 |
 |------|------------|------|
-| [workflows/spec.md](workflows/spec.md) | `/dev:spec` | 스펙 작성 흐름. brainstorming 스킬 연동, 토픽 등록, Codex spec-review 루프 |
-| [workflows/plan.md](workflows/plan.md) | `/dev:plan` | 구현 계획 생성. planner 에이전트, `implementation-plan.md` 산출, Codex plan-review 루프 (`config.plan.auto_review`) |
-| [workflows/impl.md](workflows/impl.md) | `/dev:impl` | Task 실행·커밋 계약 및 배치 모드. 커밋 메시지 형식, auto_commit, `--all` 순차 자동 실행, 실패 중단 정책 |
-| [workflows/review.md](workflows/review.md) | `/dev:review` | 리뷰 워크플로우. code-reviewer·security-reviewer 병렬 실행, adversarial-review 활성화 조건, review-report 형식 |
-| [workflows/docs.md](workflows/docs.md) | `/dev:docs` | 참조 문서 생성·갱신 흐름. git diff 기반 파일 수집, `docs/specs/<name>.md` 업데이트, `refDoc` 필드 기록 |
-| [workflows/pr.md](workflows/pr.md) | `/dev:pr` | PR 발행 흐름. first-run(`gh pr create`)·re-entry(`gh pr edit`) 분기, PR body 템플릿, 브랜치 설정 |
-| [workflows/done.md](workflows/done.md) | `/dev:done` | 완료 워크플로우. 산출물 아카이브, 토픽 제거. 게이트: `pr:created`. 참조 문서 생성은 `/dev:docs` 1차 책임 |
+| [workflows/spec.md](workflows/spec.md) | `/flow-spec` | 스펙 작성 흐름. brainstorming 스킬 연동, 토픽 등록, Codex spec-review 루프 |
+| [workflows/plan.md](workflows/plan.md) | `/flow-plan` | 구현 계획 생성. planner 에이전트, `implementation-plan.md` 산출, Codex plan-review 루프 (`config.plan.auto_review`) |
+| [workflows/impl.md](workflows/impl.md) | `/flow-impl` | Task 실행·커밋 계약 및 배치 모드. 커밋 메시지 형식, auto_commit, `--all` 순차 자동 실행, 실패 중단 정책 |
+| [workflows/review.md](workflows/review.md) | `/flow-review` | 리뷰 워크플로우. code-reviewer·security-reviewer 병렬 실행, adversarial-review 활성화 조건, review-report 형식 |
+| [workflows/docs.md](workflows/docs.md) | `/flow-docs` | 참조 문서 생성·갱신 흐름. git diff 기반 파일 수집, `docs/specs/<name>.md` 업데이트, `refDoc` 필드 기록 |
+| [workflows/pr.md](workflows/pr.md) | `/flow-pr` | PR 발행 흐름. first-run(`gh pr create`)·re-entry(`gh pr edit`) 분기, PR body 템플릿, 브랜치 설정 |
+| [workflows/done.md](workflows/done.md) | `/flow-done` | 완료 워크플로우. 산출물 아카이브, 토픽 제거. 게이트: `pr:created`. 참조 문서 생성은 `/flow-docs` 1차 책임 |
 
 ### infrastructure/ — 배포 인프라
 
@@ -83,8 +83,8 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 ```
 topic-lifecycle                          ← 상태 기계 중앙 참조
   └─ dev-context-config                  ← config.* 스키마 단일 진실 원천
-       ├─ config.dev_impl.*              ← /dev:impl 동작 제어
-       ├─ config.git.*                   ← /dev:setup git 동작 (dev-context-config 흡수)
+       ├─ config.dev_impl.*              ← /flow-impl 동작 제어
+       ├─ config.git.*                   ← /flow-setup git 동작 (dev-context-config 흡수)
        ├─ config.review.*                ← workflows/review (소비)
        ├─ config.codex.*                 ← codex/session-detection (쓰기 전용)
        │                                    ├─ workflows/review (소비)
@@ -106,7 +106,7 @@ topic-lifecycle                          ← 상태 기계 중앙 참조
   meta/skill-registry                    ← 동적 탐색 계약
        ├─ search-adapters/exa            ← search-adapter 구현
        ├─ search-adapters/firecrawl      ← search-adapter 구현
-       └─ wf-deep-research               ← search-adapter 소비
+       └─ adapter-deep-research          ← search-adapter 소비
 
 배포·인프라:
   infrastructure/src-layout              ← src/ → 루트·외부 프로젝트 배포

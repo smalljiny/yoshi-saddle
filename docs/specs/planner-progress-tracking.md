@@ -1,12 +1,12 @@
 # Planner Progress Tracking
 
-> `planner` 에이전트는 자체 워크플로우의 5개 마일스톤을 Claude Code Task 도구로 표면화한다. 사용자가 `/dev:plan` 또는 직접 Agent 호출 중 planner의 현재 진행 단계를 실시간 확인한다.
+> `planner` 에이전트는 자체 워크플로우의 5개 마일스톤을 Claude Code Task 도구로 표면화한다. 사용자가 `/flow-plan` 또는 직접 Agent 호출 중 planner의 현재 진행 단계를 실시간 확인한다.
 
 ## 개요
 
 planner는 요구사항 분석·아키텍처 검토·Story 분해를 수 분 동안 수행한다. 본 프로토콜은 planner 시작 시 P1~P5 5개 단계를 단일 `TaskCreate` 배치로 등록하고, 각 단계 진입·완료 시점에 `TaskUpdate`를 호출해 진행 상태를 표면화한다.
 
-호출자(`/dev:plan` 커맨드 또는 사용자 직접 Agent 도구 호출)와 무관하게 동일한 흐름이 적용된다. 본 프로토콜은 planner.md 본문에 인라인으로 정의되며 별도 스킬로 추출되지 않는다 (단일 호출처 + YAGNI 원칙).
+호출자(`/flow-plan` 스킬 또는 사용자 직접 Agent 도구 호출)와 무관하게 동일한 흐름이 적용된다. 본 프로토콜은 planner.md 본문에 인라인으로 정의되며 별도 스킬로 추출되지 않는다 (단일 호출처 + YAGNI 원칙).
 
 ## 구조 / 스키마
 
@@ -47,7 +47,7 @@ tools: Read, Grep, Glob, TaskCreate, TaskUpdate
 
 ### 호출자 무관 동작
 
-`/dev:plan` 커맨드와 직접 Agent 도구 호출 모두 동일한 흐름을 따른다. planner 에이전트가 자체적으로 등록·갱신을 소유하므로 `/dev:plan`은 단계 목록을 알 필요가 없다.
+`/flow-plan` 스킬과 직접 Agent 도구 호출 모두 동일한 흐름을 따른다. planner 에이전트가 자체적으로 등록·갱신을 소유하므로 `/flow-plan`은 단계 목록을 알 필요가 없다.
 
 ## 제약사항
 
@@ -77,5 +77,5 @@ tools: Read, Grep, Glob, TaskCreate, TaskUpdate
 
 - 다른 에이전트(architect, code-reviewer, security-reviewer, doc-updater, build-error-resolver, refactor-cleaner, prompt-engineer 등) 진행 표시
 - 기존 `wf-task-tracking` 스킬 변경 또는 일반화
-- `/dev:plan` 커맨드 변경 — planner 호출 패턴은 그대로
+- `/flow-plan` 스킬 변경 — planner 호출 패턴은 그대로
 - Task 도구 권한 거부 시 사용자 알림 또는 본 작업 중단

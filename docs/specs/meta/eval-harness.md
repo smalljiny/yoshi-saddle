@@ -116,7 +116,7 @@ v1에서는 trial을 3회 실행하므로 pass@1 지표는 사용하지 않는�
 
 ### 레퍼런스 예시
 
-`stack-exa` eval 케이스(`.claude/evals/stack-exa.md`)는 파일 존재·capabilities 필드·operation 섹션 4개를 Capability eval로, response schema 표준 필드 유지를 Regression eval로 검증한다. `stack-firecrawl` eval 케이스(`.claude/evals/stack-firecrawl.md`)는 동일 구조로 `/v1/search`, `/v1/scrape`, `/v1/crawl` operation 섹션 3개를 검증한다.
+`adapter-exa` eval 케이스(`.claude/evals/adapter-exa.md`)는 파일 존재·capabilities 필드·operation 섹션 4개를 Capability eval로, response schema 표준 필드 유지를 Regression eval로 검증한다. `adapter-firecrawl` eval 케이스(`.claude/evals/adapter-firecrawl.md`)는 동일 구조로 `/v1/search`, `/v1/scrape`, `/v1/crawl` operation 섹션 3개를 검증한다.
 
 ## 제약사항
 

@@ -6,7 +6,9 @@
 
 하네스 저장소는 `src/` 디렉토리를 배포 단위의 기준으로 삼는다. `.claude/`, `.codex/`, `.harness/`, `CLAUDE.md`, `AGENTS.md` 다섯 항목이 `src/`에 원본으로 존재하고, 루트에 있는 동일한 항목은 self-sync를 통해 `src/`와 일치 상태를 유지한다. `scripts/deploy-harness.sh`는 이 두 역할(자기 동기화, 외부 배포)을 단일 스크립트로 처리한다.
 
-`CLAUDE.md`는 Claude Code의 컨텍스트 파일로, 프로젝트 섹션과 `@.harness/harness-guide.md` import 라인으로 구성된다. `AGENTS.md`는 Codex CLI의 컨텍스트 파일로, Codex CLI가 `@import`를 지원하지 않기 때문에 harness-guide 내용을 begin/end 마커 블록에 직접 포함한다. `/dev:init` 커맨드가 두 파일의 프로젝트 섹션을 초기화하거나 업데이트한다.
+`src/.claude/`는 5-tier 스킬 체계(`flow-*`, `wf-*`, `adapter-*`, `stack-*`, `meta-*`)를 사용한다. `flow-*` 스킬은 `user-invocable: true` frontmatter로 슬래시 커맨드처럼 노출된다. 이전의 `src/.claude/commands/dev/` 트리는 삭제됐고, 모든 개발 워크플로우는 `src/.claude/skills/flow-*/SKILL.md`로 이관됐다. `commands/`는 `codex/`·`harness/`·`add-language-rules.md`만 잔존한다.
+
+`CLAUDE.md`는 Claude Code의 컨텍스트 파일로, 프로젝트 섹션과 `@.harness/harness-guide.md` import 라인으로 구성된다. `AGENTS.md`는 Codex CLI의 컨텍스트 파일로, Codex CLI가 `@import`를 지원하지 않기 때문에 harness-guide 내용을 begin/end 마커 블록에 직접 포함한다. `/flow-init` 커맨드가 두 파일의 프로젝트 섹션을 초기화하거나 업데이트한다.
 
 ## 구조 / 스키마
 
@@ -85,10 +87,10 @@ version: N
 |------|------|
 | `.claude/ 구조` | 에이전트, 커맨드, 훅, 규칙, 스크립트, 세션, 스킬, settings.json |
 | `.harness/ 디렉토리` | 공유 규칙, commit-scopes.md, contracts/, templates/, scripts/ |
-| `개발 워크플로우` | 커맨드 목록과 역할 (/dev:init 포함) |
+| `개발 워크플로우` | 스킬 목록과 역할 (`/flow-*` 12개 스킬 및 `/flow-init` 포함) |
 | `에이전트` | 에이전트별 모델과 자동 활성화 시점 |
 | `자동화 훅` | SessionStart, PostToolUse, PreToolUse, Stop |
-| `컴포넌트 추가 방법` | 에이전트/스킬/커맨드/공유 규칙/Claude 규칙 생성 위치 |
+| `컴포넌트 추가 방법` | 에이전트/스킬/공유 규칙/Claude 규칙 생성 위치 (커맨드는 `commands/dev/` 삭제 후 `skills/flow-*/`로 이관됨) |
 | `문서 버전 관리` | version 필드 규칙 |
 | `질문 처리 규칙` | AskUserQuestion 사용 의무 |
 | `Codex 스킬` | spec-review, plan-review 스킬 사용법 |
@@ -118,7 +120,7 @@ external 모드에서 `.harness/commit-scopes.md`를 skip할 때는 `--exclude='
 
 external 모드에서는 `--skip-gitignore`를 지정하지 않는 한 타깃 `.gitignore`에 harness 로컬 파일 ignore 블록(`# BEGIN harness local ignores`)을 추가한다. 이미 마커가 있으면 건너뛴다. 블록은 세션 로그·체크포인트·로컬 설정·백업 디렉토리 외에 deploy 매니페스트(`.harness/.deploy-manifest.json`)도 포함한다 — 매니페스트는 per-machine deploy 상태이므로 commit 대상이 아니다.
 
-### /dev:init 실행 흐름
+### /flow-init 실행 흐름
 
 **Step 1 — 쓰기 대상 결정**
 
@@ -186,12 +188,12 @@ self-sync 모드에서는 `--no-backup` 옵션 지정 여부와 무관하게 `BA
 
 ### AGENTS.md @import 미지원
 
-Codex CLI는 `@import` 구문을 지원하지 않는다. 따라서 AGENTS.md는 `@.harness/harness-guide.md` import 대신 begin/end 마커 블록 안에 harness-guide 내용을 직접 포함한다. AGENTS.md의 harness-guide 블록은 `/dev:init` 업데이트 실행 시에만 최신화되며, 자동 동기화되지 않는다.
+Codex CLI는 `@import` 구문을 지원하지 않는다. 따라서 AGENTS.md는 `@.harness/harness-guide.md` import 대신 begin/end 마커 블록 안에 harness-guide 내용을 직접 포함한다. AGENTS.md의 harness-guide 블록은 `/flow-init` 업데이트 실행 시에만 최신화되며, 자동 동기화되지 않는다.
 
 ### harness-guide.md 동기화 의무
 
 루트 `.harness/harness-guide.md`와 `src/.harness/harness-guide.md`는 항상 동일해야 한다. self-sync(`./scripts/deploy-harness.sh`) 실행이 이 일치를 보장한다. 어느 한쪽을 직접 편집한 경우에는 반드시 self-sync를 실행해 일치 상태를 복원한다.
 
-### /dev:init 마커 의존성
+### /flow-init 마커 의존성
 
-`/dev:init`의 업데이트 모드는 경계 마커 존재에 의존한다. 마커가 없는 기존 파일은 업데이트 불가 상태로 간주하고 사용자에게 확인을 구한다. 백업 후 재생성을 선택하지 않으면 해당 파일 처리는 중단된다.
+`/flow-init`의 업데이트 모드는 경계 마커 존재에 의존한다. 마커가 없는 기존 파일은 업데이트 불가 상태로 간주하고 사용자에게 확인을 구한다. 백업 후 재생성을 선택하지 않으면 해당 파일 처리는 중단된다.

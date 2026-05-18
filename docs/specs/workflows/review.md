@@ -1,10 +1,10 @@
 # Review Adversarial Workflow
 
-> `/dev:review`가 code-reviewer, security-reviewer, adversarial-review 세 리뷰어를 순서에 따라 실행하고 결과를 `review-report-<timestamp>.md`로 저장하는 워크플로우.
+> `/flow-review`가 code-reviewer, security-reviewer, adversarial-review 세 리뷰어를 순서에 따라 실행하고 결과를 `review-report-<timestamp>.md`로 저장하는 워크플로우.
 
 ## 개요
 
-`/dev:review`는 구현 완료 후 PR 전 단계에서 실행한다. code-reviewer와 security-reviewer는 병렬로 실행되고, adversarial-review는 CRITICAL·HIGH 수정이 완료된 후 순차적으로 실행된다. 세 리뷰어의 결과와 처리 내역은 `docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md`에 저장되며, `/dev:done` 아카이브 시 `done/<topic>/`으로 이동된다.
+`/flow-review`는 구현 완료 후 PR 전 단계에서 실행한다. code-reviewer와 security-reviewer는 병렬로 실행되고, adversarial-review는 CRITICAL·HIGH 수정이 완료된 후 순차적으로 실행된다. 세 리뷰어의 결과와 처리 내역은 `docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md`에 저장되며, `/flow-done` 아카이브 시 `done/<topic>/`으로 이동된다.
 
 ## 구조
 
@@ -12,9 +12,9 @@
 
 | 파일 | 역할 |
 |---|---|
-| `.claude/commands/dev/review.md` | `/dev:review` 실행 흐름 정의 (version 12) |
+| `.claude/skills/flow-review/SKILL.md` | `/flow-review` 실행 흐름 정의 |
 | `.harness/contracts/review-report.md` | review-report 파일 포맷 계약 |
-| `.claude/commands/dev/done.md` | 아카이브 대상 목록에 `review-report-*.md` 포함 (version 5) |
+| `.claude/skills/flow-done/SKILL.md` | 아카이브 대상 목록에 `review-report-*.md` 포함 |
 
 ### review-report 파일
 
@@ -26,7 +26,7 @@ docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 
 ## 동작
 
-### `/dev:review` 실행 흐름
+### `/flow-review` 실행 흐름
 
 | Step | 내용 |
 |---|---|
@@ -93,6 +93,6 @@ severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)�
 
 - adversarial-review 결과를 CRITICAL/HIGH/MEDIUM으로 재분류하지 않는다 — 원문 그대로 보존
 - review-report를 `docs/specs/`(git-tracked)에 저장하지 않는다 — 민감한 이슈 내용 노출 방지
-- `/dev:review` 자동 재실행 루프 없음 — 사용자가 직접 재실행
+- `/flow-review` 자동 재실행 루프 없음 — 사용자가 직접 재실행
 - `/codex:adversarial-review` 신규 명령 없음 — 플러그인 기존 companion 재사용
 - `config.review.adversarial_enabled=false` opt-out 시 경고 없음

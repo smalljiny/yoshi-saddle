@@ -1,7 +1,7 @@
 ---
-version: 2
+version: 3
 name: wf-task-tracking
-description: Single source of truth for Claude Task tool integration in implementation agents. Loaded by tdd-specialist, refactor-cleaner, and prompt-engineer to track Task progress within a Story via TaskUpdate. TaskCreate batching is handled by /dev:impl, not the calling agent.
+description: Single source of truth for Claude Task tool integration in implementation agents. Loaded by tdd-specialist, refactor-cleaner, and prompt-engineer to track Task progress within a Story via TaskUpdate. TaskCreate batching is handled by /flow-impl, not the calling agent.
 origin: harness
 category: dev-process
 ---
@@ -12,12 +12,12 @@ category: dev-process
 
 You are an implementation agent (tdd-specialist, refactor-cleaner, or prompt-engineer) running inside a single Story of an implementation plan. The plan's `**Tasks**:` list contains the Task entries you execute in order.
 
-**Your responsibility:** call `TaskUpdate` to mark each Task `in_progress` when work starts and `completed` when verification passes. 에이전트는 `TaskUpdate` 호출만 책임진다 — plan markdown 체크박스 sync는 `/dev:impl` Step 9.5가 entries → markdown 방향으로 일괄 처리한다.
+**Your responsibility:** call `TaskUpdate` to mark each Task `in_progress` when work starts and `completed` when verification passes. 에이전트는 `TaskUpdate` 호출만 책임진다 — plan markdown 체크박스 sync는 `/flow-impl` Step 9.5가 entries → markdown 방향으로 일괄 처리한다.
 
 **Out of scope:**
-- Creating Task tool entries (`TaskCreate`) — `/dev:impl` performs this once at Story start.
-- Persisting state to `dev-context.json` — owned by `/dev:impl`.
-- Tracking the Story-level checkbox (`### [ ] Story N` → `### [x] Story N`) — owned by `/dev:impl`.
+- Creating Task tool entries (`TaskCreate`) — `/flow-impl` performs this once at Story start.
+- Persisting state to `dev-context.json` — owned by `/flow-impl`.
+- Tracking the Story-level checkbox (`### [ ] Story N` → `### [x] Story N`) — owned by `/flow-impl`.
 
 ## When to TaskUpdate
 
@@ -32,9 +32,9 @@ Call `TaskUpdate` at two trigger points for each Task in the Story's `**Tasks**:
 
 ## TaskCreate Responsibility
 
-`TaskCreate` is **not** called by you. `/dev:impl` parses the Story's `**Tasks**:` list at Story start and issues one batched `TaskCreate` call covering every Task in pending status before invoking you. By the time you receive control, Task tool entries already exist with the IDs `T<storyN>.<taskM>` and the subjects copied from each Task line's first line.
+`TaskCreate` is **not** called by you. `/flow-impl` parses the Story's `**Tasks**:` list at Story start and issues one batched `TaskCreate` call covering every Task in pending status before invoking you. By the time you receive control, Task tool entries already exist with the IDs `T<storyN>.<taskM>` and the subjects copied from each Task line's first line.
 
-If a Task tool entry is missing for a Task you are about to start, report the discrepancy to the caller (`/dev:impl`) and proceed using the plan markdown as the authoritative source. Do not create the missing entry yourself.
+If a Task tool entry is missing for a Task you are about to start, report the discrepancy to the caller (`/flow-impl`) and proceed using the plan markdown as the authoritative source. Do not create the missing entry yourself.
 
 ## activeForm Derivation Rules
 
@@ -60,14 +60,14 @@ For subjects that do not match any row, append ` 중` (Korean) or convert the le
 | Failure | Handling |
 |---------|----------|
 | `TaskUpdate` 호출이 실패 (Task 도구 미사용·권한 오류 등) | 에러를 무음 무시하고 에이전트 본 작업을 계속 진행한다. plan markdown 체크박스가 단일 진실 원천이다. |
-| 에이전트 작업 자체가 실패 (테스트 실패·구현 오류) | 호출자(`/dev:impl`)에게 실패를 보고한다. 해당 Task의 도구 상태는 `in_progress`로 남기고 `completed`로 전환하지 않는다. |
+| 에이전트 작업 자체가 실패 (테스트 실패·구현 오류) | 호출자(`/flow-impl`)에게 실패를 보고한다. 해당 Task의 도구 상태는 `in_progress`로 남기고 `completed`로 전환하지 않는다. |
 | Plan markdown에 매칭되는 `- [ ]` 라인이 없음 | TaskUpdate는 정상 호출한다. markdown 갱신은 에이전트 책임이 아니므로 본 케이스는 Step 9.5가 entries 상태로부터 자연스럽게 처리한다 (매칭 라인이 없으면 갱신할 대상도 없음). |
 
 ## Verification
 
-Task 완료의 단일 책임은 `T<storyN>.<taskM>` Task 도구 entry 상태가 `completed`인지로 판정한다. plan markdown 체크박스(`- [x]`) 갱신은 `/dev:impl` Step 9.5가 entries 상태로부터 sync한다.
+Task 완료의 단일 책임은 `T<storyN>.<taskM>` Task 도구 entry 상태가 `completed`인지로 판정한다. plan markdown 체크박스(`- [x]`) 갱신은 `/flow-impl` Step 9.5가 entries 상태로부터 sync한다.
 
 ## Resources
 
 - `.harness/contracts/implementation-plan.md` — defines `**Tasks**:` list format and `T<storyN>.<taskM>` ID convention.
-- `.claude/commands/dev/impl.md` — owns Story-start `TaskCreate` batching and post-Story markdown sync.
+- `.claude/skills/flow-impl/SKILL.md` — owns Story-start `TaskCreate` batching and post-Story markdown sync.

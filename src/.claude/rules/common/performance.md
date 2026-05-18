@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 ---
 
 # Performance Optimization
@@ -51,7 +51,7 @@ See `.claude/skills/wf-compact/SKILL.md` for safe compaction points.
 Extended thinking is enabled by default (up to 31,999 tokens for internal reasoning).
 
 Useful for:
-- Complex `/dev:plan` sessions with ambiguous requirements
+- Complex `/flow-plan` sessions with ambiguous requirements
 - Architectural decisions in the `architect` agent
 - Security analysis in `security-reviewer`
 
@@ -64,5 +64,4 @@ Controls:
 When a build fails, delegate immediately — do not debug manually:
 
 1. Invoke **build-error-resolver** agent
-2. Run `/dev:build-fix`
-3. Fix incrementally; verify after each change
+2. Fix incrementally; verify after each change

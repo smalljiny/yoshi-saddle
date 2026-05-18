@@ -26,11 +26,11 @@ Claude Code와 Codex가 공유하는 인프라 디렉토리다.
 
 | 파일 | Producer | Consumer |
 |------|----------|----------|
-| `spec.md` | Claude brainstorming + `/dev:spec` | Codex `spec-review` |
-| `spec-review.md` | Codex `spec-review` | Claude `/dev:spec`, `/dev:plan` |
-| `implementation-plan.md` | Claude `planner` + `/dev:plan` | Codex `plan-review`, Claude `/dev:impl` |
-| `plan-review.md` | Codex `plan-review` | Claude `/dev:impl` |
-| `review-report.md` | Claude `/dev:review` | Claude `/dev:done` |
+| `spec.md` | Claude brainstorming + `/flow-spec` | Codex `spec-review` |
+| `spec-review.md` | Codex `spec-review` | Claude `/flow-spec`, `/flow-plan` |
+| `implementation-plan.md` | Claude `planner` + `/flow-plan` | Codex `plan-review`, Claude `/flow-impl` |
+| `plan-review.md` | Codex `plan-review` | Claude `/flow-impl` |
+| `review-report.md` | Claude `/flow-review` | Claude `/flow-done` |
 
 **⚠ 수정 규칙**:
 - Contract를 수정하면 Producer와 Consumer **양쪽**을 함께 업데이트해야 한다.
@@ -87,10 +87,10 @@ node .harness/scripts/dev-context.js set-field --topic=<topic> --field=refDoc --
 
 | 파일 | 사용처 | 플레이스홀더 |
 |------|--------|-------------|
-| `pr-body.md` | `/dev:pr` — `gh pr create --body` | `{{topic}}`, `{{spec_link}}`, `{{reference_doc}}`, `{{branch}}`, `{{base_branch}}` |
+| `pr-body.md` | `/flow-pr` — `gh pr create --body` | `{{topic}}`, `{{spec_link}}`, `{{reference_doc}}`, `{{branch}}`, `{{base_branch}}` |
 
 **⚠ 수정 규칙**:
-- 플레이스홀더를 추가·제거하면 `/dev:pr` 명령어의 치환 로직도 함께 수정한다.
+- 플레이스홀더를 추가·제거하면 `/flow-pr` 명령어의 치환 로직도 함께 수정한다.
 - 영향 범위 체크리스트(`## 영향 범위` 섹션)는 `commit-scopes.md`의 scope 목록과 동기화한다.
 
 ---

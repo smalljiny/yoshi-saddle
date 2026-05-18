@@ -8,13 +8,13 @@
 
 현재 정의된 네임스페이스:
 
-- `config.dev_impl` — `/dev:impl` 실행 동작 제어 (`auto_start`, `auto_commit`, `batch_mode`, `currentBatchRunning`, `currentBatchTopic`)
-- `config.spec` — `/dev:spec` Codex 자동 리뷰 루프 제어 (`auto_review`)
-- `config.plan` — `/dev:plan` Codex 자동 리뷰 루프 제어 (`auto_review`)
-- `config.git` — `/dev:docs`·`/dev:pr` 에서 참조하는 git 원격 설정
-- `config.review` — `/dev:review` 옵션 설정 (adversarial-review opt-in)
-- `config.codex` — Codex CLI 감지 캐시 (쓰기 전용: `codex-session-detection` 시스템 소유. 소비: `/dev:review`·`meta-codex-bridge`)
-- `config.docs` — `/dev:docs` 파일 수집 동작 제어 (`/dev:init`이 저장소 유형 감지 후 자동 설정)
+- `config.dev_impl` — `/flow-impl` 실행 동작 제어 (`auto_start`, `auto_commit`, `batch_mode`, `currentBatchRunning`, `currentBatchTopic`)
+- `config.spec` — `/flow-spec` Codex 자동 리뷰 루프 제어 (`auto_review`)
+- `config.plan` — `/flow-plan` Codex 자동 리뷰 루프 제어 (`auto_review`)
+- `config.git` — `/flow-docs`·`/flow-pr` 에서 참조하는 git 원격 설정
+- `config.review` — `/flow-review` 옵션 설정 (adversarial-review opt-in)
+- `config.codex` — Codex CLI 감지 캐시 (쓰기 전용: `codex-session-detection` 시스템 소유. 소비: `/flow-review`·`meta-codex-bridge`)
+- `config.docs` — `/flow-docs` 파일 수집 동작 제어 (`/flow-init`이 저장소 유형 감지 후 자동 설정)
 - `config.graphify` — graphify 분석 대상 디렉토리 배열 (`targets`)
 
 ## 구조 / 스키마
@@ -82,9 +82,9 @@
 - 토픽 필드 경로(`set-field --topic=<X> --field=<F> --value=<V>`)는 타입 추론 대상이 아니며, 값을 문자열 그대로 저장한다.
 - 깊이 1(`config`, `config.X`) 또는 깊이 3 이상(`config.X.Y.Z`) 경로는 non-zero exit로 거부된다.
 
-### `config.dev_impl.auto_start` — `/dev:impl` 승인 대기 제어
+### `config.dev_impl.auto_start` — `/flow-impl` 승인 대기 제어
 
-1. `.claude/commands/dev/impl.md`의 "3. Pre-work briefing and approval" 단계가 Pre-work Briefing 블록을 항상 출력한다.
+1. `.claude/skills/flow-impl/SKILL.md`의 "3. Pre-work briefing and approval" 단계가 Pre-work Briefing 블록을 항상 출력한다.
 2. 브리핑 블록의 닫는 `---` 이후, `read --field=config.dev_impl.auto_start` 결과를 조회한다.
 3. 결과 분기:
    - 결과가 문자열 `"true"`: 브리핑 블록 뒤에 다음 한 줄을 **verbatim**으로 출력하고 승인 없이 4단계(상태 전환)로 진행한다.
@@ -93,9 +93,9 @@
      ```
    - 그 외(빈 문자열, `"false"`, 기타 값): 현행 승인 대기 동작을 유지한다 — 승인 없이 구현을 시작하지 않는다.
 
-### `config.dev_impl.auto_commit` — `/dev:impl` 커밋 자동화 제어
+### `config.dev_impl.auto_commit` — `/flow-impl` 커밋 자동화 제어
 
-`/dev:impl` Step 8(커밋 실행)에서 조회한다:
+`/flow-impl` Step 8(커밋 실행)에서 조회한다:
 
 - `true`: 사용자 확인 없이 자동으로 `git add <task-files> && git commit` 실행 (HEREDOC 패턴)
 - `false`(기본): 커밋 전 y/n/skip 프롬프트 출력
@@ -104,20 +104,20 @@
 
 ### `config.dev_impl.batch_mode` · `currentBatchRunning` · `currentBatchTopic` — 배치 실행 영속화
 
-`/dev:impl --all` 또는 `config.dev_impl.batch_mode=true`로 활성화되는 배치 모드의 실행 상태를 영속화한다.
+`/flow-impl --all` 또는 `config.dev_impl.batch_mode=true`로 활성화되는 배치 모드의 실행 상태를 영속화한다.
 
-- `batch_mode` (boolean): `true`면 인자 없는 `/dev:impl` 호출도 배치 모드로 진행. 명시적 Story 인자(`/dev:impl S2`)는 항상 단일 Story 모드를 강제
+- `batch_mode` (boolean): `true`면 인자 없는 `/flow-impl` 호출도 배치 모드로 진행. 명시적 Story 인자(`/flow-impl S2`)는 항상 단일 Story 모드를 강제
 - `currentBatchRunning` (boolean): 배치 실행 중 표시. 첫 Story 진입 시 `true`로 설정되고, 마지막 Story 완료 또는 실패 시 `false`로 리셋
 - `currentBatchTopic` (string | `false`): 배치를 시작한 토픽 이름. 다른 토픽으로 전환되면 배치를 중단
 
-`/dev:impl` Step 1과 Step 11에서 read·set-field로 조작한다. 자세한 6가지 batch failure 조건과 reset 시점은 `impl-workflow.md` 참조.
+`/flow-impl` Step 1과 Step 11에서 read·set-field로 조작한다. 자세한 6가지 batch failure 조건과 reset 시점은 `impl-workflow.md` 참조.
 
 ### `config.spec.auto_review` · `config.plan.auto_review` — Codex 자동 리뷰 루프
 
-`/dev:spec` Step 4와 `/dev:plan` Step 7에서 `wf-codex-review` 스킬의 자동 실행 여부를 결정한다.
+`/flow-spec` Step 4와 `/flow-plan` Step 7에서 `adapter-codex-review` 스킬의 자동 실행 여부를 결정한다.
 
 - `false`(기본) 또는 빈 출력: 사용자에게 `codex` 명령을 안내하고 정지 (수동 모드)
-- `true`: `wf-codex-review` 스킬을 자동 실행 — 최대 3회 루프, READY/READY WITH NOTE 도달 시 종료
+- `true`: `adapter-codex-review` 스킬을 자동 실행 — 최대 3회 루프, READY/READY WITH NOTE 도달 시 종료
 
 Availability Gate 실패·스킬 비정상 종료·3회 초과 시 수동 폴백으로 전환한다. 자세한 루프 동작은 각 워크플로우 spec 참조.
 
@@ -132,7 +132,7 @@ graphify 풀 빌드의 분석 대상 디렉토리 배열.
 
 ### `config.review.adversarial_enabled` — adversarial-review opt-in
 
-`/dev:review` Step 7(adversarial-review)의 활성화 여부를 결정한다:
+`/flow-review` Step 7(adversarial-review)의 활성화 여부를 결정한다:
 
 - `false`(기본): adversarial-review 건너뜀, 경고 없음
 - `true`: `config.codex.available`·`config.codex.authenticated`를 추가 확인 후 실행
@@ -156,20 +156,20 @@ adversarial-review 전체 실행 흐름과 조건 평가 순서는 `review-adver
 | `version` | string | codex CLI 버전 문자열 |
 | `checked_at` | ISO 8601 | 마지막 감지 시각 (TTL 1시간 기준) |
 
-**소비**: `/dev:review`(adversarial-review 활성화 조건), `meta-codex-bridge` 스킬(가용성 게이트). 두 소비처 모두 `available`과 `authenticated` 두 필드를 순서대로 확인한다.
+**소비**: `/flow-review`(adversarial-review 활성화 조건), `meta-codex-bridge` 스킬(가용성 게이트). 두 소비처 모두 `available`과 `authenticated` 두 필드를 순서대로 확인한다.
 
 캐시 갱신 방법: `/codex:setup` 실행 또는 세션 재시작. 상세 동작은 `codex-session-detection.md` 참조.
 
-### `config.docs.sourceFilter` — `/dev:docs` 변경 파일 수집 필터
+### `config.docs.sourceFilter` — `/flow-docs` 변경 파일 수집 필터
 
-`/dev:docs` Step 3에서 git diff 결과를 필터링할 경로 prefix 목록. `/dev:init`이 저장소 유형을 자동 감지하여 설정한다.
+`/flow-docs` Step 3에서 git diff 결과를 필터링할 경로 prefix 목록. `/flow-init`이 저장소 유형을 자동 감지하여 설정한다.
 
 | 값 | 동작 |
 |---|---|
 | `[]` (빈 배열) 또는 미설정 | 필터 없음 — 전체 git diff 결과 포함 |
 | `[".claude/", ...]` 비어 있지 않은 배열 | 해당 prefix로 시작하는 파일만 포함 |
 
-**`/dev:init` 자동 감지**:
+**`/flow-init` 자동 감지**:
 
 - `scripts/deploy-harness.sh` 존재 → 하네스 저장소 → `[".claude/", ".codex/", ".harness/", "CLAUDE.md", "AGENTS.md"]` 설정
 - 미존재 → 일반 프로젝트 → `[]` 설정
@@ -181,23 +181,23 @@ node .harness/scripts/dev-context.js set-field \
   --value='[".claude/", ".harness/", "src/"]'
 ```
 
-**마이그레이션**: 이 필드를 처음 도입하는 경우 `/dev:init`을 한 번 실행해 저장소 유형에 맞는 기본값을 설정한다.
+**마이그레이션**: 이 필드를 처음 도입하는 경우 `/flow-init`을 한 번 실행해 저장소 유형에 맞는 기본값을 설정한다.
 
 ### `config.git.*` — 원격 저장소 설정
 
-`/dev:docs`의 변경 파일 수집 시 `config.git.pullRemote`와 `config.git.baseBranch`를 조합하여 diff 기준을 결정한다:
+`/flow-docs`의 변경 파일 수집 시 `config.git.pullRemote`와 `config.git.baseBranch`를 조합하여 diff 기준을 결정한다:
 
 ```
 git diff <pullRemote>/<baseBranch>...HEAD
 ```
 
-`/dev:pr`의 push 및 PR 생성 시 `config.git.pushRemote`와 `config.git.branchPattern`을 참조한다. 상세 동작은 `pr-workflow.md` 참조.
+`/flow-pr`의 push 및 PR 생성 시 `config.git.pushRemote`와 `config.git.branchPattern`을 참조한다. 상세 동작은 `pr-workflow.md` 참조.
 
-## /dev:setup git 동작
+## /flow-setup git 동작
 
-`config.git.*` 4개 필드(`pushRemote`, `pullRemote`, `baseBranch`, `branchPattern`)를 자동 감지하여 저장하는 `/dev:setup git` 커맨드의 동작·검증·제약을 정의한다. 저장 위치는 `dev-context.json`의 최상위 `config.git` 객체이며, `--topic` 플래그 없이 `set-field`를 호출하는 프로젝트 전역 설정이다.
+`config.git.*` 4개 필드(`pushRemote`, `pullRemote`, `baseBranch`, `branchPattern`)를 자동 감지하여 저장하는 `/flow-setup git` 커맨드의 동작·검증·제약을 정의한다. 저장 위치는 `dev-context.json`의 최상위 `config.git` 객체이며, `--topic` 플래그 없이 `set-field`를 호출하는 프로젝트 전역 설정이다.
 
-`/dev:pr`, `/dev:docs`, `/dev:review`는 이 4개 필드를 `dev-context.json`에서 읽으며, 저장되지 않은 경우 기본값(`origin`/`main`)으로 동작한다. `/dev:setup git`은 이 공백을 채운다.
+`/flow-pr`, `/flow-docs`, `/flow-review`는 이 4개 필드를 `dev-context.json`에서 읽으며, 저장되지 않은 경우 기본값(`origin`/`main`)으로 동작한다. `/flow-setup git`은 이 공백을 채운다.
 
 ### Remote 감지 및 Fork/Non-fork 분류
 
@@ -242,10 +242,10 @@ Fork 판정은 `upstream` remote 존재 여부만으로 결정한다. 다른 rem
 
 ### 동작 범위
 
-- `set-field` 호출 중 실패가 발생하면 그 이전에 저장된 필드는 유지된다. `/dev:setup git`을 다시 실행하여 완성하거나 수정한다.
+- `set-field` 호출 중 실패가 발생하면 그 이전에 저장된 필드는 유지된다. `/flow-setup git`을 다시 실행하여 완성하거나 수정한다.
 - SessionStart hook에서 자동으로 실행되지 않는다. 명시적으로 실행해야 한다.
 - `.git/config` 파일을 직접 수정하지 않는다.
-- `/dev:setup` 네임스페이스의 다른 서브커맨드(`git` 외)는 이 커맨드의 범위 밖이다.
+- `/flow-setup` 네임스페이스의 다른 서브커맨드(`git` 외)는 이 커맨드의 범위 밖이다.
 
 ## 제약사항
 
@@ -256,10 +256,10 @@ Fork 판정은 `upstream` remote 존재 여부만으로 결정한다. 다른 rem
 - `auto_commit` 기본값은 `false`(수동 확인)이다.
 - `adversarial_enabled` 기본값은 `false`(비활성)이다. `set-field`로 명시적으로 `true`로 전환할 때만 활성화된다.
 - `config.codex.*`는 시스템이 소유하는 캐시 네임스페이스다. 사용자·커맨드가 직접 `set-field`를 호출하지 않는다.
-- `config.docs.sourceFilter`의 빈 배열과 미설정은 `read` 출력이 동일(빈 줄)하므로 `/dev:docs`는 두 경우를 "필터 없음"으로 동일 처리한다.
+- `config.docs.sourceFilter`의 빈 배열과 미설정은 `read` 출력이 동일(빈 줄)하므로 `/flow-docs`는 두 경우를 "필터 없음"으로 동일 처리한다.
 - 배열 원소에는 `\r`·`\n`이 허용되지 않는다 — `set-field` 단계에서 거부된다.
 - 배열 추론은 완전한 JSON 배열 형태(`[...]`)에만 적용된다. `[A-Z].*` 같은 정규식 스칼라는 일반 문자열로 저장된다.
-- Per-invocation CLI 오버라이드(예: `/dev:impl --auto-start`)는 지원하지 않는다.
+- Per-invocation CLI 오버라이드(예: `/flow-impl --auto-start`)는 지원하지 않는다.
 - 토픽별 config 블록(`topics[X].config`)은 스키마에 존재하지 않는다.
 - 키별 기본값 테이블은 CLI에 중앙화되어 있지 않다. 소비 커맨드가 빈 문자열을 "미설정"으로 해석하여 기본 동작을 적용한다. `config.git.*` 기본값: `pushRemote`·`pullRemote=origin`, `baseBranch=main`.
 - `.claude/settings.json` 등 런타임 설정 파일과는 통합하지 않는다 — `config`는 워크플로 전용이다.

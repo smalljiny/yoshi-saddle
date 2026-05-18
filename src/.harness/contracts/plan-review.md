@@ -1,7 +1,7 @@
 # Contract: Plan Review Report
 
 - **Producer**: Codex `plan-review` skill (`.codex/skills/plan-review/SKILL.md`)
-- **Consumer**: Claude `/dev:impl` (gate check — requires `plan:confirmed` state)
+- **Consumer**: Claude `/flow-impl` (gate check — requires `plan:confirmed` state)
 
 ## File Naming
 

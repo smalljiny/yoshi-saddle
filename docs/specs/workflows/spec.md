@@ -1,10 +1,10 @@
 # Spec Workflow
 
-> `/dev:spec`은 wf-brainstorming 스킬과 협력하여 스펙 초안을 작성하고, 토픽을 `dev-context.json`에 등록하며, Codex 리뷰 루프를 통해 스펙을 확정하고 분할 필요성을 추천한다. 선택적으로 `wf-deep-research`를 통해 웹 리서치를 수행하고 결과를 브레인스토밍 컨텍스트로 주입한다.
+> `/flow-spec`은 wf-brainstorming 스킬과 협력하여 스펙 초안을 작성하고, 토픽을 `dev-context.json`에 등록하며, Codex 리뷰 루프를 통해 스펙을 확정하고 분할 필요성을 추천한다. 선택적으로 `adapter-deep-research`를 통해 웹 리서치를 수행하고 결과를 브레인스토밍 컨텍스트로 주입한다.
 
 ## 개요
 
-스펙 작성 흐름은 두 구성 요소가 협력한다. **wf-brainstorming 스킬**은 대화를 통해 스펙 내용을 완성하고, **`/dev:spec` 커맨드**는 파일 영속성, 토픽 등록, 상태 전환, Codex 리뷰 루프, 분할 추천을 담당한다. 스펙이 확정되면 `/dev:plan`으로 넘어가 구현 계획을 수립한다.
+스펙 작성 흐름은 두 구성 요소가 협력한다. **wf-brainstorming 스킬**은 대화를 통해 스펙 내용을 완성하고, **`/flow-spec` 커맨드**는 파일 영속성, 토픽 등록, 상태 전환, Codex 리뷰 루프, 분할 추천을 담당한다. 스펙이 확정되면 `/flow-plan`으로 넘어가 구현 계획을 수립한다.
 
 ## 구조 / 스키마
 
@@ -16,7 +16,7 @@ docs/_local/backlog/<topic>/
   spec-review-<yymmddhhmmss>.md     # Codex 리뷰 리포트 (git-ignored)
 ```
 
-스펙은 `/dev:plan`이 실행되기 전까지 `backlog/`에 머물고, 이후 `docs/_local/active/<topic>/`로 이동한다.
+스펙은 `/flow-plan`이 실행되기 전까지 `backlog/`에 머물고, 이후 `docs/_local/active/<topic>/`로 이동한다.
 
 ### dev-context.json 관련 필드
 
@@ -34,7 +34,7 @@ docs/_local/backlog/<topic>/
 }
 ```
 
-- `topics[<topic>].spec`: `/dev:spec`이 Step 3에서 `register-topic`으로 초기 기록
+- `topics[<topic>].spec`: `/flow-spec`이 Step 3에서 `register-topic`으로 초기 기록
 - `topics[<topic>].specReview`: Codex `spec-review` 스킬이 `set-field`로 기록 (Claude는 쓰지 않음)
 
 ## 동작
@@ -44,15 +44,15 @@ docs/_local/backlog/<topic>/
 | 역할 | 담당 |
 |------|------|
 | 스펙 문서 형식 정의 | `.harness/contracts/spec.md` |
-| 대화로 스펙 내용 완성 | wf-brainstorming 스킬 (형식은 `/dev:spec`이 주입) |
-| 선택적 웹 리서치 실행 | wf-deep-research 스킬 (Step 2.5에서 `/dev:spec`이 로드) |
-| 리서치 컨텍스트 주입 | `/dev:spec` (리서치 보고서를 브레인스토밍 프롬프트에 첨부) |
-| 완성된 스펙 파일 저장 | `/dev:spec` |
-| 토픽 등록 (`register-topic`) | `/dev:spec` |
-| 상태 전환 (`spec:drafting` → `spec:reviewing` → `spec:confirmed`) | `/dev:spec` |
-| Codex 리뷰 루프 관리 | `/dev:spec` |
+| 대화로 스펙 내용 완성 | wf-brainstorming 스킬 (형식은 `/flow-spec`이 주입) |
+| 선택적 웹 리서치 실행 | adapter-deep-research 스킬 (Step 2.5에서 `/flow-spec`이 로드) |
+| 리서치 컨텍스트 주입 | `/flow-spec` (리서치 보고서를 브레인스토밍 프롬프트에 첨부) |
+| 완성된 스펙 파일 저장 | `/flow-spec` |
+| 토픽 등록 (`register-topic`) | `/flow-spec` |
+| 상태 전환 (`spec:drafting` → `spec:reviewing` → `spec:confirmed`) | `/flow-spec` |
+| Codex 리뷰 루프 관리 | `/flow-spec` |
 | `specReview` 필드 업데이트 | Codex `spec-review` 스킬 |
-| 분할 추천 (기준: `contracts/spec.md`) | `/dev:spec` (Step 7) |
+| 분할 추천 (기준: `contracts/spec.md`) | `/flow-spec` (Step 7) |
 
 ### wf-brainstorming 스킬 동작
 
@@ -63,22 +63,22 @@ docs/_local/backlog/<topic>/
 
 **출력 계약**:
 - 완성된 스펙을 대화 안에서 인라인으로 제시한다
-- 스킬 자체는 파일로 저장하지 않는다 — 저장은 `/dev:spec`의 책임
-- 완료 시 자연어로 선언한다: *"스펙 초안이 완성되었습니다. /dev:spec이 파일로 저장합니다."*
+- 스킬 자체는 파일로 저장하지 않는다 — 저장은 `/flow-spec`의 책임
+- 완료 시 자연어로 선언한다: *"스펙 초안이 완성되었습니다. /flow-spec이 파일로 저장합니다."*
 
 **출력 형식**:
-- 스펙 문서 형식은 `.harness/contracts/spec.md`가 정의하며, `/dev:spec`이 브레인스토밍 호출 시 이를 주입한다
+- 스펙 문서 형식은 `.harness/contracts/spec.md`가 정의하며, `/flow-spec`이 브레인스토밍 호출 시 이를 주입한다
 - wf-brainstorming 스킬 자체는 형식 비종속 — 주입된 형식을 따르며 주입이 없으면 맥락에 맞는 형식을 자유롭게 사용한다
 
-### `/dev:spec` 실행 흐름
+### `/flow-spec` 실행 흐름
 
 1. **토픽 해석** — 인수 또는 `current_topic` · `backlog/` 스캔으로 토픽 결정. 기존 `phase:status`에 따라 재진입 지점을 자동 결정
 2. **작업 디렉토리 준비** — `docs/_local/backlog/<topic>/` 생성
-2.5. **선택적 리서치** — skill-registry로 search-adapter 가용성 확인 → `AskUserQuestion`으로 리서치 필요 여부 질문. "예"를 선택하면 쿼리를 자동 생성 후 `AskUserQuestion`(또는 Other 입력)으로 확정 → `wf-deep-research` 실행(Step 0·1 건너뜀) → `docs/research/research-<topic>-<timestamp>.md` 저장. 어댑터 없음·사용자 거절·실행 실패·short-report(≤3000자)는 모두 컨텍스트 없이 Step 3로 폴백
+2.5. **선택적 리서치** — skill-registry로 search-adapter 가용성 확인 → `AskUserQuestion`으로 리서치 필요 여부 질문. "예"를 선택하면 쿼리를 자동 생성 후 `AskUserQuestion`(또는 Other 입력)으로 확정 → `adapter-deep-research` 실행(Step 0·1 건너뜀) → `docs/research/research-<topic>-<timestamp>.md` 저장. 어댑터 없음·사용자 거절·실행 실패·short-report(≤3000자)는 모두 컨텍스트 없이 Step 3로 폴백
 3. **초안 작성 및 등록** — Step 2.5에서 생성된 리서치 파일이 있으면 Executive Summary·Key Takeaways를 `<untrusted_external_content>` 구분자로 감싸 브레인스토밍 프롬프트에 주입(없으면 기존 동작). `wf-brainstorming/SKILL.md` 로드 → 완성 선언 후 `backlog/<topic>/spec.md` 저장 → `register-topic`으로 `topics[<topic>]`을 `spec:drafting` 상태로 등록
 4. **Codex 리뷰 요청** — `spec:reviewing`으로 전환 후 `config.spec.auto_review` 플래그 확인:
    - **`false`(기본)**: 사용자에게 `codex` 명령 안내 후 대기 (수동 모드)
-   - **`true`**: `current_topic`을 `<topic>`으로 동기화 후 `wf-codex-review` 스킬을 자동 실행. 최대 3회 루프 — NOT READY면 Required Fixes 적용(TRUST BOUNDARY 준수) + `spec:drafting` 전환 → 재시도; READY/READY WITH NOTE면 Step 5로 진행. 3회 초과 또는 Availability Gate 실패·스킬 비정상 종료 시 수동 폴백으로 전환.
+   - **`true`**: `current_topic`을 `<topic>`으로 동기화 후 `adapter-codex-review` 스킬을 자동 실행. 최대 3회 루프 — NOT READY면 Required Fixes 적용(TRUST BOUNDARY 준수) + `spec:drafting` 전환 → 재시도; READY/READY WITH NOTE면 Step 5로 진행. 3회 초과 또는 Availability Gate 실패·스킬 비정상 종료 시 수동 폴백으로 전환.
 5. **리뷰 반영** —
    - `NOT READY` → Required Fixes 반영 후 `spec:drafting`으로 롤백 → Step 4 재요청
    - `READY` / `READY WITH NOTE` → 사실 오류·누락 컨텍스트·누락 Open Questions를 수정하는 Notes만 반영 → Step 6
@@ -111,7 +111,7 @@ Codex는 `current_topic`이 등록되어 있으면 `topics[current_topic].spec` 
 | 목표가 강하게 결합되어 부분 머지 시 동작 보장 불가 | 단일 진행 |
 | 목표 2개 이하 | 단일 진행 |
 
-분할 추천 시 서브 토픽 제안 → 사용자 승인 → 부모 디렉토리를 `backlog-split/<topic>/`으로 이동(요약 참조로 보존하되 `/dev:plan` 탐색에서 제외), 서브 토픽은 `backlog/<sub-topic>/`에 신규 생성.
+분할 추천 시 서브 토픽 제안 → 사용자 승인 → 부모 디렉토리를 `backlog-split/<topic>/`으로 이동(요약 참조로 보존하되 `/flow-plan` 탐색에서 제외), 서브 토픽은 `backlog/<sub-topic>/`에 신규 생성.
 
 ### spec-review 체크리스트의 섹션 3 수용 규칙
 
@@ -119,9 +119,9 @@ Codex `spec-review` 체크리스트 항목 3(아키텍처 충분성)은 코드 �
 
 ## 제약사항
 
-- **Codex 핸드오프는 기본 수동** — `config.spec.auto_review=false`(기본)일 때 사용자가 `codex` 명령을 터미널에서 직접 실행한다. `true`로 설정하면 Claude가 `wf-codex-review` 스킬을 통해 `codex exec`을 자동 호출한다.
-- **`specReview` 필드는 Codex 소유** — `/dev:spec`은 이 필드를 쓰지 않는다
-- **wf-brainstorming 스킬은 `dev-context.json`을 읽거나 쓰지 않는다** — 스킬은 대화·초안 내용만 담당하고, 모든 상태 기록·토픽 등록·상태 전환은 `/dev:spec`이 수행한다
+- **Codex 핸드오프는 기본 수동** — `config.spec.auto_review=false`(기본)일 때 사용자가 `codex` 명령을 터미널에서 직접 실행한다. `true`로 설정하면 Claude가 `adapter-codex-review` 스킬을 통해 `codex exec`을 자동 호출한다.
+- **`specReview` 필드는 Codex 소유** — `/flow-spec`은 이 필드를 쓰지 않는다
+- **wf-brainstorming 스킬은 `dev-context.json`을 읽거나 쓰지 않는다** — 스킬은 대화·초안 내용만 담당하고, 모든 상태 기록·토픽 등록·상태 전환은 `/flow-spec`이 수행한다
 - **분할 알고리즘은 판단형** — 엄격한 의사결정 트리가 아닌 Claude의 스펙 분석 기반 추천. 사용자 승인이 최종 결정
 - **NOT READY에서 확정 불가** — 리뷰 루프는 `READY` 또는 `READY WITH NOTE`가 나올 때까지 반복한다
 - **스타일 Notes·범위 확장 Notes는 반영 금지** — 사실 오류·누락 컨텍스트·누락 Open Questions에 해당하는 Notes만 반영
