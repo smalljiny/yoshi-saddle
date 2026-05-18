@@ -133,11 +133,21 @@ external 모드에서는 `--skip-gitignore`를 지정하지 않는 한 타깃 `.
 
 **Step 2 — 모드 분기 (CLAUDE.md, AGENTS.md 각각 독립 판정)**
 
-- 대상 파일 없음 → 신규 생성
-- 대상 파일 있고 마커 있음(`@.harness/harness-guide.md` 또는 `<!-- harness-guide:begin -->`) → 업데이트
-- 대상 파일 있지만 마커 없음 → 경고 출력 + `AskUserQuestion`:
-  - `(Recommended) <file>.bak.<timestamp>` 백업 후 재생성 모드로 진행
-  - 중단
+CLAUDE.md (4-state):
+
+| 상태 | 모드 |
+|------|------|
+| 대상 파일 없음 | 신규 생성 (`<!-- harness-rules:begin/end -->` 마커 포함) |
+| `<!-- harness-rules:begin -->` 마커 존재 | 업데이트 (마커 사이만 재생성, 마커 외부 손대지 않음) |
+| `<!-- harness-rules:begin -->` 마커 없음 + `@.harness/harness-guide.md` 라인 있음 | 일회 마이그레이션 (harness-guide 직후 연속된 `@.harness/rules/<rel-path>` 라인만 marker로 감싸 in-place 변환; 비-인접 위치 라인은 사용자 콘텐츠로 간주, 손대지 않음) |
+| `@.harness/harness-guide.md` 라인 없음 | 경고 출력 + `AskUserQuestion` (백업 후 재생성 or 중단) |
+
+AGENTS.md:
+- 파일 없음 → 신규 생성
+- `<!-- harness-guide:begin -->` 마커 존재 → 업데이트
+- 마커 없음 → 경고 출력 + `AskUserQuestion` (백업 후 재생성 or 중단)
+
+각 파일의 모드는 독립적으로 결정되며, 한 파일이 "중단"을 선택해도 다른 파일은 계속 진행할 수 있다.
 
 **Step 3 — 프로젝트 정보 수집**
 
@@ -148,19 +158,40 @@ external 모드에서는 `--skip-gitignore`를 지정하지 않는 한 타깃 `.
 3. 기술 스택 — 권장: `TypeScript, Node.js, PostgreSQL` 형태 예시
 4. 언어 규칙 — 권장: 문서·주석·커밋 메시지 한국어 / 코드 식별자 영어 / 컴포넌트 파일 영어
 
-**Step 4 — CLAUDE.md 작성**
+**Step 4 — CLAUDE.md 작성 (marker-bounded)**
 
-- 신규: 프로젝트 섹션 + `@.harness/harness-guide.md` 라인으로 파일 생성. `version: 1` 설정.
-- 업데이트: import 라인 이전 내용을 새 프로젝트 섹션으로 교체. import 라인과 이후 내용 보존. `version` +1.
+- 신규 생성: 프로젝트 섹션 + `@.harness/harness-guide.md` + `<!-- harness-rules:begin -->` + glob 정렬한 `@.harness/rules/<rel-path>` 라인 N개 + `<!-- harness-rules:end -->`을 작성한다. `version: 1`.
+- 업데이트: begin/end 마커 사이를 glob 결과로 완전 재생성한다 (기존 사이 내용 폐기). 마커 외부의 `@.harness/rules/<rel-path>` 접두사 라인은 사용자 콘텐츠로 간주해 검사·수정·삭제 없이 그대로 보존한다. 프로젝트 섹션은 Step 3 수집 정보로 갱신, 사용자 정의 영역(end 마커 직후 ~ 파일 끝)은 그대로 둔다. 최종 조립 후 SHA-256 hash 비교(frontmatter `version` 라인 제외)로 변경 감지: 동일하면 `[변경 없음]`, 다르면 `version +1` 후 원자적 쓰기.
+- 일회 마이그레이션: `<!-- harness-rules:begin -->` 마커 없는 기존 파일에서 `@.harness/harness-guide.md` 직후 연속된 `@.harness/rules/<rel-path>` 라인만 marker로 감싼 뒤 업데이트 모드와 동일한 작성·hash 비교 흐름을 적용한다. 비-인접 위치의 rules-prefix 라인은 사용자 콘텐츠로 간주해 손대지 않는다.
+- `.harness/rules/` 부재 시: 마커 사이를 빈 상태로 둔다 (마커 자체는 유지 — 차후 실행이 marker 기반 업데이트 모드로 진입하도록 idempotency 보장). Step 6 결과에 `[정보] .harness/rules/ 부재로 마커 사이 비움` 1줄을 추가한다.
+- 신규 import 블록 구조 (예시):
+
+  ```
+  @.harness/harness-guide.md
+  <!-- harness-rules:begin -->
+  @.harness/rules/coding-style.md
+  @.harness/rules/git-workflow.md
+  ...
+  <!-- harness-rules:end -->
+
+  [사용자 정의 영역 — 보존, 마커 외부는 손대지 않음]
+  ```
+
+- glob 수집 규칙: `find .harness/rules -name "*.md" -type f | sort` (top-level 우선 + sub-dir 알파벳 순), 각 경로 앞에 `@` 접두사 부여하여 `@.harness/rules/<rel-path>` 형식으로 변환.
 
 **Step 5 — AGENTS.md 작성**
 
 - 신규: 프로젝트 섹션 + begin/end 마커 블록 생성. `.harness/harness-guide.md` 본문(frontmatter 제외)을 마커 사이에 삽입. 파일이 없으면 빈 블록으로 생성하고 경고 출력.
 - 업데이트: begin 마커 이전 내용을 새 프로젝트 섹션으로 교체. begin/end 사이 내용을 현재 harness-guide.md 본문으로 교체. end 마커 이후 내용 보존.
+- AGENTS.md는 `.harness/rules/` 본문을 임베드하지 않는다 (Codex AGENTS.md 32KB silent truncation 회피, `.codex/skills/`가 룰 본문을 명시 Read).
 
-**Step 6 — 결과 안내**
+**Step 6 — sourceFilter 자동 감지·보존**
 
-작성된 파일 경로와 모드(신규/업데이트)를 출력한다. `src/` 모드일 경우 `./scripts/deploy-harness.sh` 실행 안내를 추가로 출력한다.
+`scripts/deploy-harness.sh` 존재 여부로 `config.docs.sourceFilter` 기본값을 결정한다 (하네스 저장소: prefix 목록 / 일반 프로젝트: 빈 배열). **기존 non-empty 값은 보존**한다 — `/flow-init`은 imports 재생성 용도로도 재실행되므로 (`/add-language-rules` 안내), 사용자 명시 설정을 재실행마다 덮어쓰지 않는다 (빈 배열·null·미설정일 때만 감지값 적용). 보존이 발동하면 결과 안내에 `[보존] config.docs.sourceFilter 기존 값 유지`를 출력한다.
+
+**Step 7 — 결과 안내**
+
+작성된 파일 경로와 모드(신규/업데이트/변경 없음)를 출력한다. `[감지]`와 `[보존]`은 상호 배타로 출력된다. `src/` 모드일 경우 `./scripts/deploy-harness.sh` 실행 안내를 추가로 출력한다.
 
 ## 제약사항
 
@@ -196,4 +227,8 @@ Codex CLI는 `@import` 구문을 지원하지 않는다. 따라서 AGENTS.md는 
 
 ### /flow-init 마커 의존성
 
-`/flow-init`의 업데이트 모드는 경계 마커 존재에 의존한다. 마커가 없는 기존 파일은 업데이트 불가 상태로 간주하고 사용자에게 확인을 구한다. 백업 후 재생성을 선택하지 않으면 해당 파일 처리는 중단된다.
+`/flow-init`의 업데이트 모드는 경계 마커 존재에 의존한다. AGENTS.md는 `<!-- harness-guide:begin/end -->` 마커가, CLAUDE.md는 `<!-- harness-rules:begin/end -->` 마커가 자동 관리 영역을 bound한다 (마커 외부는 사용자 영역으로 보존).
+
+- AGENTS.md 마커 없음 → 업데이트 불가 상태로 간주, `AskUserQuestion`으로 백업 후 재생성 or 중단.
+- CLAUDE.md `<!-- harness-rules:begin -->` 마커 없음 + `@.harness/harness-guide.md` 라인 있음 → 일회 마이그레이션 모드로 진입 (harness-guide 직후 연속된 `@.harness/rules/<rel-path>` 라인만 marker로 in-place 변환; 비-인접 위치 라인은 사용자 콘텐츠로 간주, 손대지 않음).
+- CLAUDE.md `@.harness/harness-guide.md` 라인 자체가 없음 → 업데이트 불가 상태로 간주, `AskUserQuestion`으로 백업 후 재생성 or 중단.

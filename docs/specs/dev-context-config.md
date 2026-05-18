@@ -169,16 +169,24 @@ adversarial-review 전체 실행 흐름과 조건 평가 순서는 `review-adver
 | `[]` (빈 배열) 또는 미설정 | 필터 없음 — 전체 git diff 결과 포함 |
 | `[".claude/", ...]` 비어 있지 않은 배열 | 해당 prefix로 시작하는 파일만 포함 |
 
-**`/flow-init` 자동 감지**:
+**`/flow-init` 자동 감지 (기존 값 부재 시에만 적용)**:
 
 - `scripts/deploy-harness.sh` 존재 → 하네스 저장소 → `[".claude/", ".codex/", ".harness/", "CLAUDE.md", "AGENTS.md"]` 설정
 - 미존재 → 일반 프로젝트 → `[]` 설정
 
-수동 설정:
+**보존 정책**: 기존 `config.docs.sourceFilter`가 존재하면서 빈 배열·null·미설정이 아닌 경우, `/flow-init`은 감지값을 적용하지 않고 기존 값을 그대로 유지한다. `/flow-init`은 `<!-- harness-rules:begin/end -->` import 블록 재생성 용도로도 재실행되므로 (`/add-language-rules` 안내), 사용자가 명시적으로 설정한 sourceFilter를 재실행마다 덮어쓰지 않는다. 보존이 발동하면 `/flow-init` 결과 안내에 `[보존] config.docs.sourceFilter 기존 값 유지`가 출력된다 (감지값 적용 시의 `[감지]`와 상호 배타).
+
+수동 설정·강제 재초기화:
 ```bash
 node .harness/scripts/dev-context.js set-field \
   --field=config.docs.sourceFilter \
   --value='[".claude/", ".harness/", "src/"]'
+```
+
+자동 감지값으로 강제 초기화하려면 빈 값으로 reset 후 `/flow-init`을 재실행한다:
+```bash
+node .harness/scripts/dev-context.js set-field \
+  --field=config.docs.sourceFilter --value='[]'
 ```
 
 **마이그레이션**: 이 필드를 처음 도입하는 경우 `/flow-init`을 한 번 실행해 저장소 유형에 맞는 기본값을 설정한다.
