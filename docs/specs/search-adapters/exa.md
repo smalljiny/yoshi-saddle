@@ -1,17 +1,17 @@
-# stack-exa 스킬
+# adapter-exa 스킬
 
 > Exa REST API를 Bash curl로 직접 호출하는 search-adapter 스킬. `skill-registry`의 `[search-adapter, exa]` 태그로 로드되며, MCP 없이 `$EXA_API_KEY` 환경변수만으로 웹 검색·콘텐츠 추출·grounded 답변·유사 페이지 탐색을 수행한다.
 
 ## 개요
 
-`stack-exa`는 `skill-registry` 어댑터 패턴 계약을 구현한 두 번째 search-adapter 스킬이다. Claude가 직접 curl 명령을 실행해 Exa API를 호출하므로 MCP 서버 의존성이 없다. `/search`, `/contents`, `/answer`, `/findSimilar` 네 연산을 지원하며, `/search`·`/contents`·`/findSimilar`는 `stack-firecrawl`과 호환되는 공통 스키마(`query / results / source / operation`)로 정규화한다. `/answer`는 citations를 포함하는 별도 Answer 스키마를 사용한다.
+`adapter-exa`는 `skill-registry` 어댑터 패턴 계약을 구현한 두 번째 search-adapter 스킬이다. Claude가 직접 curl 명령을 실행해 Exa API를 호출하므로 MCP 서버 의존성이 없다. `/search`, `/contents`, `/answer`, `/findSimilar` 네 연산을 지원하며, `/search`·`/contents`·`/findSimilar`는 `adapter-firecrawl`과 호환되는 공통 스키마(`query / results / source / operation`)로 정규화한다. `/answer`는 citations를 포함하는 별도 Answer 스키마를 사용한다.
 
 Exa의 차별점은 search type 파라미터와 `/answer` endpoint다. `deep`·`deep-reasoning` type은 멀티 에이전트 쿼리 확장을 통해 더 깊은 검색을 수행하며, `/answer`는 검색 결과를 기반으로 LLM이 citations를 포함한 직접 답변을 생성한다.
 
 ## 구조
 
 ```
-.claude/skills/stack-exa/
+.claude/skills/adapter-exa/
 └── SKILL.md    # 어댑터 절차 정의 (bundled resources 없음)
 ```
 
@@ -20,7 +20,7 @@ Exa의 차별점은 search type 파라미터와 `/answer` endpoint다. `deep`·`
 | 필드 | 값 |
 |------|----|
 | `version` | `6` |
-| `name` | `stack-exa` |
+| `name` | `adapter-exa` |
 | `origin` | `harness` |
 | `capabilities` | `[search-adapter, exa]` |
 
@@ -107,7 +107,7 @@ title이 없으면 URL 도메인을 fallback으로 사용한다 (`jq -r '.url | 
 
 ### search type 파라미터
 
-호출자가 명시적으로 지정한다. `stack-exa`는 전달된 값을 그대로 API에 넘긴다.
+호출자가 명시적으로 지정한다. `adapter-exa`는 전달된 값을 그대로 API에 넘긴다.
 
 | type | 특성 |
 |------|------|
@@ -140,7 +140,7 @@ skill-registry에 [search-adapter, exa] 태그로 쿼리하면 이 스킬이 반
 직접 로드:
 
 ```
-Load `.claude/skills/stack-exa/SKILL.md` and follow its process.
+Load `.claude/skills/adapter-exa/SKILL.md` and follow its process.
 ```
 
 ## 제약사항

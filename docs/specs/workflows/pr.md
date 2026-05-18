@@ -1,10 +1,10 @@
 # PR 발행 워크플로우
 
-> `/dev:pr` 커맨드가 브랜치를 push하고 GitHub PR을 생성하거나 갱신하는 계약.
+> `/flow-pr` 커맨드가 브랜치를 push하고 GitHub PR을 생성하거나 갱신하는 계약.
 
 ## 개요
 
-`/dev:pr`은 `/dev:docs` 이후 실행되는 발행 전용 단계이다. first-run에서는 `git push` 후 `gh pr create`로 PR을 생성하고, re-entry(`pr:created`)에서는 push 없이 `gh pr edit`으로 title·body만 갱신한다.
+`/flow-pr`은 `/flow-docs` 이후 실행되는 발행 전용 단계이다. first-run에서는 `git push` 후 `gh pr create`로 PR을 생성하고, re-entry(`pr:created`)에서는 push 없이 `gh pr edit`으로 title·body만 갱신한다.
 
 ## 구조
 
@@ -58,7 +58,7 @@
 ### re-entry (`pr:created` 상태)
 
 - push **없음** — `gh pr edit`으로 title·body만 갱신
-- 새 commit을 push하려면 수동으로 `docs:generated` 복귀 후 `/dev:docs → /dev:pr` 재실행
+- 새 commit을 push하려면 수동으로 `docs:generated` 복귀 후 `/flow-docs → /flow-pr` 재실행
 
 ### git 원격 설정 참조
 
@@ -68,5 +68,5 @@
 
 - PR merge·브랜치 삭제 자동화 없음. Squash-merge 여부, PR 병합 후 브랜치 삭제, 버전 태깅은 사용자 수동.
 - hotfix/release 브랜치 미지원: `feature`·`fix`·`chore` 브랜치만.
-- `/dev:pr` re-entry는 push 없음. 새 commit push가 필요한 경우 `docs:generated` 복귀 필요.
-- `/dev:done`의 게이트는 `pr:created` 상태이므로 `/dev:pr` first-run 완료 전에는 `/dev:done` 실행 불가.
+- `/flow-pr` re-entry는 push 없음. 새 commit push가 필요한 경우 `docs:generated` 복귀 필요.
+- `/flow-done`의 게이트는 `pr:created` 상태이므로 `/flow-pr` first-run 완료 전에는 `/flow-done` 실행 불가.

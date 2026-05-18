@@ -1,10 +1,10 @@
-# wf-codex-review 스킬
+# adapter-codex-review 스킬
 
-> `codex exec`으로 Codex spec-review 또는 plan-review를 단 한 번 실행하고 Decision을 반환하는 단일 실행 단위 스킬. 루프 제어는 호출 명령(`/dev:spec`, `/dev:plan`)이 소유한다.
+> `codex exec`으로 Codex spec-review 또는 plan-review를 단 한 번 실행하고 Decision을 반환하는 단일 실행 단위 스킬. 루프 제어는 호출 명령(`/flow-spec`, `/flow-plan`)이 소유한다.
 
 ## 개요
 
-`wf-codex-review`는 `meta-codex-bridge` 스킬에서 승격된 production-ready 스킬이다. `/dev:spec` Step 4와 `/dev:plan` Step 7의 `config.spec.auto_review` / `config.plan.auto_review` 플래그가 `true`일 때 명령이 로드하여 자동 리뷰 루프를 실행한다.
+`adapter-codex-review`는 `meta-codex-bridge` 스킬에서 승격된 production-ready 스킬이다. `/flow-spec` Step 4와 `/flow-plan` Step 7의 `config.spec.auto_review` / `config.plan.auto_review` 플래그가 `true`일 때 명령이 로드하여 자동 리뷰 루프를 실행한다.
 
 **단일 실행 단위**: 스킬은 항상 `codex exec`을 한 번 실행하고 Decision을 반환한다. 재시도 로직은 절대 포함하지 않는다. 루프(최대 3회, NOT READY 시 재시도)는 호출 명령이 소유한다.
 
@@ -13,11 +13,11 @@
 ## 구조
 
 ```
-.claude/skills/wf-codex-review/
+.claude/skills/adapter-codex-review/
   SKILL.md                    # 스킬 정의 (Auto-Detect, Availability Gate, Path Validation, 호출 패턴, Decision 파싱)
 .harness/scripts/
-  validate-path.js            # 경로 검증·정규화 스크립트 (wf-codex-review가 단일 호출로 사용)
-src/.claude/skills/wf-codex-review/
+  validate-path.js            # 경로 검증·정규화 스크립트 (adapter-codex-review가 단일 호출로 사용)
+src/.claude/skills/adapter-codex-review/
   SKILL.md                    # root와 동일 (harness self-sync)
 src/.harness/scripts/
   validate-path.js            # root와 동일 (harness self-sync)

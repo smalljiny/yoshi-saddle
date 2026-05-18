@@ -4,7 +4,7 @@
 
 ## 개요
 
-harness의 codex 세션 감지 시스템은 Claude Code 세션 시작 시 codex CLI의 가용성과 인증 상태를 자동으로 확인하여 `dev-context.json`의 `config.codex.*` 네임스페이스에 캐시한다. 이를 통해 `/dev:review`의 adversarial-review 등 codex 의존 기능이 매번 별도로 상태를 확인하지 않고 캐시를 읽어 즉시 판단할 수 있다.
+harness의 codex 세션 감지 시스템은 Claude Code 세션 시작 시 codex CLI의 가용성과 인증 상태를 자동으로 확인하여 `dev-context.json`의 `config.codex.*` 네임스페이스에 캐시한다. 이를 통해 `/flow-review`의 adversarial-review 등 codex 의존 기능이 매번 별도로 상태를 확인하지 않고 캐시를 읽어 즉시 판단할 수 있다.
 
 TTL 기반 캐시(1시간)로 매 세션마다 발생하는 동기 블로킹을 방지하며, 모든 감지 실패는 무음 실패로 처리하여 hook 오류가 세션 시작을 방해하지 않는다.
 
@@ -75,7 +75,7 @@ plugin `/codex:setup`을 shadow하는 harness-local command:
 
 소비자는 `config.codex.available`과 `config.codex.authenticated`를 읽어 실행 여부를 판단한다:
 
-- `/dev:review` — adversarial-review 활성화 조건 확인 (상세: `review-adversarial-workflow.md`)
+- `/flow-review` — adversarial-review 활성화 조건 확인 (상세: `review-adversarial-workflow.md`)
 - `meta-codex-bridge` 스킬 — `codex exec` 호출 전 가용성 게이트 (상세: `meta-codex-bridge.md`)
 
 ## 제약사항

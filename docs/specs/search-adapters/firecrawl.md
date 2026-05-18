@@ -1,15 +1,15 @@
-# stack-firecrawl 스킬
+# adapter-firecrawl 스킬
 
 > Firecrawl REST API v1을 Bash curl로 직접 호출하는 search-adapter 스킬. `skill-registry`의 `[search-adapter, firecrawl]` 태그로 로드되며, MCP 없이 `$FIRECRAWL_API_KEY` 환경변수만으로 웹 검색·스크래핑·크롤링을 수행한다.
 
 ## 개요
 
-`stack-firecrawl`은 `skill-registry` 어댑터 패턴 계약을 구현한 첫 번째 search-adapter 스킬이다. Claude가 직접 curl 명령을 실행해 Firecrawl API를 호출하므로 MCP 서버 의존성이 없다. `/v1/search`, `/v1/scrape`, `/v1/crawl` 세 연산을 지원하며, 모든 결과를 공통 스키마(`query / results / source / operation`)로 정규화한다.
+`adapter-firecrawl`은 `skill-registry` 어댑터 패턴 계약을 구현한 첫 번째 search-adapter 스킬이다. Claude가 직접 curl 명령을 실행해 Firecrawl API를 호출하므로 MCP 서버 의존성이 없다. `/v1/search`, `/v1/scrape`, `/v1/crawl` 세 연산을 지원하며, 모든 결과를 공통 스키마(`query / results / source / operation`)로 정규화한다.
 
 ## 구조
 
 ```
-.claude/skills/stack-firecrawl/
+.claude/skills/adapter-firecrawl/
 └── SKILL.md    # 어댑터 절차 정의 (bundled resources 없음)
 ```
 
@@ -18,7 +18,7 @@
 | 필드 | 값 |
 |------|----|
 | `version` | `2` |
-| `name` | `stack-firecrawl` |
+| `name` | `adapter-firecrawl` |
 | `origin` | `harness` |
 | `capabilities` | `[search-adapter, firecrawl]` |
 
@@ -97,7 +97,7 @@ skill-registry에 [search-adapter, firecrawl] 태그로 쿼리하면 이 스킬�
 직접 로드:
 
 ```
-Load `.claude/skills/stack-firecrawl/SKILL.md` and follow its process.
+Load `.claude/skills/adapter-firecrawl/SKILL.md` and follow its process.
 ```
 
 ## 제약사항
