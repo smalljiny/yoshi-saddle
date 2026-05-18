@@ -1,26 +1,12 @@
 {
   "runs": [
     {
-      "date": "2026-05-09T19:00:25.904834+00:00",
-      "input_tokens": 758017,
-      "output_tokens": 189505,
-      "files": 150
-    },
-    {
-      "date": "2026-05-10T06:48:00.207773+00:00",
-      "input_tokens": 332000,
-      "output_tokens": 58000,
-      "files": 37,
-      "note": "docs build (specs+notes+README), merged with src"
-    },
-    {
-      "date": "2026-05-15T01:47:38.213143+00:00",
-      "input_tokens": 18500,
-      "output_tokens": 4200,
-      "files": 39,
-      "mode": "update"
+      "date": "2026-05-18T06:06:46.962981+00:00",
+      "input_tokens": 838952,
+      "output_tokens": 0,
+      "files": 177
     }
   ],
-  "total_input_tokens": 1108517,
-  "total_output_tokens": 251705
+  "total_input_tokens": 838952,
+  "total_output_tokens": 0
 }
