@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-docs
 description: Reconcile spec with implementation, update existing docs/specs/ files (or create new ones), and commit. Run before /flow-pr.
 origin: harness
@@ -220,14 +220,8 @@ For full rewrites where the scope is large, invoke the `doc-updater` agent (read
 
 After all files are updated or created, select the representative document for `refDoc`:
 
-- **1 file updated/created**: select it automatically
-- **2 or more files**: prompt the user:
-  ```
-  여러 문서가 업데이트되었습니다. PR body에 사용할 대표 문서를 선택하세요:
-    1. docs/specs/foo.md
-    2. docs/specs/bar.md
-  ```
-- **If a newly created file exists**: propose it as the first candidate
+- **1 file updated/created**: select it automatically without prompting.
+- **2 or more files**: call `AskUserQuestion` with one option per updated/created file. The first option carries the `(Recommended)` marker — assign it to a newly created file if one exists, otherwise to the file with the largest diff size. Use the file path as the option label.
 
 Record the selected path:
 ```bash

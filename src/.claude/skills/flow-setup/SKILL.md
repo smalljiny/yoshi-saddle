@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-setup
 description: Configure project-level settings in dev-context.json. Subcommand `git` auto-detects git remotes and saves config.git.* fields used by /flow-pr, /flow-docs, and /flow-review.
 origin: harness
@@ -169,10 +169,10 @@ Show the proposed values and ask for confirmation:
 ### 9. Save to dev-context.json
 
 ```bash
-node .harness/scripts/dev-context.js set-field --field=config.git.pushRemote   --value=<pushRemote>
-node .harness/scripts/dev-context.js set-field --field=config.git.pullRemote   --value=<pullRemote>
-node .harness/scripts/dev-context.js set-field --field=config.git.baseBranch   --value=<baseBranch>
-node .harness/scripts/dev-context.js set-field --field=config.git.branchPattern --value=<branchPattern>
+node .harness/scripts/dev-context.js set-field --field=config.git.pushRemote   --value='<pushRemote>'
+node .harness/scripts/dev-context.js set-field --field=config.git.pullRemote   --value='<pullRemote>'
+node .harness/scripts/dev-context.js set-field --field=config.git.baseBranch   --value='<baseBranch>'
+node .harness/scripts/dev-context.js set-field --field=config.git.branchPattern --value='<branchPattern>'
 ```
 
 No `--topic` flag — these are global project settings.

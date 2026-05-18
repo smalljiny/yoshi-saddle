@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-checkpoint
 description: Create or verify a named checkpoint during implementation. Records git state and test results for safe rollback reference.
 origin: harness
@@ -21,7 +21,13 @@ Save a named snapshot of the current state, or compare the current state against
 
 ## create
 
-1. Run a quick quality check:
+1. Validate `<name>`. The name must match `^[a-zA-Z0-9_-]+$`. On mismatch, print the message below and stop:
+
+```
+체크포인트 이름은 영문자·숫자·`_`·`-`만 허용합니다.
+```
+
+2. Run a quick quality check:
 
 ```bash
 pnpm tsc --noEmit 2>&1 | head -5
@@ -30,19 +36,26 @@ pnpm test --run 2>&1 | tail -5
 
 If checks fail, report the failure and ask whether to checkpoint anyway.
 
-2. Record the checkpoint:
+3. Record the checkpoint. `<name>` was validated in Step 1, so substitution is safe:
 
 ```bash
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | <name> | $(git rev-parse --short HEAD)" \
   >> .claude/checkpoints.log
 ```
 
-3. Optionally stash or commit (ask the user):
-   - **Commit**: `git add -A && git commit -m "checkpoint: <name>"`
-   - **Stash**: `git stash push -m "checkpoint: <name>"`
+4. Optionally stash or commit (use `AskUserQuestion`):
+   - **Commit**: stage only the files the user names. Do not run `git add -A` — `.env*`, `*.pem`, `*.key`, `credentials.json` 등 민감 파일 오포함을 차단한다 (`flow-impl` Step 8과 동일 규약). Pass the message via HEREDOC:
+     ```bash
+     git add <file1> <file2>
+     git commit -m "$(cat <<'COMMIT_MSG'
+     checkpoint: <name>
+     COMMIT_MSG
+     )"
+     ```
+   - **Stash**: `git stash push -m "checkpoint: <name>"` (이름 검증으로 safe)
    - **None**: log only (default)
 
-4. Confirm:
+5. Confirm:
 
 ```
 ✅ Checkpoint created: <name>

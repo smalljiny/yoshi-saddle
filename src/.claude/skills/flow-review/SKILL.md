@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-review
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 origin: harness
@@ -170,6 +170,12 @@ process.stdout.write(p);
 ```
 
 `<baseBranch>`는 Step 4에서 읽은 `config.git.baseBranch` (기본 `main`).
+
+**baseBranch 형식 검증** (`flow-pr` Step 3과 동일 규약 — option injection·path traversal 차단):
+- 정규식 `^[a-zA-Z0-9][a-zA-Z0-9_/.-]*$` 매칭 필수
+- leading `-` 거부 (`-base` 같은 옵션 주입 차단)
+- `..` 시퀀스 거부 (경로 탐색 차단)
+- 검증 실패 시 경고 출력 + `adversarialStatus="skipped"`, `skipReason="invalid baseBranch"` → Step 8로 진행 (companion 호출 안 함)
 
 companion 경로 해결 실패 시 (`COMPANION_PATH`가 빈 문자열):
 - 경고 출력, `adversarialStatus="skipped"`, `skipReason="companion not found"` → Step 8로 진행
