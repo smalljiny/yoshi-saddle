@@ -1,5 +1,5 @@
 ---
-version: 10
+version: 11
 ---
 # Development Workflow
 
@@ -60,13 +60,26 @@ Must pass before completing:
 - `test` — tests pass (80%+ coverage)
 - `security` — security scan passes
 
-### 6. Done (`/flow-done`)
+### 6. Docs (`/flow-docs`)
 
 - **Gate**: topic must be `review:in-progress` — blocks if not met
-- Reads implemented harness files via `git diff` against `develop` (includes `.harness/`) and generates a reference document → `docs/specs/<confirmed-name>.md` (permanent)
-- Moves **all** artifacts to `docs/_local/done/<topic>/` — no deletions: spec.md, spec-review-*.md, plan-review-*.md, implementation-plan.md
+- Reconciles spec with implementation, updates existing `docs/specs/` files (or creates new ones), and commits
+- On completion: transitions to `docs:generated`
+
+### 7. PR (`/flow-pr`)
+
+- **Gate**: topic must be `docs:generated` — blocks if not met
+- Pushes the current branch to `pushRemote` and creates a GitHub Pull Request
+- PR title and body come from the plan `**Commit**` field + `.harness/templates/pr-body.md`
+- On completion: transitions to `pr:created`
+
+### 8. Done (`/flow-done`)
+
+- **Gate**: topic must be `pr:created` — blocks if not met
+- Moves **all** artifacts to `docs/_local/done/<topic>/` — no deletions: spec.md, spec-review-*.md, plan-review-*.md, implementation-plan.md, review-report-*.md
 - Removes topic from `dev-context.json` via `remove-topic`
 - Switches `current_topic` to next active topic (or null if none remain)
+- Reference document generation is handled by `/flow-docs` — `/flow-done` does not regenerate or modify `docs/specs/`
 
 ## Topic Management
 
@@ -93,9 +106,14 @@ Topic registration happens at `/flow-spec` (not `/flow-plan`). Running `/flow-to
 
 리뷰       →  dev-context.json: phase=review, status=in-progress
 
-완료       →  docs/specs/<confirmed-name>.md             (git-tracked, 참조 문서 자동 생성)
-              docs/_local/done/<topic>/                  (git-ignored, 모든 산출물 보존)
-              dev-context.json에서 토픽 제거
+문서       →  docs/specs/<confirmed-name>.md             (git-tracked, /flow-docs가 생성·갱신)
+              dev-context.json: phase=docs, status=generated
+
+PR         →  GitHub PR 생성, 브랜치 push
+              dev-context.json: phase=pr, status=created
+
+완료       →  docs/_local/done/<topic>/                  (git-ignored, 모든 산출물 보존)
+              dev-context.json에서 토픽 제거 (/flow-done은 docs/specs/를 변경하지 않음)
 ```
 
 ## Shell Portability
@@ -150,3 +168,5 @@ cmd ${arr[@]+"${arr[@]}"}
 | `plan:confirmed` | Codex plan-review READY |
 | `impl:in-progress` | `/flow-impl` first Story |
 | `review:in-progress` | `/flow-review` on start |
+| `docs:generated` | `/flow-docs` after commit |
+| `pr:created` | `/flow-pr` after PR creation |

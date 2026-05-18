@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-impl
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 origin: harness
@@ -148,7 +148,11 @@ After the briefing block is printed (closing `---`), **advisor 조건부 호출*
 - Story Type이 `infra` (스크립트·코드 변경, 시스템 영향 큼)
 - Tasks 수 ≥ 5
 
-조건에 해당하면 `advisor()`를 호출해 설계 상 위험·엣지 케이스·대안을 사전 검토한다. advisor 응답을 반영한 뒤 다음 단계로 진행한다. 이 호출은 `auto_start`와 무관하게 항상 실행된다.
+조건에 해당하면 `advisor()`를 호출해 설계 상 위험·엣지 케이스·대안을 사전 검토한다.
+
+`advisor()`는 Claude Code 런타임이 제공하는 built-in 도구이며 별도 스킬·에이전트 로드 없이 호출한다. 도구가 노출되지 않은 환경(headless Codex 등)에서는 호출이 실패하므로 경고 메시지를 출력한 뒤 advisor 단계를 건너뛰고 다음 단계로 진행한다 — `simplify`와 동일한 가용성 fallback 패턴이다.
+
+advisor 응답을 반영한 뒤 다음 단계로 진행한다. 이 호출은 `auto_start`와 무관하게 항상 실행된다.
 
 그 다음, auto_start config를 읽는다:
 
