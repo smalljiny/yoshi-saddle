@@ -94,7 +94,7 @@ plan 문서에서 추출:
 ```
 
 그 외(첫 번째 Story 또는 비배치): 전체 브리핑 블록 출력 후 승인 대기.
-- 복잡한 Story 판정(infra 타입 또는 Tasks ≥ 5)이면 `advisor()`를 브리핑 직후 호출해 위험·엣지 케이스를 사전 점검한다.
+- 복잡한 Story 판정(infra 타입 또는 Tasks ≥ 5)이면 `advisor()`를 브리핑 직후 호출해 위험·엣지 케이스를 사전 점검한다. `advisor` 도구가 노출되지 않은 환경(headless Codex 등)에서는 호출이 실패하므로 경고 메시지를 출력한 뒤 advisor 단계를 건너뛰고 다음 단계로 진행한다 — `simplify`와 동일한 가용성 fallback 패턴이다.
 - `config.dev_impl.auto_start == "true"`이면 승인 없이 즉시 Step 4로 진행한다.
 
 **Step 4 — Story의 Task entries 일괄 생성**
@@ -396,6 +396,7 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 - `prompt` 타입 정체 감지: 연속 2회 pass_count 증가 없으면 즉시 중단 보고.
 - `prompt` 타입 code-reviewer는 평가 대상 프롬프트 파일을 수정하지 않는다 (comment-only).
 - simplify 스킬은 `tdd` 타입에만 적용. `config`·`infra`·`refactor`·`prompt` 타입은 제외.
+- `advisor()`는 Claude Code 런타임 built-in 도구이며 별도 스킬 로드 없이 호출한다. 도구가 노출되지 않은 환경에서는 simplify와 동일하게 경고 후 건너뛴다 (가용성 fallback 패턴).
 - Task 도구 상태는 세션 단위. cross-session 복원은 지원하지 않는다. plan markdown 체크박스가 영속 단일 진실 원천이다.
 - Step 9.5는 Task 도구 entries 상태(`completed`)를 단일 진실 원천으로 두고 markdown `- [ ]` 라인을 `- [x]`로 Edit한다 (entries → markdown 방향). 누락 entry를 재생성하지 않는다.
 - Step 9.5 미체크 Task 게이트는 batch 모드에서도 사용자 응답을 기다린다 — 데이터 정합성(`보고 누락` vs `실제 미수행` 구분)이 자동 결정 불가능한 의도된 동작이다. `batch + auto_start + auto_commit` 완전 자동화 조합의 명시적 예외다.
