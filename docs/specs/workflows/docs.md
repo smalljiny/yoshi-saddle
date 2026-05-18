@@ -88,4 +88,4 @@ docs/
 - `refDoc`은 단일 대표 경로만 지원한다. `/flow-pr`의 PR body 계약이 단일 경로를 요구하므로 복수 경로 확장은 범위 밖이다.
 - 스펙 수정이 구현 목표를 변경하면 `/flow-docs`를 즉시 중단하고 `/flow-plan` 또는 `/flow-review`부터 재검토해야 한다.
 - `config.git.pullRemote`·`config.git.baseBranch` 미설정 시 기본값 `origin`·`main` 사용 (스키마는 `dev-context-config.md` 참조).
-- `config.docs.sourceFilter` 미설정 또는 빈 배열은 "필터 없음"과 동일하다. 하네스 저장소는 `/flow-init`을 실행해 소스 필터를 초기화해야 한다.
+- `config.docs.sourceFilter` 미설정 또는 빈 배열은 "필터 없음"과 동일하다. 하네스 저장소는 `/flow-init`을 한 번 실행해 소스 필터 기본값을 초기화한다. `/flow-init`의 재실행은 기존 non-empty 값을 보존하므로 (`/add-language-rules` 안내에 따른 import 블록 재생성 호출과 호환), 사용자 명시 설정이 의도치 않게 덮어쓰이지 않는다 — 상세는 `../dev-context-config.md` 참조.
