@@ -1,5 +1,5 @@
 ---
-version: 11
+version: 12
 ---
 
 # 하네스 가이드
@@ -11,8 +11,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 ```
 .claude/
 ├── agents/          전문 서브에이전트 (planner, tdd-specialist, code-reviewer 등)
-├── commands/        슬래시 커맨드 (/dev:init, /dev:spec, /dev:topic, /dev:plan, /dev:impl, /dev:review, /dev:verify, /dev:docs, /dev:pr, /dev:done, /harness:audit, /harness:learn)
-│   ├── dev/         개발 워크플로우 커맨드
+├── commands/        슬래시 커맨드 (/harness:audit, /harness:learn)
 │   └── harness/     하네스 관리 커맨드
 ├── hooks/           훅 설정 (hooks.json)
 ├── rules/           개발 규칙
@@ -21,10 +20,32 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 ├── scripts/         훅 구현 Node.js 스크립트
 │   └── hooks/
 ├── sessions/        세션 로그 (git-ignored, .jsonl 형식)
-├── skills/          워크플로우 스킬
-│   ├── wf-brainstorming/   /dev:spec 스펙 초안 작성 시 로드
-│   ├── wf-tdd/
-│   ├── wf-verification/
+├── skills/          5-tier 스킬 (flow-/wf-/adapter-/stack-/meta-)
+│   ├── flow-spec/          /flow-spec 진입점 (user-invocable: true)
+│   ├── flow-plan/          /flow-plan 진입점
+│   ├── flow-impl/          /flow-impl 진입점
+│   ├── flow-review/        /flow-review 진입점
+│   ├── flow-verify/        /flow-verify 진입점
+│   ├── flow-docs/          /flow-docs 진입점
+│   ├── flow-pr/            /flow-pr 진입점
+│   ├── flow-done/          /flow-done 진입점
+│   ├── flow-topic/         /flow-topic 진입점
+│   ├── flow-checkpoint/    /flow-checkpoint 진입점
+│   ├── flow-setup/         /flow-setup 진입점
+│   ├── flow-init/          /flow-init 진입점
+│   ├── wf-brainstorming/   flow-spec이 스펙 초안 작성 시 로드
+│   ├── wf-tdd/             TDD 사이클 단위 로직
+│   ├── wf-verification/    검증 게이트 체크리스트
+│   ├── wf-*/               그 외 wf-* 단위 로직 (총 8개)
+│   ├── adapter-codex-review/      Codex spec/plan 리뷰 어댑터
+│   ├── adapter-deep-research/     다중 검색 어댑터 조합 워크플로우
+│   ├── adapter-dependency-analysis/  JS/TS 의존성 분석 어댑터
+│   ├── adapter-exa/        Exa REST 검색 어댑터
+│   ├── adapter-firecrawl/  Firecrawl REST 검색 어댑터
+│   ├── stack-*/            기술 스택 패턴 가이드 (stack-postgres 등 총 17개)
+│   ├── skill-registry/     capabilities 발견 허브 (tier-less 인프라)
+│   ├── meta-skill-creator/ 신규 스킬 작성 인프라
+│   ├── meta-dev-context/   dev-context.json 상태 관리 인프라
 │   └── learned/     /harness:learn 커맨드가 자동 저장하는 패턴
 └── settings.json    권한 + 훅 설정
 ```
@@ -38,27 +59,27 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 | `.harness/rules/` | **공유 규칙** (Claude + Codex). `coding-style.md`, `git-workflow.md`, `testing.md`, `security.md`, `typescript/`. Claude 전용 규칙은 `.claude/rules/common/`에 유지. |
 | `.harness/commit-scopes.md` | **프로젝트별 커밋 스코프 목록**. `plan-review`가 Commit 필드 검증에 사용 (경고 수준). 다른 프로젝트에 하네스를 복사할 때 이 파일을 대상 프로젝트 스코프 표로 교체. |
 | `.harness/contracts/` | Claude↔Codex 교환 문서 형식 명세 (spec-review, plan-review, implementation-plan). |
-| `.harness/templates/` | 재사용 가능한 템플릿 (예: `/dev:pr`용 `pr-body.md`). |
+| `.harness/templates/` | 재사용 가능한 템플릿 (예: `/flow-pr`용 `pr-body.md`). |
 | `.harness/scripts/` | CLI 스크립트 (`dev-context.js` — 토픽 라이프사이클 상태 관리자). |
 
 ## 개발 워크플로우
 
 ```
-/dev:spec → /dev:plan → /dev:impl (반복) → /dev:review → /dev:verify → /dev:docs → /dev:pr → /dev:done
+/flow-spec → /flow-plan → /flow-impl (반복) → /flow-review → /flow-verify → /flow-docs → /flow-pr → /flow-done
 ```
 
-| 커맨드 | 역할 |
-|--------|------|
-| `/dev:spec <name>` | 스펙 초안 작성 (brainstorming 스킬) → `backlog/`에 저장, Codex 리뷰 루프 실행 |
-| `/dev:plan [<name>]` | backlog에서 선택 또는 토픽 지정 → `active/`로 이동, dev-context.json 등록, planner 에이전트 → implementation-plan.md 생성 (`**Commit**` 필드 포함) |
-| `/dev:impl` | Story 하나 실행 (tdd-specialist + code-reviewer 자동 호출). 각 Story 완료 후 플랜의 `**Commit**` 필드로 커밋. |
-| `/dev:review` | 최종 전체 리뷰 (code-reviewer + security-reviewer 병렬). 리뷰 수정은 별도 커밋. |
-| `/dev:verify` | 검증 게이트 (build → type-check → lint → test → security) |
-| `/dev:docs` | 구현된 하네스 파일로 참조 문서(`docs/specs/<name>.md`) 생성 + 커밋. `/dev:pr` 전에 실행. |
-| `/dev:pr` | 브랜치 Push + GitHub PR 생성 (퍼블리시 전용). PR 제목/본문은 플랜 Commit 필드 + `.harness/templates/pr-body.md`. |
-| `/dev:done` | 플래닝 산출물을 `done/`에 아카이브, dev-context.json에서 토픽 제거. `pr:created` 상태 필요. |
-| `/dev:init` | CLAUDE.md·AGENTS.md 프로젝트 섹션 초기화·업데이트 |
-| `/dev:topic` | 활성 토픽 + backlog 목록 확인, 또는 활성 토픽 전환 (`/dev:topic switch <name>`) |
+| 스킬 | 역할 |
+|------|------|
+| `/flow-spec <name>` | 스펙 초안 작성 (brainstorming 스킬) → `backlog/`에 저장, Codex 리뷰 루프 실행 |
+| `/flow-plan [<name>]` | backlog에서 선택 또는 토픽 지정 → `active/`로 이동, dev-context.json 등록, planner 에이전트 → implementation-plan.md 생성 (`**Commit**` 필드 포함) |
+| `/flow-impl` | Story 하나 실행 (tdd-specialist + code-reviewer 자동 호출). 각 Story 완료 후 플랜의 `**Commit**` 필드로 커밋. |
+| `/flow-review` | 최종 전체 리뷰 (code-reviewer + security-reviewer 병렬). 리뷰 수정은 별도 커밋. |
+| `/flow-verify` | 검증 게이트 (build → type-check → lint → test → security) |
+| `/flow-docs` | 구현된 하네스 파일로 참조 문서(`docs/specs/<name>.md`) 생성 + 커밋. `/flow-pr` 전에 실행. |
+| `/flow-pr` | 브랜치 Push + GitHub PR 생성 (퍼블리시 전용). PR 제목/본문은 플랜 Commit 필드 + `.harness/templates/pr-body.md`. |
+| `/flow-done` | 플래닝 산출물을 `done/`에 아카이브, dev-context.json에서 토픽 제거. `pr:created` 상태 필요. |
+| `/flow-init` | CLAUDE.md·AGENTS.md 프로젝트 섹션 초기화·업데이트 |
+| `/flow-topic` | 활성 토픽 + backlog 목록 확인, 또는 활성 토픽 전환 (`/flow-topic switch <name>`) |
 | `/harness:learn` | 세션 패턴 추출 → skills/learned/에 저장 |
 
 ## 에이전트
@@ -66,9 +87,9 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 | 에이전트 | 모델 | 자동 활성화 |
 |---------|------|------------|
 | planner | opus | 복잡한 기능 요청 시 |
-| tdd-specialist | opus | /dev:impl 중 |
-| code-reviewer | opus | 코드 작성 직후, /dev:impl Story 완료마다 |
-| security-reviewer | sonnet | /dev:review 중, 커밋 전 |
+| tdd-specialist | opus | /flow-impl 중 |
+| code-reviewer | opus | 코드 작성 직후, /flow-impl Story 완료마다 |
+| security-reviewer | sonnet | /flow-review 중, 커밋 전 |
 | architect | opus | 아키텍처 결정 시 |
 | build-error-resolver | sonnet | 빌드 실패 시 |
 | doc-updater | sonnet | 구현 완료 후 |
@@ -87,8 +108,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 ## 컴포넌트 추가 방법
 
 - **에이전트**: `.claude/agents/<name>.md` — YAML frontmatter (version, name, description, tools, model) + 지침
-- **스킬**: `.claude/skills/<name>/SKILL.md` — YAML frontmatter (version, name, description, origin) + 내용
-- **커맨드**: `.claude/commands/<name>.md` — YAML frontmatter (version, description) + 실행 흐름
+- **스킬**: `.claude/skills/<name>/SKILL.md` — YAML frontmatter (version, name, description, origin) + 내용. 신규 스킬은 5-tier prefix(`flow-`/`wf-`/`adapter-`/`stack-`/`meta-`) 중 하나를 선택해 명명한다. tier 판별 기준은 `.claude/rules/common/component-boundaries.md` 참조. **`flow-*` 스킬은 frontmatter에 `user-invocable: true`를 명시**한다 — 슬래시 커맨드 노출의 단일 진실 원천이며, 그 외 tier(`wf-/adapter-/stack-/meta-`)는 미명시 (오케스트레이터·스킬 Load 또는 capabilities 발견으로만 호출).
 - **공유 규칙**: `.harness/rules/<name>.md` 또는 `.harness/rules/typescript/<name>.md` — YAML frontmatter (version) + 규칙 (Claude + Codex 공유; coding-style, git-workflow, testing, security, typescript)
 - **Claude 규칙**: `.claude/rules/common/<name>.md` — YAML frontmatter (version) + 규칙 (Claude Code 운영 규칙: agents, performance, development-workflow, component-boundaries. Codex가 맥락 파악 목적으로 일부 참조 가능)
 - **프롬프트 작성 규칙**: 모든 컴포넌트 작성·수정 시 `.claude/rules/common/prompt-authoring.md`의 7가지 규칙을 따른다 (Opus 4.7 리터럴 해석 대응).
@@ -152,7 +172,7 @@ codex "plan-review 스킬을 실행해줘"
 
 8개 품질 게이트 기준으로 스펙 문서를 리뷰하고 리뷰 보고서를 생성한다.
 
-**실행 시점**: `/dev:spec`이 스펙 초안을 생성한 후, `/dev:plan` 전.
+**실행 시점**: `/flow-spec`이 스펙 초안을 생성한 후, `/flow-plan` 전.
 
 **검토 항목**:
 1. 목표 명확성 — 목표가 구체적이고 검증 가능한지
@@ -172,7 +192,7 @@ codex "plan-review 스킬을 실행해줘"
 
 8개 품질 게이트 기준으로 구현 계획을 리뷰하고 리뷰 보고서를 생성한다.
 
-**실행 시점**: `/dev:plan`이 `implementation-plan.md`를 생성한 후, `/dev:impl` 전.
+**실행 시점**: `/flow-plan`이 `implementation-plan.md`를 생성한 후, `/flow-impl` 전.
 
 **검토 항목**:
 1. 목표 커버리지 — 모든 스펙 목표가 최소 하나의 Story로 커버되는지
@@ -192,8 +212,8 @@ codex "plan-review 스킬을 실행해줘"
 
 | 키 | 기본값 | 동작 |
 |----|--------|------|
-| `config.spec.auto_review` | `false` | `/dev:spec` Step 4에서 `adapter-codex-review` 스킬을 자동 실행 (최대 3회 루프, READY/READY WITH NOTE 시 종료). `false` 또는 빈 출력이면 기존 수동 안내를 출력하고 정지. |
-| `config.plan.auto_review` | `false` | `/dev:plan` Step 7에서 `adapter-codex-review` 스킬을 자동 실행 (최대 3회 루프, READY/READY WITH NOTE 시 종료). `false` 또는 빈 출력이면 기존 수동 안내를 출력하고 정지. |
+| `config.spec.auto_review` | `false` | `/flow-spec` Step 4에서 `adapter-codex-review` 스킬을 자동 실행 (최대 3회 루프, READY/READY WITH NOTE 시 종료). `false` 또는 빈 출력이면 기존 수동 안내를 출력하고 정지. |
+| `config.plan.auto_review` | `false` | `/flow-plan` Step 7에서 `adapter-codex-review` 스킬을 자동 실행 (최대 3회 루프, READY/READY WITH NOTE 시 종료). `false` 또는 빈 출력이면 기존 수동 안내를 출력하고 정지. |
 | `config.graphify.targets` | `[]` (빈 배열) | graphify 분석 대상 디렉토리 배열. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구(hard error). 본 하네스 권장값 `["./src", "./docs"]`. |
 
 **관례**: 빈 출력(`""`)은 `false`로 처리한다. `true` 문자열과 정확히 일치할 때만 자동 루프가 실행된다.
