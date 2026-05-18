@@ -54,13 +54,17 @@ docs/_local/active/<topic>/implementation-plan.md
 
 ## Story Type Definitions
 
-| Type | When to Use |
-|------|-------------|
-| `tdd` | New behavior that requires tests (RED-GREEN-REFACTOR cycle) |
-| `config` | Configuration file changes, documentation, skill/command files |
-| `infra` | Infrastructure, scripts, tooling — not business logic |
-| `refactor` | Restructuring existing code with existing test coverage |
-| `prompt` | LLM prompt authoring and validation via PROPOSE→EVAL→REFINE cycle |
+> **Story Type ≠ Commit Type.** Story Type은 아래 5종만 허용 (`tdd|config|infra|refactor|prompt`).
+> Conventional Commits 타입(`feat|fix|docs|refactor|test|chore|perf|ci`)은 `**Commit**` 필드에서만 사용한다.
+> `refactor`는 양쪽에 등장하지만 서로 다른 개념이다. 본 절은 **Story Type**의 `refactor`를 정의한다.
+
+| Type | When to Use | Triggers |
+|------|-------------|----------|
+| `tdd` | 새 동작 추가 (RED-GREEN-REFACTOR) | 신규 함수·클래스·API 동작 |
+| `config` | 프롬프트·문서·설정 파일 변경 (실행 코드 아님) | `.claude/`, `.codex/`, `.harness/`, `docs/`, README, spec 재배치, skill/command/rule 파일 추가·이동·병합 |
+| `infra` | 스크립트·툴링 (비즈니스 로직 아님) | `scripts/`, CI 워크플로우, deploy 스크립트 |
+| `refactor` | **실행 코드 파일 (`.ts`/`.js`/`.py` 등)** 재구조화 (테스트 커버리지 존재) | 코드 파일 재구조화. **markdown·yaml·json 변경은 `config`** |
+| `prompt` | LLM 프롬프트 작성/개선 + Eval Case 평가 | 프롬프트 본문 개선 + PROPOSE→EVAL→REFINE 사이클 필요 |
 
 ## Prompt Task Eval Schema
 
