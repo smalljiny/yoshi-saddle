@@ -1,10 +1,10 @@
 <!--
-PR body 템플릿. `/dev:pr`이 `gh pr create --body` 에 사용한다.
+PR body 템플릿. `/flow-pr`이 `gh pr create --body` 에 사용한다.
 
 플레이스홀더:
   {{topic}}         — 현재 토픽 이름 (dev-context.json current_topic)
   {{spec_link}}     — 스펙 파일 경로 (topics[topic].spec)
-  {{reference_doc}} — 참조 문서 경로 (docs/specs/<name>.md, /dev:docs가 생성)
+  {{reference_doc}} — 참조 문서 경로 (docs/specs/<name>.md, /flow-docs가 생성)
   {{branch}}        — 현재 브랜치명 (git rev-parse --abbrev-ref HEAD)
   {{base_branch}}   — PR 대상 브랜치 (config.git.baseBranch, 기본 main)
 
@@ -46,7 +46,7 @@ scope가 추가/제거되면 아래 체크리스트도 함께 업데이트한다
 - [ ] 코드/문서가 읽기 쉽고 명칭이 명확하다
 - [ ] `docs/_local/` 외부에 민감한 데이터가 포함되지 않는다
 - [ ] 변경된 컴포넌트의 `version` 필드를 +1했다 (해당하는 경우)
-- [ ] `/dev:verify`를 통과했다 (build · type-check · lint · test · security)
+- [ ] `/flow-verify`를 통과했다 (build · type-check · lint · test · security)
 - [ ] Breaking change가 없다 (있다면 아래 "Breaking Changes" 섹션에 명시)
 
 ## 참조 문서

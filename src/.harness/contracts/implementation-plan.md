@@ -1,7 +1,7 @@
 # Contract: Implementation Plan Document
 
-- **Producer**: Claude planner agent (invoked by `/dev:plan`)
-- **Consumer**: Codex `plan-review` skill (validates against spec), Claude `/dev:impl` (executes Stories)
+- **Producer**: Claude planner agent (invoked by `/flow-plan`)
+- **Consumer**: Codex `plan-review` skill (validates against spec), Claude `/flow-impl` (executes Stories)
 
 ## File Location
 
@@ -48,7 +48,7 @@ docs/_local/active/<topic>/implementation-plan.md
 
 - **라인 형식**: `- [ ] T<storyN>.<taskM> — <subject>`
   - 예: `- [ ] T1.1 — Update version field in component files`
-- **first-line subject 규칙**: 첫 줄은 한 줄 명령형 subject로 작성한다. 이 subject는 `/dev:impl`이 Story 시작 시점에 호출하는 TaskCreate의 `subject` 필드로 그대로 입력 가능해야 한다.
+- **first-line subject 규칙**: 첫 줄은 한 줄 명령형 subject로 작성한다. 이 subject는 `/flow-impl`이 Story 시작 시점에 호출하는 TaskCreate의 `subject` 필드로 그대로 입력 가능해야 한다.
 - **권장 길이**: subject는 80자 이내.
 - **sub-bullet·코드 블록·표**: 구현자 디테일로 허용된다. 단, Claude Task 도구의 entry에는 first-line subject만 반영되며 sub-bullet은 반영되지 않는다.
 
@@ -147,9 +147,9 @@ Each Story includes a `**Commit**` field describing the commit to create when th
 
 Optional multi-line body (indented under the backtick line):
 ```
-- **Commit**: `feat(command): add /dev:docs command`
+- **Commit**: `feat(command): add /flow-docs command`
   ```
-  Separates reference doc generation from /dev:done.
+  Separates reference doc generation from /flow-done.
   Entry gate: review:in-progress. Completion: docs:generated.
   ```
 ```

@@ -1,7 +1,7 @@
 # Contract: Spec Review Report
 
 - **Producer**: Codex `spec-review` skill (`.codex/skills/spec-review/SKILL.md`)
-- **Consumers**: Claude `/dev:spec` (reads Decision to confirm spec), Claude `/dev:plan` (gate check)
+- **Consumers**: Claude `/flow-spec` (reads Decision to confirm spec), Claude `/flow-plan` (gate check)
 
 ## File Naming
 
@@ -53,6 +53,6 @@ Use `[NOTE]` for non-blocking observations.
 
 After writing the report, the Codex spec-review skill must update dev-context.json:
 
-- `READY` / `READY WITH NOTE` → no state transition (Claude `/dev:spec` handles `spec:confirmed`)
-- `NOT READY` → no state transition (Claude `/dev:spec` handles `spec:drafting` rollback)
+- `READY` / `READY WITH NOTE` → no state transition (Claude `/flow-spec` handles `spec:confirmed`)
+- `NOT READY` → no state transition (Claude `/flow-spec` handles `spec:drafting` rollback)
 - Always: `dev-context.js set-field --topic=<name> --field=specReview --value=<report-path>`

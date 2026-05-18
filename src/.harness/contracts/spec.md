@@ -1,10 +1,10 @@
 # Contract: Spec Document Format
 
-- **Producer**: Claude brainstorming skill (content) + `/dev:spec` (persistence)
-- **Consumer**: `/dev:spec` Step 7 (split analysis), Codex `spec-review` skill (quality validation)
+- **Producer**: Claude brainstorming skill (content) + `/flow-spec` (persistence)
+- **Consumer**: `/flow-spec` Step 7 (split analysis), Codex `spec-review` skill (quality validation)
 
 스펙 문서가 갖춰야 할 섹션 구조와 PR 병합 단위 판단 기준을 정의한다.
-`/dev:spec`은 브레인스토밍 호출 시 이 파일을 형식 기준으로 주입한다.
+`/flow-spec`은 브레인스토밍 호출 시 이 파일을 형식 기준으로 주입한다.
 
 버전 정책: 섹션 구조나 분할 기준 변경 시 PR 본문에 변경점을 명시한다.
 YAML frontmatter 및 version 필드는 사용하지 않는다.
@@ -57,7 +57,7 @@ YAML frontmatter 및 version 필드는 사용하지 않는다.
 
 ## 분할 판단 기준 (PR 병합 가능 단위 체크)
 
-스펙 작성 중 아래 질문으로 단위가 PR 병합에 적합한지 점검한다. `/dev:spec` Step 7(분할 추천)도 동일 기준을 사용한다.
+스펙 작성 중 아래 질문으로 단위가 PR 병합에 적합한지 점검한다. `/flow-spec` Step 7(분할 추천)도 동일 기준을 사용한다.
 
 | 기준 | 판단 질문 |
 |------|----------|

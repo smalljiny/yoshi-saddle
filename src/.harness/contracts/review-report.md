@@ -1,7 +1,7 @@
 # Contract: Review Report
 
-- **Producer**: Claude `/dev:review` command
-- **Consumers**: `/dev:done` (archive), user (review history)
+- **Producer**: Claude `/flow-review` command
+- **Consumers**: `/flow-done` (archive), user (review history)
 
 ## File Naming
 
@@ -70,7 +70,7 @@ severity가 명시되지 않은 이슈(adversarial-review의 설계 challenge �
 
 ## 처리 내역 산출 알고리즘
 
-1. `/dev:review` Step 3(Transition)에서 `SAVED_SHA = git rev-parse HEAD` 캡처
+1. `/flow-review` Step 3(Transition)에서 `SAVED_SHA = git rev-parse HEAD` 캡처
 2. review-fix commit 완료 후 `git log <SAVED_SHA>..HEAD --oneline` 실행
 3. 신규 commit **있음** → CRITICAL·HIGH: `fixed`, MEDIUM·LOW: `deferred`
 4. 신규 commit **없음** → 모든 이슈: `deferred`
@@ -87,7 +87,7 @@ severity가 명시되지 않은 이슈(adversarial-review의 설계 challenge �
 
 ## State Transition Responsibility
 
-`/dev:review` Step 3(Transition)에서 `review:in-progress`로 이미 전환되므로, 보고서 작성(Step 9) 시점의 추가 상태 전환은 없다.
+`/flow-review` Step 3(Transition)에서 `review:in-progress`로 이미 전환되므로, 보고서 작성(Step 9) 시점의 추가 상태 전환은 없다.
 
 ## Example
 
