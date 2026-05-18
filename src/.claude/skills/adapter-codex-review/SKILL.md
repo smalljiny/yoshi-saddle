@@ -1,5 +1,5 @@
 ---
-version: 15
+version: 16
 name: adapter-codex-review
 description: Run a single Codex spec-review or plan-review via `codex exec` and return the parsed Decision. Phase auto-detected from `dev-context.json`. Loop control is owned by the calling command, not this skill.
 origin: harness
@@ -41,8 +41,8 @@ STATUS=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=stat
 해당하지 않는 상태일 경우:
 ```
 현재 상태 (<phase>:<status>)에서 adapter-codex-review를 실행할 수 없습니다.
-spec-review: /dev:spec에서 spec:reviewing 상태로 전환 후 실행하세요.
-plan-review: /dev:plan에서 plan:reviewing 상태로 전환 후 실행하세요.
+spec-review: /flow-spec에서 spec:reviewing 상태로 전환 후 실행하세요.
+plan-review: /flow-plan에서 plan:reviewing 상태로 전환 후 실행하세요.
 ```
 
 ### 3. 경로 읽기·검증·정규화

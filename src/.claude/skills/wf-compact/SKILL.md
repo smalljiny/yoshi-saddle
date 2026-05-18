@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: wf-compact
 description: Use when approaching context limits or between workflow phases. Defines safe compaction points so /compact runs at logical boundaries, not arbitrary mid-task interruptions.
 origin: harness
@@ -9,7 +9,7 @@ category: session-management
 ## When to Activate
 
 - Session is running long and approaching context limits
-- Transitioning between major workflow phases (`/dev:plan` → `/dev:impl`)
+- Transitioning between major workflow phases (`/flow-plan` → `/flow-impl`)
 - After completing a Task, before starting the next
 - When responses feel slower or less coherent (context pressure)
 - After a failed approach — clear the dead-end reasoning before retrying
@@ -20,8 +20,8 @@ category: session-management
 Auto-compaction triggers at arbitrary points — often mid-task:
 
 ```
-BAD:  /dev:impl Task 1 → [auto-compact mid-edit] → loses variable names, file paths
-GOOD: /dev:impl Task 1 → commit → [/compact] → /dev:impl Task 2
+BAD:  /flow-impl Task 1 → [auto-compact mid-edit] → loses variable names, file paths
+GOOD: /flow-impl Task 1 → commit → [/compact] → /flow-impl Task 2
 ```
 
 Strategic compaction at logical boundaries preserves context through phases.
@@ -30,11 +30,11 @@ Strategic compaction at logical boundaries preserves context through phases.
 
 | Phase Transition | Compact? | Reason |
 |-----------------|----------|--------|
-| `/dev:topic` → `/dev:plan` | Yes | Exploration context is bulky; plan is the output |
-| `/dev:plan` → `/dev:impl` | Yes | Plan is saved to file; free up context for code |
+| `/flow-topic` → `/flow-plan` | Yes | Exploration context is bulky; plan is the output |
+| `/flow-plan` → `/flow-impl` | Yes | Plan is saved to file; free up context for code |
 | Task N → Task N+1 | Yes | Each Task is a clean boundary |
-| `/dev:impl` → `/dev:review` | Maybe | Keep if review needs recent code context |
-| `/dev:review` → `/dev:verify` | Yes | Review findings saved; clear before running gates |
+| `/flow-impl` → `/flow-review` | Maybe | Keep if review needs recent code context |
+| `/flow-review` → `/flow-verify` | Yes | Review findings saved; clear before running gates |
 | Mid-implementation | **No** | Losing variable names, file paths, partial state is costly |
 | After a failed approach | Yes | Clear dead-end reasoning before retrying |
 

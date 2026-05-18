@@ -1,5 +1,5 @@
 ---
-version: 6
+version: 7
 name: stack-prompt
 description: Prompt domain skill defining PROPOSE→EVAL→REFINE cycle for prompt type Stories. Provides strategy-specific eval logic (direct/rubric/judge), pass_count metric, and stagnation signals. Lazy-loads reference/authoring-patterns.md and reference/diagnostic-patterns.md. Loop control and persistence owned by the calling agent. Workflow-only — direct-load by `prompt-engineer` agent; not exposed via skill-registry.
 origin: harness
@@ -138,7 +138,7 @@ Consult `reference/diagnostic-patterns.md` for failure category lookup.
 정체 감지: <N>회 반복 동안 pass_count가 <X>에서 개선되지 않았습니다.
 실패 패턴: <요약>
 현재 최선 초안이 파일에 저장되어 있습니다.
-수동 검토 후 /dev:impl을 재실행하거나, 스펙의 Eval Cases를 수정하세요.
+수동 검토 후 /flow-impl을 재실행하거나, 스펙의 Eval Cases를 수정하세요.
 ```
 
 ---

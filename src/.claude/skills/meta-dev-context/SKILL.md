@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: meta-dev-context
 description: Shared contract for reading and writing dev-context.json via the dev-context.js CLI. Load this skill whenever a command needs to inspect or mutate topic lifecycle state.
 origin: harness
@@ -51,7 +51,7 @@ node .harness/scripts/dev-context.js set-field \
 
 ### `remove-topic`
 
-Remove a topic from dev-context.json. Switches `current_topic` to another remaining topic, or null if none remain. No state validation — the caller (`/dev:done`) is responsible for pre-validation.
+Remove a topic from dev-context.json. Switches `current_topic` to another remaining topic, or null if none remain. No state validation — the caller (`/flow-done`) is responsible for pre-validation.
 
 ```bash
 node .harness/scripts/dev-context.js remove-topic --topic=<name>
@@ -110,7 +110,7 @@ Then check `$PHASE:$STATUS` against the required state. If it does not match, ha
 
 ## Command-by-Command Invocation Map
 
-### `/dev:spec`
+### `/flow-spec`
 
 | Step | Call |
 |------|------|
@@ -119,7 +119,7 @@ Then check `$PHASE:$STATUS` against the required state. If it does not match, ha
 | Codex returns NOT READY | `update-state --topic=<name> --phase=spec --status=drafting` |
 | Spec confirmed | `update-state --topic=<name> --phase=spec --status=confirmed` |
 
-### `/dev:plan`
+### `/flow-plan`
 
 > `plan:confirmed` is set by the Codex `plan-review` skill (not by Claude directly) when it returns READY or READY WITH NOTE.
 
@@ -135,7 +135,7 @@ Then check `$PHASE:$STATUS` against the required state. If it does not match, ha
 | *(Codex plan-review)* NOT READY | `update-state --topic=<name> --phase=plan --status=ready` |
 | *(Codex plan-review)* After writing review file | `set-field --topic=<name> --field=planReview --value=<review-path>` |
 
-### `/dev:impl`
+### `/flow-impl`
 
 | Step | Call |
 |------|------|
@@ -143,18 +143,18 @@ Then check `$PHASE:$STATUS` against the required state. If it does not match, ha
 | On first Story start | `update-state --topic=<name> --phase=impl --status=in-progress` |
 | After each Story | `set-field --topic=<name> --field=currentStory --value=<story-id>` |
 
-### `/dev:review`
+### `/flow-review`
 
 | Step | Call |
 |------|------|
 | Gate check | `read --topic=<name> --field=phase` + `read --topic=<name> --field=status` → must be `impl:in-progress` |
 | On start | `update-state --topic=<name> --phase=review --status=in-progress` |
 
-### `/dev:verify`
+### `/flow-verify`
 
 No `dev-context.json` calls. This command runs quality gates (build, type-check, lint, test, security) without mutating lifecycle state.
 
-### `/dev:done`
+### `/flow-done`
 
 | Step | Call |
 |------|------|

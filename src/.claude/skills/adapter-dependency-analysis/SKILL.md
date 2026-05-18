@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: adapter-dependency-analysis
 description: JS/TS dependency analysis workflow orchestrator. Loads stack-knip and stack-dependency-cruiser when package.json exists. Use during planning or refactoring to get a full picture of dead code and architecture violations. Skips silently if package.json is absent (non-JS/TS projects).
 origin: harness
@@ -15,7 +15,7 @@ JS/TS 의존성 분석 워크플로우 오케스트레이터.
 
 ## When to Activate
 
-- `/dev:plan` 실행 시 planner 에이전트 호출 전 (자동)
+- `/flow-plan` 실행 시 planner 에이전트 호출 전 (자동)
 - 리팩토링 계획 수립 전 프로젝트 상태 파악이 필요할 때
 - 코드 품질 점검 또는 아키텍처 검증이 필요할 때
 

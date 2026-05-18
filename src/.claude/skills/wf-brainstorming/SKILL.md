@@ -1,7 +1,7 @@
 ---
-version: 7
+version: 8
 name: wf-brainstorming
-description: Format-agnostic conversational skill for refining ideas through collaborative dialogue. Use when writing a spec draft or exploring problems in depth. Loaded by /dev:spec during spec draft writing.
+description: Format-agnostic conversational skill for refining ideas through collaborative dialogue. Use when writing a spec draft or exploring problems in depth. Loaded by /flow-spec during spec draft writing.
 origin: sample-claude-env
 ---
 
@@ -50,7 +50,7 @@ This applies to all question types: exploration, confirmation, and approval.
 Present the completed output inline in the conversation.
 After presenting, announce completion so the caller can save the file:
 
-> 스펙 초안이 완성되었습니다. /dev:spec이 파일로 저장합니다.
+> 스펙 초안이 완성되었습니다. /flow-spec이 파일로 저장합니다.
 
 The specific document structure (sections, headings, format) is determined by the caller. If the caller has injected a format (e.g., via `.harness/contracts/spec.md`), follow that format. Otherwise, apply the format that best fits the context.
 

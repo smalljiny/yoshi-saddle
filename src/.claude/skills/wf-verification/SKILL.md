@@ -1,14 +1,14 @@
 ---
-version: 3
+version: 4
 name: wf-verification
-description: Pass code quality gates in sequence before a PR or after feature completion. Used with the /dev:verify command.
+description: Pass code quality gates in sequence before a PR or after feature completion. Used with the /flow-verify command.
 origin: harness
 category: dev-process
 ---
 
 ## When to Activate
 
-- When running the `/dev:verify` command
+- When running the `/flow-verify` command
 - Before opening a PR
 - When a feature implementation is deemed complete
 - For local pre-check of CI/CD pipeline
