@@ -199,3 +199,186 @@ Tasks에 명시한 보존 의무(simplify, branchPattern, deploy-harness.sh 등)
 | `.harness/contracts/implementation-plan.md` Story Type | `docs` 타입이 Conventional Commits에 있지만 contract에 없음을 명시 ("git commit type과 Story Type은 별개") | `docs` 비계약 사용 혼동 차단 |
 | planner agent 또는 `/dev:plan` 프롬프트 | Tasks 작성 후 "각 Task의 보존 의무·검증 의무가 Completion Criteria에 1:1 반영됐는지" 자체 점검 지시 추가 | Gate 4 Completion Criteria 불충분 예방 |
 | plan-review SKILL.md Gate 8 | 실행 내용(prompt authoring, style cleanup 등)이 spec §2 Goals, §4 의사결정, §7 영향 범위 표 중 하나라도 근거가 없으면 범위 초과로 판정하는 체크리스트 추가 | 지연 검출 패턴 조기화 |
+
+---
+
+# 후속 현황 점검 — 2026-05-18
+
+**점검 맥락**: 위 두 세션 분석(2026-05-10, 2026-05-15) 이후 본 하네스가 `/dev:*` → `/flow-*` 워크플로우로 재편된 시점(2026-05-18)에서 동일 패턴 재발 가능성을 재평가했다. 점검 대상: `src/.claude/skills/flow-plan/SKILL.md`, `src/.claude/agents/planner.md`, `src/.codex/skills/plan-review/SKILL.md`, `src/.codex/skills/plan-review/references/checklist-template.md`, `src/.harness/contracts/implementation-plan.md`.
+
+## 원인별 현재 상태
+
+| # | 원인 (분석 노트) | 상태 | 근거 |
+|---|------------------|-----|------|
+| 1 | `/dev:plan` 호출 프롬프트의 type hint 문장 | 해소 | `src/.claude/skills/flow-plan/SKILL.md:122-127` — planner 호출 인자가 spec path / dependency analysis / format 참조 3종으로만 구성. 직접 편향 주입 문장 제거됨. |
+| 2 | Story Type ↔ Commit Type 동음이의어 | 미해소 | 계약·planner·plan-review 모두 두 개념을 분리해 정의하지만 동음이의(`refactor`)에 대한 명시적 경고는 없음. |
+| 3 | Contract type 정의가 doc-restructure 식별 못함 | 미해소 | `src/.harness/contracts/implementation-plan.md:60-62` — `config`은 여전히 "Configuration file changes, documentation, skill/command files"로 묶여 있고 `refactor`는 markdown 배제 여부 불분명. |
+| 4 | 자연어 직관과 contract 충돌 | 미해소 (구조적) | 인지 충돌은 contract 명확화로만 완화 가능 — #3 미해소가 위험 표면으로 그대로 남음. |
+| 5 | planner.md doc-restructure 분류 가이드 부재 | 미해소 | `src/.claude/agents/planner.md`는 contract로 위임만 함. spec 재배치·skill·command 이동·README 갱신·외부 참조 동기화 매핑 표 부재. §4.5 `prompt` 타입 지침은 추가됐으나(개선) `config` vs `refactor` disambiguation은 누락. |
+| 6 | plan-review가 사후 검증만 | 미해소 | `src/.codex/skills/plan-review/references/checklist-template.md:41-46` Gate 5 평가 기준이 여전히 "config: no executable behavior changes" 추상 정의에 의존. |
+| A | plan-review LLM의 Gate 5 판단 불일치 | 미해소 | Gate 5의 "no executable behavior changes" 문구가 주관적 판단을 유도. skill/command/document 파일 생성·이동·수정에 대한 결정적 규칙 미정의. |
+| B | `docs` 타입 비계약 사용 혼동 | 미해소 | 계약에 "Story Type accepts only {tdd, config, infra, refactor, prompt}, do NOT use Conventional Commits types" 명시 없음. |
+| C | Gate 8 범위 초과 지연 검출 | 미해소 (구조적) | LLM coverage 변동성에 기인. |
+| D | Tasks ↔ Completion Criteria 매핑 누락 | 미해소 | planner.md/contract 어디에도 자가 점검 지시 부재. |
+
+### 추가 발견 — flow-plan SKILL.md inline 예시 stale
+
+`src/.claude/skills/flow-plan/SKILL.md:270`의 Plan Document Format 예시:
+
+```markdown
+- **Type**: tdd | config | infra | refactor
+```
+
+`prompt` 타입이 빠져 있다 — 원인 1의 "type listing 누락" 패턴이 동일 형태로 재출현. 계약(`implementation-plan.md:26`)은 5종 모두 명시하지만 flow-plan SKILL.md inline 예시는 stale 4종이다. planner agent가 두 문서를 함께 읽으면 prompt 타입 인지 약화로 이어진다.
+
+## 결손 요약
+
+| 분류 | 카운트 | 비고 |
+|------|------|------|
+| 해소 | 1 / 10 | 원인 1 (직접 프롬프트 편향)만 차단 — 가장 결정적이긴 함 |
+| 미해소 (구조적, LLM 변동성) | 2 / 10 | 원인 4, C — 본질적 LLM 한계 |
+| 미해소 (보강 가능) | 7 / 10 | 원인 2/3/5/6/A/B/D — contract·planner·plan-review 보강으로 차단 가능 |
+
+본 노트의 권고 보강 지점 4건(2026-05-10) + 4건(2026-05-15) 중 단 1건(직접 프롬프트 편향 제거)만 적용됐다. 노트 본문 #85-89가 예측한 "동일 실수의 다음 토픽 재발" 시나리오의 토양이 그대로 남아 있다.
+
+위험이 높은 토픽 유형:
+
+- 문서 재배치·디렉토리 재구조화 (원인 3·5·A 직격)
+- 다수 skill/command 파일 추가·이동 (원인 A 직격 — `config` 거부 후 번복 핑퐁)
+- spec 본문이 `restructure`/`rewrite`/`재배치` 어휘 빈출 (원인 4 자연어 트리거)
+
+이 세 패턴이 겹치는 토픽이 들어오면 `docs-specs-restructure`(5회 NOT READY)·`skill-system-refactor`(3회 + 수동 1회) 패턴이 재현될 가능성이 높다.
+
+## 보강 제안
+
+작성 시점 차단(planner)·검증 시점 결정성 확보(plan-review)·계약 명확화(contract) 세 축으로 묶는다. 레버리지 순.
+
+### A. Contract Story Type Definitions 명확화 (원인 2·3·B 일괄 차단)
+
+`src/.harness/contracts/implementation-plan.md` Story Type Definitions 표 보강. 본 contract는 planner·plan-review·향후 추가 컴포넌트의 단일 진실 원천이라 단일 변경 레버리지가 가장 높다.
+
+**Before** (`implementation-plan.md:57-63`):
+
+```markdown
+| Type | When to Use |
+|------|-------------|
+| `tdd` | New behavior that requires tests (RED-GREEN-REFACTOR cycle) |
+| `config` | Configuration file changes, documentation, skill/command files |
+| `infra` | Infrastructure, scripts, tooling — not business logic |
+| `refactor` | Restructuring existing code with existing test coverage |
+| `prompt` | LLM prompt authoring and validation via PROPOSE→EVAL→REFINE cycle |
+```
+
+**After** (제안):
+
+```markdown
+> **Story Type ≠ Commit Type.** Story Type은 아래 5종만 허용 (`tdd|config|infra|refactor|prompt`).
+> Conventional Commits 타입(`feat|fix|docs|refactor|test|chore|perf|ci`)은 `**Commit**` 필드에서만 사용한다.
+> `refactor`는 양쪽에 등장하지만 서로 다른 개념이다. 본 절은 **Story Type**의 `refactor`를 정의한다.
+
+| Type | When to Use | Triggers (빈번 케이스) |
+|------|-------------|---------------------|
+| `tdd` | 새 동작 추가 (RED-GREEN-REFACTOR) | 신규 함수·클래스·API 동작 |
+| `config` | 프롬프트·문서·설정 파일 변경 (실행 코드 아님) | `.claude/`, `.codex/`, `.harness/`, `docs/`, README, spec 재배치, skill/command/rule 파일 추가·이동·병합 |
+| `infra` | 스크립트·툴링 (비즈니스 로직 아님) | `scripts/`, CI 워크플로우, deploy 스크립트 |
+| `refactor` | **production 소스·테스트 파일** 재구조화 (테스트 커버리지 존재) | `.ts`/`.js`/`.py` 등 코드 파일. **markdown·yaml·json 변경은 `config`** |
+| `prompt` | LLM 프롬프트 작성/개선 + Eval Case 평가 | 프롬프트 본문 개선 + PROPOSE→EVAL→REFINE 사이클 필요 |
+```
+
+핵심 변경: (1) Story Type ≠ Commit Type 인용 박스, (2) `config`의 `documentation`을 leading 위치로 이동 + Triggers 컬럼에 빈번 케이스 명시, (3) `refactor` 정의에서 markdown 명시 배제.
+
+### B. planner.md disambiguation 표 (원인 5 — 작성 시점 차단)
+
+`src/.claude/agents/planner.md` §4.5 ~ §4.6 사이에 §4.5.5 신설.
+
+```markdown
+### 4.5.5. Story Type Disambiguation — 빈번 케이스 매핑
+
+자연어로 "restructure", "rewrite", "재배치"가 등장해도 파일 종류로 타입을 결정한다.
+
+| 작업 패턴 | Type | 근거 |
+|----------|------|------|
+| spec/문서 재배치, README rewrite, 참조 일괄 갱신 | `config` | markdown은 production code 아님 |
+| skill/command/rule 파일 추가·이동·병합 | `config` | 프롬프트 파일은 contract `config` 트리거 |
+| 에이전트/스킬 프롬프트 본문 개선 + Eval 측정 | `prompt` | PROPOSE→EVAL→REFINE 사이클 필요 |
+| `.ts`/`.js` 코드 재구조화 (테스트 동반) | `refactor` | production code with coverage |
+| 신규 함수·API 동작 추가 | `tdd` | RED-GREEN-REFACTOR 신규 동작 |
+| CI 워크플로우, deploy 스크립트 변경 | `infra` | 실행 환경·툴링 |
+
+**판정 규칙**: 표에 정확히 일치하지 않는 경우 변경 파일 확장자가 우선 결정 기준이다 — `.md`/`.yml`/`.json`이면 `config`, `.ts`/`.js`/`.py`면 `refactor` 또는 `tdd`.
+```
+
+### C. plan-review Gate 5 결정 테이블 (원인 6·A — 검증 시점 결정성)
+
+`src/.codex/skills/plan-review/references/checklist-template.md` Gate 5 평가 기준을 결정 테이블로 전환. LLM 회차별 판단 불일치(skill-system-refactor 1차 ↔ 2차 `config` 거부 후 번복) 차단.
+
+**Before** (`checklist-template.md:41-46`):
+
+```markdown
+- [ ] 5. Story 타입 정확성 (Story Type Accuracy)
+  Evidence: (verify each Story's Type (tdd/config/infra/refactor/prompt) matches its Tasks list.
+  tdd: must include test writing. config: no executable behavior changes. infra: tooling/scripts.
+  refactor: restructuring with existing coverage.
+  prompt: LLM prompt authoring/improvement with Eval Cases and Acceptance.
+```
+
+**After** (제안):
+
+```markdown
+- [ ] 5. Story 타입 정확성 (Story Type Accuracy)
+  Evidence: (Type은 {tdd, config, infra, refactor, prompt} 외 값이면 FAIL — `docs`/`feat`/`chore`는 Commit type이며 Story Type 아님.
+
+  File-path tie-breaker (가장 우선):
+  - Story가 .md/.yml/.json만 수정 → `config` (또는 prompt 사이클 명시 시 `prompt`)
+  - Story가 .ts/.js/.py 등 코드 + 기존 테스트 → `refactor` 또는 `tdd`
+  - Story가 scripts/, CI 파일만 수정 → `infra`
+
+  타입과 File-path tie-breaker 불일치 → FAIL.
+  "behavioral change 여부"는 판단 기준에 사용하지 않는다 — skill/command/rule 파일도 행동을 바꾸지만 `config`가 정답이다.
+
+  prompt 타입 추가 검증은 기존대로 유지: ...)
+```
+
+핵심: behavioral-change 주관 판단을 파일 경로 결정성으로 대체.
+
+### D. Tasks → Completion Criteria 매핑 자가 점검 (원인 D)
+
+`src/.claude/agents/planner.md` §4.4 말미에 자가 점검 단락 추가.
+
+```markdown
+### 4.4.5. Tasks ↔ Completion Criteria 매핑 자가 점검
+
+각 Task가 보존·검증 의무를 선언하면 (예: "preserve X", "do not break Y", "verify Z"),
+동일 의무가 같은 Story의 Completion Criteria에 1:1로 등장하는지 확인한다.
+
+매핑 누락 시 Criteria에 검증 가능한 항목을 추가한다 — Tasks의 보존 의무가 Criteria에 없으면
+plan-review Gate 4가 "Criteria 불충분"으로 FAIL 판정한다.
+```
+
+병행으로 plan-review Gate 4 Evidence에 한 줄 추가: "Tasks에 명시된 보존·검증 의무가 Criteria에 1:1로 반영됐는지 확인".
+
+### E. flow-plan SKILL.md 잔존 결함 1줄 수정
+
+`src/.claude/skills/flow-plan/SKILL.md:270`:
+
+**Before**: `- **Type**: tdd | config | infra | refactor`
+**After**: `- **Type**: tdd | config | infra | refactor | prompt`
+
+또는 해당 예시 블록(line 258-278)을 삭제하고 단일 진실 원천(contract) 참조만 남긴다 — 후자가 더 깔끔하다.
+
+## 미해소 잔존 (구조적 한계)
+
+- **원인 C** (Gate 8 지연 검출) — LLM coverage 변동성에 기인. 부분 완화는 Gate 8 Evidence에 "각 Story의 영향 범위를 spec §Goals/§Non-goals/§아키텍처/§영향 범위 중 어디서 근거를 찾았는지 명시" 형태의 traceability 강제로 가능하지만 완전 차단은 불가.
+- **원인 4** (자연어 직관 충돌) — A·B 조합으로 차단되면 인지 충돌 자체는 남아도 분류 결과는 결정적.
+
+## 토픽 묶음 제안
+
+| 토픽 | 보강 항목 | 우선순위 |
+|------|----------|---------|
+| `planner-story-type-disambiguation` | A + B | 높음 — 작성 시점 차단 |
+| `plan-review-gate-tightening` | C + D | 중 — 검증 시점 결정성 |
+| (E는 어느 토픽에든 끼움 또는 즉시 fix) | E | 낮음 — 1줄 수정 |
+
+또는 5개 모두를 한 토픽(`story-type-classification-hardening`)으로 묶어도 합리적이다 — 모두 동일 결함 군에 수렴.
+
+**가장 큰 단일 레버리지는 A** — contract 정의만 정확해지면 planner·plan-review의 후속 보강이 일관성 있게 따라온다. A 단독으로도 본 분석 노트가 예측한 재발의 50% 이상을 차단할 가능성이 높다.
