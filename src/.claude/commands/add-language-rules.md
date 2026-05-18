@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Scaffold language-specific rule files (coding-style/security/testing) under .harness/rules/<language>/. Generative, not template copy.
 category: harness-management
 ---
@@ -102,6 +102,16 @@ If a matching skill exists, output:
 관련 스킬이 있습니다: <skill-name>
 SKILL.md를 참조하면 더 상세한 패턴을 확인할 수 있습니다.
 ```
+
+### 6. Output Reload Guidance
+
+After Step 5 (regardless of whether a related skill was found), print the following final line as the last output of this command:
+
+```
+CLAUDE.md에 자동 로드 적용은 /flow-init 재실행
+```
+
+This line is informational. Do not invoke `/flow-init` automatically, do not call the Bash or Task tools to run it, and do not load the flow-init skill — the user controls when to rerun `/flow-init` to refresh the CLAUDE.md `@import` block.
 
 ## Non-goals
 
