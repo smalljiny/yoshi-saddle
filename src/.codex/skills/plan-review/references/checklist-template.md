@@ -36,7 +36,9 @@ Final decision rules:
   Task line first-line subject validation (warning level, fold-in here):
   - Each Task line `- [ ] T<storyN>.<taskM> — <subject>` must have a non-empty subject → warn if missing.
   - Subject must be 80 characters or fewer → warn if exceeded.
-  - Subject must be a single-line imperative phrase (TaskCreate-compatible) → warn if it wraps or contains markup.)
+  - Subject must be a single-line imperative phrase (TaskCreate-compatible) → warn if it wraps or contains markup.
+
+  Tasks 보존·검증 의무 ↔ Completion Criteria 1:1 매핑 — Tasks에 `preserve X` / `do not break Y` / `verify Z` 형태 항목이 있으면 같은 Story Completion Criteria에 1:1 등장하는지 검증한다. 누락이 1건이면 NOTE, 2건 이상이면 FAIL.)
 
 - [ ] 5. Story 타입 정확성 (Story Type Accuracy)
   Evidence: (verify each Story's Type matches the file-path decision table below.
