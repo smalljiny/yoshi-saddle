@@ -1,5 +1,5 @@
 ---
-version: 9
+version: 10
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob, TaskCreate, TaskUpdate
@@ -109,6 +109,10 @@ Story 내부 `**Tasks**:` 목록의 각 라인은 `- [ ] T<storyN>.<taskM> — <
   ```
 
 전체 스키마는 `.harness/contracts/implementation-plan.md`의 `## Task Line Format` 섹션을 참조한다.
+
+#### 4.4.5. Tasks↔Criteria 1:1 매핑 자가 점검
+
+Plan 출력 직전 각 Story에서 `preserve X` / `do not break Y` / `verify Z` 형태의 보존·검증 의무 항목을 Tasks 목록에서 식별한다. 같은 Story의 Completion Criteria에 동일 항목이 1:1로 등장하는지 자체 확인한다 — Tasks 보존·검증 의무 ↔ Completion Criteria 1:1 매핑. 누락된 항목이 있으면 Completion Criteria에 추가한 뒤 Story를 출력한다.
 
 ### 4.5. `prompt` 타입 Story 작성 지침
 
