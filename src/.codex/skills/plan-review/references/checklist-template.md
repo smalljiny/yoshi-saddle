@@ -43,6 +43,7 @@ Final decision rules:
 - [ ] 5. Story 타입 정확성 (Story Type Accuracy)
   Evidence: (verify each Story's Type matches the file-path decision table below.
   Use decidable rules (file path, type enum match) only — do not use subjective judgments such as "behavioral change" as evaluation criteria.
+  Path triggers (e.g., `scripts/`) take precedence over extension triggers — a `.ts` file under `scripts/` is `infra`, not `refactor`/`tdd`.
 
 | Type | Trigger (file path / extension) |
 |------|---------------------------------|
