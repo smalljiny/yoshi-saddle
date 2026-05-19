@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob, TaskCreate, TaskUpdate
@@ -133,6 +133,10 @@ Eval Case 스키마 전체 명세는 `.harness/contracts/implementation-plan.md`
       Pass: score >= 4
   - [ ] Acceptance: 2/2 eval 통과
 ```
+
+#### 4.5.5. Story Type 결정 안내
+
+Story Type 결정 시 `.harness/contracts/implementation-plan.md`의 Story Type Definitions 표 Triggers 컬럼을 1차 단서로 사용한다. 자연어 표현이 `restructure`/`rewrite`/`재배치`여도 변경 파일 확장자가 최종 결정 기준이다 (`.md`/`.yml`/`.json` → `config`, `.ts`/`.js`/`.py` → `refactor` 또는 `tdd`). Eval Case가 명시적으로 존재할 때만 `prompt`. .md 파일 변경이라도 Eval Case가 없으면 `config`.
 
 ### 4.6. Component Authoring — load prompt-authoring rule
 
