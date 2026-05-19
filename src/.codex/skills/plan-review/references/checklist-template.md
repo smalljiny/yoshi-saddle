@@ -39,11 +39,19 @@ Final decision rules:
   - Subject must be a single-line imperative phrase (TaskCreate-compatible) → warn if it wraps or contains markup.)
 
 - [ ] 5. Story 타입 정확성 (Story Type Accuracy)
-  Evidence: (verify each Story's Type (tdd/config/infra/refactor/prompt) matches its Tasks list.
-  tdd: must include test writing. config: no executable behavior changes. infra: tooling/scripts.
-  refactor: restructuring with existing coverage.
-  prompt: LLM prompt authoring/improvement with Eval Cases and Acceptance.
-  Mismatch between stated type and actual work → FAIL.
+  Evidence: (verify each Story's Type matches the file-path decision table below.
+  Use decidable rules (file path, type enum match) only — do not use subjective judgments such as "behavioral change" as evaluation criteria.
+
+| Type | Trigger (file path / extension) |
+|------|---------------------------------|
+| `tdd` | `.ts`/`.js`/`.py` source under test scope; Tasks include test authoring |
+| `config` | `.md`/`.yml`/`.json`/`.toml` settings, prompts, rules, contracts |
+| `infra` | `scripts/`, build/deploy tooling, executable Bash/Node CLI |
+| `refactor` | `.ts`/`.js`/`.py` restructuring with existing test coverage |
+| `prompt` | Eval Case가 명시적으로 존재할 때만 `prompt`. .md 파일 변경이라도 Eval Case가 없으면 `config`. |
+
+  Story Type 값이 열거형 `tdd|config|infra|refactor|prompt` 외 (`docs`·`feat`·`chore` 등 Commit type 포함)이면 즉시 FAIL.
+  Mismatch between stated type and table trigger → FAIL.
 
   For `prompt` type Stories — additional validation (spec §3.5):
   - Eval Case count < 2 → NOTE
