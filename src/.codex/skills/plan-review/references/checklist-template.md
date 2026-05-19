@@ -36,14 +36,25 @@ Final decision rules:
   Task line first-line subject validation (warning level, fold-in here):
   - Each Task line `- [ ] T<storyN>.<taskM> — <subject>` must have a non-empty subject → warn if missing.
   - Subject must be 80 characters or fewer → warn if exceeded.
-  - Subject must be a single-line imperative phrase (TaskCreate-compatible) → warn if it wraps or contains markup.)
+  - Subject must be a single-line imperative phrase (TaskCreate-compatible) → warn if it wraps or contains markup.
+
+  Tasks 보존·검증 의무 ↔ Completion Criteria 1:1 매핑 — Tasks에 `preserve X` / `do not break Y` / `verify Z` 형태 항목이 있으면 같은 Story Completion Criteria에 1:1 등장하는지 검증한다. 누락이 1건이면 NOTE, 2건 이상이면 FAIL.)
 
 - [ ] 5. Story 타입 정확성 (Story Type Accuracy)
-  Evidence: (verify each Story's Type (tdd/config/infra/refactor/prompt) matches its Tasks list.
-  tdd: must include test writing. config: no executable behavior changes. infra: tooling/scripts.
-  refactor: restructuring with existing coverage.
-  prompt: LLM prompt authoring/improvement with Eval Cases and Acceptance.
-  Mismatch between stated type and actual work → FAIL.
+  Evidence: (verify each Story's Type matches the file-path decision table below.
+  Use decidable rules (file path, type enum match) only — do not use subjective judgments such as "behavioral change" as evaluation criteria.
+  Path triggers (e.g., `scripts/`) take precedence over extension triggers — a `.ts` file under `scripts/` is `infra`, not `refactor`/`tdd`.
+
+| Type | Trigger (file path / extension) |
+|------|---------------------------------|
+| `tdd` | `.ts`/`.js`/`.py` source under test scope; Tasks include test authoring |
+| `config` | `.md`/`.yml`/`.json`/`.toml` settings, prompts, rules, contracts |
+| `infra` | `scripts/`, build/deploy tooling, executable Bash/Node CLI |
+| `refactor` | `.ts`/`.js`/`.py` restructuring with existing test coverage |
+| `prompt` | Eval Case가 명시적으로 존재할 때만 `prompt`. .md 파일 변경이라도 Eval Case가 없으면 `config`. |
+
+  Story Type 값이 열거형 `tdd|config|infra|refactor|prompt` 외 (`docs`·`feat`·`chore` 등 Commit type 포함)이면 즉시 FAIL.
+  Mismatch between stated type and table trigger → FAIL.
 
   For `prompt` type Stories — additional validation (spec §3.5):
   - Eval Case count < 2 → NOTE

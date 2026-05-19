@@ -30,14 +30,18 @@ Story Type ≠ Commit Type. Story Type은 아래 5종만 허용 (`tdd|config|inf
 
 `refactor` 행도 대칭 패턴: `markdown·yaml·json` 파일은 실행 코드가 아니므로 `refactor`가 아닌 `config`로 라우팅.
 
+### Path > Extension precedence (planner·plan-review 양쪽 적용)
+
+planner §4.5.5와 plan-review Gate 5 결정 테이블은 path 트리거가 확장자 트리거보다 우선한다 — `scripts/` 하위 실행 코드는 확장자(`.ts`/`.js`/`.py` 등)와 무관하게 `infra`이며, 이는 위 carve-out의 "실행 코드 변경 → `infra`·`refactor`·`tdd`" 분기를 path 단위에서 한 번 더 명확화한다. 분류 우선순위는 (1) contract Triggers 컬럼 본문, (2) Triggers carve-out, (3) path > extension precedence, (4) 확장자 매핑 순으로 적용된다.
+
 ## 동작
 
 ### 소비자별 처리
 
 | 소비자 | 역할 | Type 처리 |
 |--------|------|----------|
-| planner 에이전트 | implementation plan 작성 시 Type 결정 | contract 표 + carve-out을 따라 각 Story Type 결정 |
-| plan-review 스킬 (Codex) | Gate 5 (Story 타입 정확성) 검증 | Type이 5종 중 하나인지, 작업 항목과 일치하는지, `prompt`이면 Eval Case 형식 충족하는지 검증 |
+| planner 에이전트 | implementation plan 작성 시 Type 결정 + Tasks↔Criteria 매핑 자가 점검 | contract 표 + carve-out을 따라 각 Story Type 결정. §4.5.5(Story Type 결정 안내)에서 contract Triggers를 1차 단서, path > extension precedence를 명시(`scripts/` 하위는 확장자 무관 `infra`), Eval Case 명시적 존재 여부로 `prompt` 판별. §4.4.5(Tasks↔Criteria 1:1 매핑 자가 점검)에서 Tasks의 `preserve X` / `do not break Y` / `verify Z` 형태 보존·검증 의무가 Completion Criteria에 1:1 반영됐는지 plan 출력 직전 확인. |
+| plan-review 스킬 (Codex) | Gate 5 (Story 타입 정확성) + Gate 4 (완료 기준 명확성) 검증 | Gate 5: 5행 파일 경로 결정 테이블(`tdd`/`config`/`infra`/`refactor`/`prompt`) + `behavioral change` 같은 주관 판단 금지 + path 트리거가 확장자 트리거보다 우선 + Story Type 열거형 외 값(`docs`·`feat`·`chore` 등 Commit type) 즉시 FAIL + `prompt` 타입은 Eval Case 형식·Acceptance 라인 검증. Gate 4: Tasks 보존·검증 의무 ↔ Completion Criteria 1:1 매핑 점검(누락 1건 NOTE, 2건 이상 FAIL). |
 | `/flow-impl` | Story 시작 시 Type별 에이전트 라우팅 (Step 5) | `tdd`→tdd-specialist, `prompt`→prompt-engineer, `refactor`→refactor-cleaner, `config`·`infra`→직접 처리 |
 
 ### Type별 추가 게이트
@@ -53,3 +57,4 @@ Story Type ≠ Commit Type. Story Type은 아래 5종만 허용 (`tdd|config|inf
 - **Story Type ≠ Commit Type** — `refactor`가 양쪽에 등장하지만 서로 다른 개념이다. Commit Type 8종(`feat|fix|docs|refactor|test|chore|perf|ci`)은 `**Commit**` 필드에서만 사용한다.
 - **carve-out 해석 우선순위** — `config` 행 Triggers의 디렉토리 prefix와 carve-out 절이 동시 적용 가능한 경우 carve-out이 우선한다 (e.g., `src/.harness/scripts/dev-context.js`는 `.harness/` 매칭에도 불구하고 `infra`/`refactor`/`tdd`).
 - **prompt 타입 판단 기준은 "프롬프트 본문 자체의 개선"** — 단순한 frontmatter 수정·구조 재배치·메타데이터 변경은 프롬프트 본문 개선이 아니므로 `config`로 분류한다. PROPOSE→EVAL→REFINE 사이클이 필요한 본문 품질 개선만 `prompt`다.
+- **Path 트리거 우선** — planner와 plan-review 양쪽에서 path 트리거가 확장자 트리거보다 우선한다. `src/.harness/scripts/dev-context.js`는 확장자가 `.js`이지만 `scripts/` path에 따라 `infra`로 분류되고 `refactor`·`tdd`로 잘못 라우팅되지 않는다 (adversarial-review 피드백 반영).
