@@ -1,5 +1,5 @@
 ---
-version: 6
+version: 7
 name: flow-init
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 origin: harness
@@ -227,11 +227,11 @@ Step 1에서 두 파일(`CLAUDE.md`, `AGENTS.md`) 모두 "중단"을 선택한 �
 node .harness/scripts/dev-context.js read --field=config.graphify.targets
 ```
 
-출력을 다음 케이스로 분기한다:
+`dev-context.js read`는 배열 원소를 한 줄당 하나씩 newline-delimited로 출력하며, 빈 배열·null·미설정은 빈 stdout을 낸다. 다음 케이스로 분기한다:
 
-- 비어 있지 않은 JSON 배열 (예: `["./src","./docs"]`) — `JSON.parse` 후 `Array.isArray(v) && v.length > 0` 검사 통과: 추천을 건너뛰고 Step 7에 `[보존] config.graphify.targets 기존 값 유지`를 출력한다.
-- 빈 문자열·`null`·`[]` (빈 배열): 아래 추천 분기로 진입한다.
-- malformed 출력 (JSON 파싱 실패): 안전을 위해 보존 처리하고 Step 7에 `[감지 실패] config.graphify.targets`를 출력한다.
+- 명령이 비-0 exit으로 종료: Step 7에 `[감지 실패] config.graphify.targets`를 출력한다.
+- stdout이 비어 있음 (빈 배열·null·미설정): 아래 추천 분기로 진입한다.
+- stdout에 한 줄 이상의 원소 라인이 있음 (배열이 비어 있지 않음): 추천을 건너뛰고 Step 7에 `[보존] config.graphify.targets 기존 값 유지`를 출력한다.
 
 **저장소 유형별 추천값 분기** (기존 값 부재 시):
 
