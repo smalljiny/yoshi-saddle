@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 name: flow-init
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 origin: harness
@@ -227,11 +227,12 @@ Step 1에서 두 파일(`CLAUDE.md`, `AGENTS.md`) 모두 "중단"을 선택한 �
 node .harness/scripts/dev-context.js read --field=config.graphify.targets
 ```
 
-`dev-context.js read`는 배열 원소를 한 줄당 하나씩 newline-delimited로 출력하며, 빈 배열·null·미설정은 빈 stdout을 낸다. 다음 케이스로 분기한다:
+`dev-context.js read`는 배열 원소를 한 줄당 하나씩 newline-delimited로 출력하며, 빈 배열·null·미설정은 빈 stdout을 낸다. `config.graphify.targets`는 문자열 배열로만 의미가 있지만 `dev-context.js`는 동일 키에 boolean·number·문자열 같은 scalar 값도 저장 가능하다. 다음 케이스로 분기한다:
 
 - 명령이 비-0 exit으로 종료: Step 7에 `[감지 실패] config.graphify.targets`를 출력한다.
 - stdout이 비어 있음 (빈 배열·null·미설정): 아래 추천 분기로 진입한다.
-- stdout에 한 줄 이상의 원소 라인이 있음 (배열이 비어 있지 않음): 추천을 건너뛰고 Step 7에 `[보존] config.graphify.targets 기존 값 유지`를 출력한다.
+- stdout에 한 줄 이상의 라인이 있고 모든 라인이 비어 있지 않은 문자열 원소처럼 보인다 (배열이 비어 있지 않은 문자열 배열): 추천을 건너뛰고 Step 7에 `[보존] config.graphify.targets 기존 값 유지`를 출력한다.
+- stdout에 한 줄 이상의 라인이 있지만 저장된 값이 scalar(예: `true`, `42`, 단일 문자열 `"docs"` 등)로 의심된다: 잘못된 상태로 간주해 Step 7에 `[감지 실패] config.graphify.targets`를 출력하고 사용자에게 재설정 여부를 `AskUserQuestion`으로 묻는다. scalar 의심 신호는 — 라인 1개 + 값이 `true`/`false`/숫자/디렉토리로 해석되지 않는 단일 토큰 — 같은 휴리스틱으로 판정한다.
 
 **저장소 유형별 추천값 분기** (기존 값 부재 시):
 
@@ -277,7 +278,7 @@ node .harness/scripts/dev-context.js set-field --field=config.graphify.targets -
 - `[감지] config.graphify.targets = <배열>`: 기존 `config.graphify.targets`가 부재(빈 배열·null·미설정)해 추천값을 사용자 확정 후 set한 경우. 출력 배열은 `AskUserQuestion`으로 확정된 최종 값.
 - `[보존] config.graphify.targets 기존 값 유지`: 기존 `config.graphify.targets`가 비어 있지 않은 배열이어서 추천을 건너뛰고 보존한 경우. `[감지]`와 상호 배타.
 - `[정보] config.graphify.targets 미설정 유지`: 사용자가 추천 단계에서 옵션 2 "건너뛰기"를 선택한 경우. 추후 `/graphify` 호출 시 hard error로 안내된다.
-- `[감지 실패] config.graphify.targets`: `dev-context.js read` 호출 실패, malformed 출력, `set-field` 실패 중 하나가 발생한 경우. 기존 값은 변경되지 않는다.
+- `[감지 실패] config.graphify.targets`: `dev-context.js read` 호출 실패, scalar 값이 배열 키에 저장된 잘못된 상태, `set-field` 실패 중 하나가 발생한 경우. 기존 값은 변경되지 않고 사용자에게 재설정 여부를 묻는다.
 
 ## 오류 처리
 
