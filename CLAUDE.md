@@ -1,5 +1,5 @@
 ---
-version: 12
+version: 13
 ---
 
 # CLAUDE.md
@@ -23,3 +23,11 @@ Claude Code가 이 저장소에서 작업할 때의 안내 파일.
 - 컴포넌트 파일 (에이전트, 스킬, 커맨드, 규칙): **영어**
 
 @.harness/harness-guide.md
+<!-- harness-rules:begin -->
+@.harness/rules/coding-style.md
+@.harness/rules/git-workflow.md
+@.harness/rules/security.md
+@.harness/rules/testing.md
+@.harness/rules/typescript/patterns.md
+@.harness/rules/typescript/testing.md
+<!-- harness-rules:end -->
