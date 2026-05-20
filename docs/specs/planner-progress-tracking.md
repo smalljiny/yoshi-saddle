@@ -25,10 +25,10 @@ planner는 요구사항 분석·아키텍처 검토·Story 분해를 수 분 동
 ### planner 에이전트 frontmatter
 
 ```yaml
-tools: Read, Grep, Glob, TaskCreate, TaskUpdate
+tools: Read, Grep, Glob, TaskCreate, TaskUpdate, Write
 ```
 
-`TaskCreate`·`TaskUpdate`가 본 프로토콜 도입과 함께 `tools` 필드에 추가됐다.
+`TaskCreate`·`TaskUpdate`가 본 프로토콜 도입과 함께 `tools` 필드에 추가됐고, 이후 `Write`가 `planner-write-tool` 토픽에서 추가됐다. `Write`는 `/dev:plan`(harness) 모드에서 `docs/_local/active/<topic>/implementation-plan.md`를 직접 저장하는 용도이며, general-planning 모드에서는 사용하지 않고 plan을 텍스트로 반환한다.
 
 ## 동작
 
