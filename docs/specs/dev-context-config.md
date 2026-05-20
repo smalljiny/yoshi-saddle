@@ -128,7 +128,8 @@ graphify 풀 빌드의 분석 대상 디렉토리 배열.
 - `[]` (빈 배열) 또는 미설정: 풀 빌드를 거부하고 사용자에게 명시 설정을 요구 (hard error). 글로벌 기본값 없음
 - 비어 있지 않은 배열: 1개면 단일 호출, 2개 이상이면 디렉토리별 빌드 + `merge-graphs` 패턴
 
-본 하네스 권장값 `["./src", "./docs"]`. 배포된 하네스 권장값 `["./.claude", "./.harness", "./docs"]`. 자세한 호출 형태는 `harness-guide.md`의 graphify 절 참조.
+본 하네스 권장값 `["./src", "./docs/specs", "scripts"]`. 배포된 하네스 권장값 `["./.claude", "./.harness", "./docs"]`. 자세한 호출 형태는 `harness-guide.md`의 graphify 절 참조.
+배포된 하네스의 권장값 확정 흐름은 `/flow-init` Step이 담당한다 — 배포 직후 미설정·빈 배열 감지 시 추천하고 `AskUserQuestion`으로 확정한다.
 
 ### `config.review.adversarial_enabled` — adversarial-review opt-in
 

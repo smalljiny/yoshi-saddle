@@ -1,5 +1,5 @@
 ---
-version: 12
+version: 13
 ---
 
 # 하네스 가이드
@@ -214,7 +214,7 @@ codex "plan-review 스킬을 실행해줘"
 |----|--------|------|
 | `config.spec.auto_review` | `false` | `/flow-spec` Step 4에서 `adapter-codex-review` 스킬을 자동 실행 (최대 3회 루프, READY/READY WITH NOTE 시 종료). `false` 또는 빈 출력이면 기존 수동 안내를 출력하고 정지. |
 | `config.plan.auto_review` | `false` | `/flow-plan` Step 7에서 `adapter-codex-review` 스킬을 자동 실행 (최대 3회 루프, READY/READY WITH NOTE 시 종료). `false` 또는 빈 출력이면 기존 수동 안내를 출력하고 정지. |
-| `config.graphify.targets` | `[]` (빈 배열) | graphify 분석 대상 디렉토리 배열. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구(hard error). 본 하네스 권장값 `["./src", "./docs"]`. |
+| `config.graphify.targets` | `[]` (빈 배열) | graphify 분석 대상 디렉토리 배열. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구(hard error). 본 하네스 권장값 `["./src", "./docs/specs", "scripts"]`. |
 
 **관례**: 빈 출력(`""`)은 `false`로 처리한다. `true` 문자열과 정확히 일치할 때만 자동 루프가 실행된다.
 
@@ -254,7 +254,7 @@ graphify는 코드베이스·문서·연구 자료를 지식 그래프로 변환
 
 ### 분석 대상 설정 (config.graphify.targets)
 
-graphify 빌드의 분석 대상은 `dev-context.json`의 `config.graphify.targets` 배열에 정의한다. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구한다 (hard error). 본 하네스 권장값은 `["./src", "./docs"]`, 배포된 하네스 권장값은 `["./.claude", "./.harness", "./docs"]`.
+graphify 빌드의 분석 대상은 `dev-context.json`의 `config.graphify.targets` 배열에 정의한다. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구한다 (hard error). 본 하네스 권장값은 `["./src", "./docs/specs", "scripts"]`, 배포된 하네스 권장값은 `["./.claude", "./.harness", "./docs"]`.
 
 ```bash
 # 조회
@@ -276,12 +276,13 @@ node .harness/scripts/dev-context.js set-field --field=config.graphify.targets -
 uv run graphify ./src
 ```
 
-**targets 2개 이상 (본 하네스 — `["./src", "./docs"]`)**: 디렉토리별로 풀 빌드한 뒤 `merge-graphs`로 결합한다. 다중 인자 단일 호출(`graphify ./src ./docs`)은 graphify v1에서 안정 동작이 보장되지 않으므로 분리 빌드 후 머지 패턴을 권장한다.
+**targets 2개 이상 (본 하네스 — `["./src", "./docs/specs", "scripts"]`)**: 디렉토리별로 풀 빌드한 뒤 `merge-graphs`로 결합한다. 다중 인자 단일 호출(`graphify ./src ./docs/specs ./scripts`)은 graphify v1에서 안정 동작이 보장되지 않으므로 분리 빌드 후 머지 패턴을 권장한다.
 
 ```
 uv run graphify ./src --out graphify-out/g-src.json
-uv run graphify ./docs --out graphify-out/g-docs.json
-uv run graphify merge-graphs graphify-out/g-src.json graphify-out/g-docs.json --out graphify-out/graph.json
+uv run graphify ./docs/specs --out graphify-out/g-docs-specs.json
+uv run graphify scripts --out graphify-out/g-scripts.json
+uv run graphify merge-graphs graphify-out/g-src.json graphify-out/g-docs-specs.json graphify-out/g-scripts.json --out graphify-out/graph.json
 ```
 
 **배포된 하네스 (`["./.claude", "./.harness", "./docs"]`)**: 동일하게 디렉토리별 빌드 + merge-graphs 패턴을 적용한다.
