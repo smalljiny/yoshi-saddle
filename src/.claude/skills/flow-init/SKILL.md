@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 name: flow-init
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 origin: harness
@@ -238,22 +238,22 @@ node .harness/scripts/dev-context.js read --field=config.graphify.targets
 `scripts/deploy-harness.sh` 존재 여부로 저장소 유형을 감지해 추천 후보를 결정한다.
 
 - 존재 (본 하네스 저장소): 추천 후보 `["./src", "./docs/specs", "scripts"]`
-- 미존재 (배포된 하네스 또는 일반 프로젝트): 추천 후보 `[".claude", ".harness", "docs"]`
+- 미존재 (배포된 하네스 또는 일반 프로젝트): 추천 후보 `["./.claude", "./.harness", "./docs"]`
 
-**확정 (`AskUserQuestion`)**: 위 추천 후보를 다음 4개 옵션으로 사용자에게 제시한다.
+**확정 (`AskUserQuestion`)**: 위 추천 후보를 다음 2개 옵션으로 사용자에게 제시한다. `AskUserQuestion` 도구는 자동으로 "Other" 옵션을 추가하므로, 사용자가 자유 텍스트로 JSON 배열을 직접 작성하는 흐름은 "Other" 입력으로 처리한다.
 
 - 옵션 1 `(Recommended)` — 추천 후보를 그대로 사용
-- 옵션 2 — 추천 후보 + 사용자가 추가 입력한 디렉토리를 합친 배열
-- 옵션 3 — 사용자가 전체 배열을 직접 입력
-- 옵션 4 — 건너뛰기 (값 미설정 유지)
+- 옵션 2 — 건너뛰기 (값 미설정 유지, 추후 `/graphify` 호출 시 hard error로 안내)
 
-**기록 동작**: 확정값을 다음 명령으로 기록한다.
+**입력 유효성**: 사용자가 "Other"로 입력한 디렉토리 경로에 single-quote(`'`) 또는 newline이 포함되면 JSON 배열로 직렬화한 뒤 single-quoted 셸 인자로 전달할 때 인용 부호 종결 문제가 발생한다. 이런 경우 `AskUserQuestion`으로 재입력을 요구한다.
+
+**기록 동작**: 확정값을 JSON 배열로 직렬화한 뒤 다음 명령으로 기록한다.
 
 ```bash
 node .harness/scripts/dev-context.js set-field --field=config.graphify.targets --value='<JSON 배열>'
 ```
 
-옵션 4(건너뛰기)를 선택하면 `set-field`를 호출하지 않고 Step 7에 `[정보] config.graphify.targets 미설정 유지`를 출력한다. 추후 `/graphify` 호출 시 hard error로 안내된다.
+옵션 2(건너뛰기)를 선택하면 `set-field`를 호출하지 않고 Step 7에 `[정보] config.graphify.targets 미설정 유지`를 출력한다. 추후 `/graphify` 호출 시 hard error로 안내된다.
 
 ### Step 7: 결과 안내
 
@@ -276,7 +276,7 @@ node .harness/scripts/dev-context.js set-field --field=config.graphify.targets -
 - `[정보] .harness/rules/ 부재로 마커 사이 비움`: `.harness/rules/` 디렉토리가 없거나 glob 결과가 0건이어서 begin/end 마커 사이에 import 라인을 생성하지 않은 경우 추가 출력한다 (마커 자체는 유지). 그 외 경우 본 라인을 출력하지 않는다 (위 예시는 `.harness/rules/` 존재 시나리오이므로 본 라인을 포함하지 않는다).
 - `[감지] config.graphify.targets = <배열>`: 기존 `config.graphify.targets`가 부재(빈 배열·null·미설정)해 추천값을 사용자 확정 후 set한 경우. 출력 배열은 `AskUserQuestion`으로 확정된 최종 값.
 - `[보존] config.graphify.targets 기존 값 유지`: 기존 `config.graphify.targets`가 비어 있지 않은 배열이어서 추천을 건너뛰고 보존한 경우. `[감지]`와 상호 배타.
-- `[정보] config.graphify.targets 미설정 유지`: 사용자가 추천 단계에서 옵션 4 "건너뛰기"를 선택한 경우. 추후 `/graphify` 호출 시 hard error로 안내된다.
+- `[정보] config.graphify.targets 미설정 유지`: 사용자가 추천 단계에서 옵션 2 "건너뛰기"를 선택한 경우. 추후 `/graphify` 호출 시 hard error로 안내된다.
 - `[감지 실패] config.graphify.targets`: `dev-context.js read` 호출 실패, malformed 출력, `set-field` 실패 중 하나가 발생한 경우. 기존 값은 변경되지 않는다.
 
 ## 오류 처리
