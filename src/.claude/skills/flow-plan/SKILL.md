@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: flow-plan
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 origin: harness
@@ -127,6 +127,8 @@ Pass the following to the planner agent:
 
 The planner agent produces **only**:
 - `docs/_local/active/<topic>/implementation-plan.md`
+
+The planner agent saves this file directly using its Write tool — the main agent does not save it on the planner's behalf.
 
 The spec document is already confirmed and must not be modified.
 
