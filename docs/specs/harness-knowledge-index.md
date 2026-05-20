@@ -1,69 +1,64 @@
 ---
-last_modified: 2026-05-10
+last_modified: 2026-05-20
 author: @mario
 status: Active
 ---
 
-# harness-knowledge-index (graphify Stage 2)
+# harness-knowledge-index
 
-> graphify를 본 하네스의 1차 코드·문서 지도로 정착시키는 메커니즘. `dev-context.json`의 `config.graphify.targets` 배열로 분석 대상을 프로젝트별로 설정하고, `CLAUDE.md`·`AGENTS.md`에 5-rule 섹션으로 graphify-out을 grep/glob 전에 먼저 읽도록 지시한다. `harness-guide.md`의 워크플로우 가이드는 targets-driven 빌드 + `merge-graphs` 패턴 + `update <path>` 갱신 + CLI 미설치 fallback을 담는다.
+> graphify는 본 하네스의 사용자 호출형 도구이며 default-on lookup layer가 아니다. 워크플로우 가이드는 `src/.harness/harness-guide.md`가 단일 진실 원천이고, `src/CLAUDE.md`는 `@import`로 `src/AGENTS.md`는 marker block embed로 같은 본문을 두 세션에 노출한다. 분석 대상 디렉토리는 `dev-context.json`의 `config.graphify.targets`가 데이터 레이어로 소유한다.
 
-## 개요
+## 1. 개요
 
-graphify 시범 빌드(Stage 1, `docs/specs/graphify-integration.md` 참조)가 LLM 의미 추출의 가치를 입증한 뒤, Stage 2는 graphify를 **세션 단위로 사용되는 표준 도구**로 정착시킨다. Claude/Codex 새 세션은 매번 grep/glob로 프로젝트 구조를 재발견하지 않고 `graphify-out/GRAPH_REPORT.md`를 1차 지도로 사용하며, cross-module 질문은 `graphify query`/`path`/`explain`을 grep보다 우선해 응답한다.
+graphify는 코드·문서 그래프를 추출해 cross-module 질문·dead code 탐색·surprising connection 검사 같은 의미 단위 탐색을 돕는 사용자 호출형 도구다. 모든 세션이 `graphify-out/`을 grep/glob 전에 1차 지도로 읽도록 강제하는 행동 규칙은 본 하네스에 존재하지 않으며 도입하지 않는다. 사용 시점은 grep으로 답하기 어려운 의미 단위 탐색에 한정한다.
 
-분석 대상은 `dev-context.json`의 `config.graphify.targets` 배열로 프로젝트별 차이를 흡수한다. 본 하네스 권장값은 `["./src", "./docs"]`, 배포된 하네스는 `["./.claude", "./.harness", "./docs"]`. 미설정·빈 배열은 hard error로 처리해 사용자에게 명시 설정을 요구한다.
+권장 호출 형태·출력 위치·gitignore 정책·CLI 사전 조건·갱신·fallback은 `src/.harness/harness-guide.md`의 `## graphify 사용 가이드` 절이 단일 진실 원천이며, 본 문서는 컴포넌트 간 관계와 갱신 트리거만 기술한다. 분석 대상 디렉토리 권장값은 `docs/specs/dev-context-config.md`의 `### config.graphify.targets` 섹션이 권위 문서다.
 
-## 구조 / 스키마
+### 1.1 배경
 
-| 컴포넌트 | 위치 | 역할 |
-|---------|------|------|
-| `config.graphify.targets` | `docs/_local/dev-context.json` (gitignored, `node .harness/scripts/dev-context.js`로 접근) | 분석 디렉토리 배열. 미설정·빈 배열은 hard error |
-| `## graphify` 섹션 (CLAUDE.md) | `src/CLAUDE.md` (deploy-harness.sh로 루트 동기화) | Claude 세션용 5-rule 동작 규칙 |
-| `## graphify` 섹션 (AGENTS.md) | `src/AGENTS.md` `<!-- harness-guide:end -->` 마커 직후 | Codex 세션용 동일 5-rule. embedded harness-guide 블록과 분리 |
-| `## graphify 사용 가이드` | `src/.harness/harness-guide.md` | 워크플로우 가이드: 분석 대상 설정 → 권장 호출 형태 → 출력 위치 → gitignore 정책 → user-level 사전 조건 → 갱신 → fallback → Stage 2 진행 조건 |
-| graphify CLI | 사용자 환경 (uv venv 권장 — `.venv/bin/graphify`) | 풀 빌드·query·path·explain·merge-graphs·update 제공 |
+`docs/specs/harness-knowledge-index.md`(2026-05-10 작성)는 graphify 통합 메커니즘을 두 채널로 정의했다. (1) `src/CLAUDE.md`와 `src/AGENTS.md`에 byte-identical로 동기화된 `## graphify` 섹션을 두어 모든 세션이 graphify-out을 1차 지도로 읽도록 강제하는 본문 메커니즘. (2) `src/.harness/harness-guide.md`의 워크플로우 가이드.
 
-`config.graphify.targets`은 `dev-context.json`에 JSON 배열 값으로 저장된다. `dev-context.js read --field=config.graphify.targets`는 배열 원소를 한 줄당 하나씩 출력한다. `set-field --value='["./src","./docs"]'` 형태로 설정한다.
+2026-05-18까지의 리팩토링에서 (1) 채널이 의도적으로 제거됐다. 현재 코드 상태는 다음과 같다.
 
-## 동작
+- `src/CLAUDE.md`는 프로젝트 개요·기술 스택·언어 규칙 + 마지막 줄 `@.harness/harness-guide.md` import directive로 구성된 minimal 파일이다.
+- `src/AGENTS.md`는 `<!-- harness-guide:begin -->` / `<!-- harness-guide:end -->` 마커 블록 내부에 harness-guide.md 본문을 embed한다 (Codex는 `@import` 미지원).
+- `src/.harness/harness-guide.md`가 graphify 워크플로우 가이드의 단일 진실 원천이다.
+- "graphify-out을 grep 전에 먼저 읽어라" 류의 행동 강제 규칙은 본 저장소 어디에도 남아 있지 않다.
 
-### 5-rule 본문 (CLAUDE.md / AGENTS.md 공통)
+5-rule 본문 메커니즘은 commit `c7f3971 refactor(harness): trim CLAUDE.md graphify section and rebuild graph`와 `cfadaba refactor(harness): remove duplicated graphify section in CLAUDE/AGENTS` 두 단계에서 의도적으로 제거됐다. 본 reference는 그 제거를 부활시키지 않는다.
 
-`src/CLAUDE.md`와 `src/AGENTS.md`의 `## graphify` 섹션은 byte-identical로 동기화돼 있다. 다음 5개 규칙을 정의한다.
+## 2. 4가지 사실
 
-1. graphify-out/이 존재하면 그 graph가 코드·문서의 1차 지도. `GRAPH_REPORT.md`를 grep/glob·source 파일 읽기·코드베이스 질문 답변 전에 먼저 읽는다.
-2. cross-module 질문은 `uv run graphify query "<질문>"`, `path "<A>" "<B>"`, `explain "<개념>"`을 grep보다 우선한다.
-3. 분석 대상 디렉토리는 `node .harness/scripts/dev-context.js read --field=config.graphify.targets` (배열) 에 정의돼 있다.
-4. 코드 변경 후 `uv run graphify update <path>` 로 graphify-out/을 갱신한다 (AST-only, no API cost).
-5. graphify-out/이 없거나 graphify CLI 호출이 실패하면 grep/glob로 회귀하고, 풀 빌드는 사용자에게 안내한다.
+1. **graphify는 default-on lookup layer가 아니며 사용자 호출형 도구다.** 모든 세션이 graphify-out을 1차 지도로 읽도록 강제하는 행동 규칙은 본 하네스에 존재하지 않으며 도입하지 않는다. 사용 권장 시점은 cross-module 질문·dead code 탐색·surprising connection 검사처럼 grep으로 답하기 어려운 의미 단위 탐색에 한정한다.
+2. **워크플로우 가이드 단일 채널** — `src/.harness/harness-guide.md`가 유일한 권위 문서. `src/CLAUDE.md`는 `@import`로, `src/AGENTS.md`는 marker block embed로 동일 본문을 두 세션 컨텍스트에 노출한다.
+3. **`config.graphify.targets`는 데이터 레이어가 소유한다.** 권장값 표는 `docs/specs/dev-context-config.md` 단독 소유이며 본 문서는 cross-reference만 둔다. 배포된 하네스의 권장값은 `/flow-init`이 추천하고 사용자가 `AskUserQuestion`으로 확정한다.
+4. **갱신 트리거는 §3 역할 정의 표의 "갱신 주기" 컬럼이 단일 진실 원천이다.** 각 컴포넌트가 언제 재검토되어야 하는지가 표 한 자리에 모인다.
 
-### 권장 호출 형태 (targets-driven)
+## 3. 역할 정의
 
-`config.graphify.targets` 배열의 길이에 따라 호출 패턴이 달라진다.
+| 컴포넌트 | 책임 | 갱신 주기 |
+|---------|------|----------|
+| `src/.harness/harness-guide.md` `## graphify 사용 가이드` | 워크플로우 가이드 단일 진실 원천 — 호출 패턴·출력 위치·사전 조건·갱신·fallback. 분석 대상 설정 절은 `dev-context-config.md`로 위임 링크 | graphify CLI 호출 패턴이나 출력 구조가 바뀔 때 |
+| `src/CLAUDE.md` (`@.harness/harness-guide.md`) | Claude Code 세션에 harness-guide 본문 자동 노출 (import directive 한 줄) | harness-guide 경로가 바뀔 때만 |
+| `src/AGENTS.md` marker block (`<!-- harness-guide:begin -->` ↔ `<!-- harness-guide:end -->`) | Codex 세션에 harness-guide 본문 동기 노출 (Codex는 `@import` 미지원이라 embed) | harness-guide 변경 시 `/flow-init` 또는 `deploy-harness.sh` self-sync가 자동 갱신 |
+| `dev-context.json` `config.graphify.targets` | 분석 대상 디렉토리 배열 (단일 진실 원천). 미설정·빈 배열은 hard error | 프로젝트 구조 변경 시 사용자 직접, 또는 신규 배포 직후 `/flow-init`이 추천·확정 |
+| `docs/specs/dev-context-config.md` `### config.graphify.targets` | targets 권장값 표 + 설정 방법의 권위 문서 | 본 하네스 권장값이 바뀔 때 (예: 디렉토리 구조 변경), 또는 배포된 하네스의 기본 추천이 바뀔 때 |
+| `/flow-init` 스킬 Step 6 | 배포 직후 `config.graphify.targets` 미설정 감지 → 추천값 제시 → `AskUserQuestion`으로 확정 → `set-field` 기록 | `/flow-init` 자체 동작 변경 시. 멱등이므로 기존 설정은 보존 |
+| `~/.claude/CLAUDE.md` (user global, 본 저장소 밖) | `/graphify` 슬래시 커맨드 트리거 1줄 — 본 하네스 관여·검증 안 함 | 사용자 책임 |
+| `docs/specs/harness-knowledge-index.md` (본 문서) | 위 컴포넌트 7종의 관계·동작·제약을 한 문서에서 reference로 기술 + 사용자 호출형 도구 모델을 명시 부정문으로 고정 | graphify 통합 구조 자체가 바뀔 때 (예: lookup-first 모델 재도입 검토, 새 채널 추가) |
 
-- **targets 1개**: 단일 디렉토리를 직접 빌드. (graphify v0.7.11 CLI 사양: 직접 path 호출은 지원되지 않으며, `/graphify <path>` slash command 또는 `graphify extract <path> --backend <name>` 헤드리스 서브커맨드로만 동작. `harness-guide.md` `### 권장 호출 형태` 코드 블록은 후속 토픽에서 v0.7.11 사양에 맞춰 정정 예정.)
-- **targets 2개 이상**: 디렉토리별로 풀 빌드한 뒤 `uv run graphify merge-graphs <g1> <g2> ... --out graphify-out/graph.json`으로 결합. 다중 인자 단일 호출(`graphify ./src ./docs`)은 v0.7.11에서 미지원 (Story 5 검증).
-
-### 갱신 (graphify update)
-
-코드·문서 변경 후 `graphify-out/`을 갱신할 때는 `uv run graphify update "<path>"`를 사용한다. AST-only 분석이므로 LLM 호출이 없고 비용이 발생하지 않는다. 새 파일 추가 시 `manifest.json` 갱신 동작은 v1에서 미확정이며, 신뢰할 수 있는 갱신이 필요하면 풀 빌드 재실행으로 폴백한다.
-
-### CLI 미설치·호출 실패 fallback
-
-`uv run graphify ...` 호출이 실패하거나 graphify CLI가 설치되지 않은 환경에서는 grep/glob/Read 도구로 회귀해 작업을 진행한다. CLI 설치는 `pip install graphifyy` 또는 `uv pip install graphifyy` (그리고 `graphify install`) 절차를 사용자가 1회 실행한다. 풀 빌드는 사용자에게 명시 안내 후 실행한다.
-
-## 제약사항
+## 4. 제약사항
 
 - `config.graphify.targets`이 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구한다 (hard error). 본 하네스·배포 하네스·임의 프로젝트 분석 대상이 다르므로 전역 디폴트는 두지 않는다.
 - graphify CLI는 user-level 설치 (`pip install graphifyy && graphify install`, 또는 uv 변형)가 사전 조건이다. 본 하네스 저장소는 의존성을 재배포하지 않는다.
-- 풀 빌드는 LLM 의미 추출 비용을 동반한다. 본 하네스 `./src` 빌드는 약 758K input + 190K output 토큰. `./docs` 추가 시 코퍼스 규모(약 3.4배)에 비례한 추가 비용 발생.
-- `harness-guide.md`의 `### 권장 호출 형태` 코드 블록은 graphify v0.7.11 CLI 사양과 어긋나는 직접 path 호출 형태를 사용한다. 본 토픽 §"### 권장 호출 형태" caveat가 명시 경고를 제공하며, 후속 토픽에서 코드 블록 자체를 v0.7.11 사양(slash command 또는 extract 서브커맨드)에 맞춰 정정한다.
-- AGENTS.md의 `## graphify` 섹션은 `<!-- harness-guide:end -->` 마커 밖에 위치한다. 동일 파일에 embedded `## graphify 사용 가이드` 블록이 마커 안에 별도로 존재하며, 두 섹션은 의도적 분리다 (5-rule = 동작 규칙, harness-guide = 워크플로우 가이드).
+- 풀 빌드는 LLM 의미 추출 비용을 동반한다. 비용 추정치는 본 문서에 두지 않고 `graphify-out/cost.json`을 권위 원천으로 한다 — 빌드마다 변동하므로 reference 안정성을 우선한다.
+- graphify CLI 버전 라벨은 본문에 명시하지 않는다. 행동만 기술해 업스트림 마이너 업데이트가 본 reference를 outdated로 만들지 않게 한다. 실제 호출 패턴은 `harness-guide.md`의 `### 권장 호출 형태` 절이 단일 진실 원천이다.
 
-## 관련 문서
+## 5. 관련 문서
 
-- `docs/specs/graphify-integration.md` — Stage 1 시범 빌드 통합 문서 (본 Stage 2의 선행 문서)
-- `docs/_local/active/harness-knowledge-index/spec.md` — 본 토픽 spec (gitignored)
-- `docs/_local/active/harness-knowledge-index/validation-notes.md` — Story 5 다중 타겟 빌드 검증 결과 (gitignored)
-- `src/.harness/harness-guide.md` — graphify 사용 가이드 본문
+- `docs/specs/dev-context-config.md` `### config.graphify.targets` — 권장값 표 권위 문서
+- `docs/specs/graphify-integration.md` — Stage 1 시범 빌드 통합 문서 (역사 기록 그대로 유지)
+- `docs/_local/active/harness-knowledge-index-refresh/spec.md` — 본 reference 의 작성 스펙 (gitignored)
+- `src/.claude/skills/flow-init/SKILL.md` — `/flow-init` 스킬 본문 (Step 6에서 `config.graphify.targets` 추천·확정)
+- `src/.harness/harness-guide.md` — graphify 워크플로우 가이드 본문
+- `src/CLAUDE.md` / `src/AGENTS.md` — harness-guide.md 를 import / embed 하는 진입 파일
