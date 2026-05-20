@@ -62,3 +62,13 @@ graphify는 코드·문서 그래프를 추출해 cross-module 질문·dead code
 - `src/.claude/skills/flow-init/SKILL.md` — `/flow-init` 스킬 본문 (Step 6에서 `config.graphify.targets` 추천·확정)
 - `src/.harness/harness-guide.md` — graphify 워크플로우 가이드 본문
 - `src/CLAUDE.md` / `src/AGENTS.md` — harness-guide.md 를 import / embed 하는 진입 파일
+
+## 6. 결정 내역
+
+본 reference 작성 과정의 implementation refinement 기록. §1.2 4가지 사실의 보강이며 미래 contributor가 `dev-context-config.md`·`/flow-init` Step 6·`harness-guide.md` 세 채널을 변경할 때 참조한다.
+
+- **`/flow-init` Step 6 삽입 위치**: 기존 Step 5(`docs.sourceFilter`)와 결과 안내 사이에 신규 Step 6으로 삽입하고 기존 "결과 안내"는 Step 7로 재번호한다. `dev-context.json` `set-field` 흐름이 이미 Step 5에서 시작하므로 응집도가 가장 높다.
+- **`AskUserQuestion` 옵션 단순화**: 도구가 자동으로 "Other" 옵션을 추가하므로 추천값 + 건너뛰기 2 옵션만 명시하고 자유 입력은 "Other"로 흡수한다. 다단계 보조 질문·자유 텍스트 follow-up 분기는 불필요하다.
+- **입력 유효성**: "Other"로 입력된 디렉토리 경로에 single-quote(`'`)·newline이 포함되면 `set-field --value='<JSON 배열>'`의 single-quoted 셸 인자가 조기 종료되므로 `AskUserQuestion`으로 재입력을 요구한다.
+- **보존 분기 contract (4-way)**: `dev-context.js read --field=config.graphify.targets`는 newline-delimited 배열 원소를 출력하고 빈 배열·null·미설정은 빈 stdout을 낸다. 동일 키에 scalar 값(boolean·number·string)도 저장 가능하므로 보존 분기는 (1) 명령 비-0 exit → `[감지 실패]`, (2) stdout 비어 있음 → 추천 진행, (3) 비어 있지 않은 문자열 원소 라인 → `[보존]`, (4) scalar 의심 → `[감지 실패]` + 재설정 프롬프트의 4-way로 처리한다.
+- **권장값 단일 진실 원천**: `config.graphify.targets`의 권장값 표는 `dev-context-config.md` `### config.graphify.targets` 섹션이 단일 권위다. `harness-guide.md`·`/flow-init` Step 6·본 reference §3 표는 모두 이 권위 문서를 따라 sync된다. 본 토픽에서 본 하네스 권장값은 `["./src", "./docs/specs", "scripts"]`로 정정됐다.
