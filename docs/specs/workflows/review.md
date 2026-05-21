@@ -34,7 +34,7 @@ docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 | 2 | 모든 Story 완료 확인 (`currentStory=null`, 미체크 Story 헤더·nested Task 0건). `grep -nE "^### \[ \]|^- \[ \] T"` 로 두 조건을 동시 검사한다. |
 | 3 | `review:in-progress` 전환 + `SAVED_SHA = git rev-parse HEAD` 캡처 |
 | 4 | 변경 범위 식별 (`config.git.baseBranch`, `config.git.pullRemote`) |
-| 5 | code-reviewer + security-reviewer **병렬** 실행 |
+| 5 | code-reviewer + security-reviewer **병렬** 실행. code-reviewer는 코드 품질뿐 아니라 plan 내 모든 Story `**Commit**` 필드에 대해 워크플로우 노출 패턴(슬래시 커맨드·서브에이전트·스킬 이름)을 일괄 점검하여 WARNING만 출력한다 — 자동 수정·차단 없음. 정책 정의는 [commit-pr-message-policy.md](../commit-pr-message-policy.md) 참조. |
 | 6 | 이슈 분류(CRITICAL/HIGH/MEDIUM/LOW) → CRITICAL·HIGH 수정 → review-fix commit |
 | 7 | adversarial-review **순차** 실행 (활성화 조건 충족 시) |
 | 8 | 처리 내역 산출 (`git log SAVED_SHA..HEAD`) |

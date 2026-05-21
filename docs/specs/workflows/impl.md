@@ -315,6 +315,7 @@ plan-review 스킬이 `prompt` 타입 Story를 검증할 때 적용하는 규칙
 - type: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci`
 - scope: `.harness/commit-scopes.md`에 정의된 값 권장 (자유 허용, warning 수준 검증)
 - plan-review: Commit 섹션의 type/scope/subject를 warning 수준으로 검증
+- content policy: 메시지 본문에서 하네스 워크플로우 도구(슬래시 커맨드·서브에이전트·스킬 이름)를 노출하지 않는다. 단일 진실 원천은 `.harness/rules/git-workflow.md`의 "메시지 콘텐츠 정책: 워크플로우 노출 차단" 절이며, 정책 분포·금지 카테고리·carve-out 규칙은 [commit-pr-message-policy.md](../commit-pr-message-policy.md)를 참조한다.
 
 ### 배치 모드
 
