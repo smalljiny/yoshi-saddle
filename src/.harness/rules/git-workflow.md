@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 ---
 # Git Workflow
 
@@ -21,6 +21,49 @@ feat(command): add /flow-docs command
 fix(rule): correct auto_commit default value
 docs(harness): update workflow in CLAUDE.md
 ```
+
+## 메시지 콘텐츠 정책: 워크플로우 노출 차단
+
+**핵심 규칙**: 커밋·PR 메시지는 변경된 산출물과 그 이유만 기술한다. 메시지를 만든 하네스 워크플로우 도구(슬래시 커맨드·서브에이전트·스킬 이름)는 노출하지 않는다.
+
+**적용 대상**:
+- 신규 커밋 메시지 (plan의 `**Commit**` 필드 포함)
+- PR 제목
+- PR 본문의 사용자 편집 섹션
+
+**금지 카테고리**:
+
+| # | 카테고리 | 예시 패턴 |
+|---|---------|----------|
+| (a) | 슬래시 커맨드 명시 | `/flow-*`, `/dev:*`, `/harness:*`, `/graphify`, `/codex:*` |
+| (b) | 워크플로우 narrative | `auto-invoked`, `RED-GREEN-REFACTOR`, `스킬 실행`, `에이전트 호출` |
+| (c) | 도구 내부 상태 | `dev-context.json` 전이 narrative |
+| (d) | 절차적 "via" 구문 | `via tdd-specialist`, `/flow-docs로 생성` |
+
+**Carve-out 규칙**: 컴포넌트 이름(planner·tdd-specialist 등)·슬래시 커맨드 이름(`/flow-spec` 등)은 그 컴포넌트가 변경 대상(`scope` 또는 변경된 파일 경로)일 때만 허용한다. `feat(agent): add Write tool to planner`는 planner가 변경 대상이므로 적법, `feat(command): improve /flow-spec status display`는 `/flow-spec`(`.claude/commands/flow-spec.md` 또는 `.claude/skills/flow-spec/SKILL.md`)이 변경 대상이므로 적법, `feat: signup endpoint via planner`는 planner가 변경 대상이 아니므로 위반이다.
+
+**Grandfathering 규칙**: 정책 병합 시점에 이미 작성된 plan `**Commit**` 필드는 위반이라도 재작성하지 않고 그대로 사용한다.
+
+**Before/After 예시**:
+
+(a) 슬래시 커맨드 명시 — 위반:
+```
+Before: feat: add signup endpoint via /flow-impl
+After:  feat: add signup endpoint
+```
+
+(b) 서브에이전트 narrative — 위반:
+```
+Before: fix: review feedback (tdd-specialist 재실행 후 통과)
+After:  fix: review feedback
+```
+
+(c) Carve-out 적법 사례 (컴포넌트가 변경 대상):
+```
+Before: feat(agent): add Write tool to planner
+After:  feat(agent): add Write tool to planner
+```
+planner는 변경된 파일(`.claude/agents/planner.md`)이므로 메시지에 등장해도 적법하다.
 
 ## Commit Timing: Task Completion
 
