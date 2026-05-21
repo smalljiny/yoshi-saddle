@@ -1,8 +1,8 @@
 ---
-version: 11
+version: 13
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
-tools: Read, Grep, Glob, TaskCreate, TaskUpdate
+tools: Read, Grep, Glob, TaskCreate, TaskUpdate, Write
 model: opus
 color: green
 ---
@@ -161,9 +161,9 @@ For each Story, design a commit message that will be executed when the Story is 
 
 ## Plan Output Format
 
-**When invoked from `/dev:plan`** (harness workflow): use `.harness/contracts/implementation-plan.md` as the canonical output format. Include a `**Commit**` field in every Story block as specified in that contract. Do NOT use the Phase/Architecture format below.
+**When invoked from `/dev:plan`** (harness workflow): use `.harness/contracts/implementation-plan.md` as the canonical output format. Include a `**Commit**` field in every Story block as specified in that contract. Do NOT use the Phase/Architecture format below. When the plan is complete, save it to `docs/_local/active/<topic>/implementation-plan.md` using the Write tool. The `<topic>` value is the "Current topic name" passed by the caller (flow-plan SKILL Step 4). Do not return the plan as text only — the file must exist on disk before reporting completion.
 
-**When invoked for general planning** (not harness workflow): use the format below.
+**When invoked for general planning** (not harness workflow): use the format below. Return the plan as text in the assistant response; do not write to disk.
 
 ```markdown
 # Implementation Plan: [Feature Name]
