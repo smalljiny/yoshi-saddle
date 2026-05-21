@@ -1,5 +1,5 @@
 ---
-version: 13
+version: 14
 name: planner
 description: Implementation planning expert for complex features and refactoring. Use proactively when implementing features, making architecture changes, or handling complex refactoring requests. Automatically invoked by the /dev:plan command.
 tools: Read, Grep, Glob, TaskCreate, TaskUpdate, Write
@@ -158,6 +158,7 @@ For each Story, design a commit message that will be executed when the Story is 
 - **Subject**: 72 characters or fewer, imperative mood ("add X", "extend Y", not "added" or "adds")
 - **Principle**: commit message reflects only what this Story produces — not what a future Story will change
 - **Optional body**: include when context is needed to understand the change (breaking changes, migration notes, etc.)
+- **Content policy**: Load .harness/rules/git-workflow.md and follow its 메시지 콘텐츠 정책 절.
 
 ## Plan Output Format
 
