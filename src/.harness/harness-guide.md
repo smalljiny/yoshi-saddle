@@ -1,5 +1,5 @@
 ---
-version: 13
+version: 15
 ---
 
 # 하네스 가이드
@@ -33,7 +33,9 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 │   ├── flow-checkpoint/    /flow-checkpoint 진입점
 │   ├── flow-setup/         /flow-setup 진입점
 │   ├── flow-init/          /flow-init 진입점
+│   ├── flow-worktree/      /flow-worktree 진입점 (토픽 격리 worktree 생애주기)
 │   ├── wf-brainstorming/   flow-spec이 스펙 초안 작성 시 로드
+│   ├── wf-worktree-context/  worktree 프로비저닝·teardown (flow-worktree가 위임)
 │   ├── wf-tdd/             TDD 사이클 단위 로직
 │   ├── wf-verification/    검증 게이트 체크리스트
 │   ├── wf-*/               그 외 wf-* 단위 로직 (총 8개)
@@ -80,6 +82,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 | `/flow-done` | 플래닝 산출물을 `done/`에 아카이브, dev-context.json에서 토픽 제거. `pr:created` 상태 필요. |
 | `/flow-init` | CLAUDE.md·AGENTS.md 프로젝트 섹션 초기화·업데이트 |
 | `/flow-topic` | 활성 토픽 + backlog 목록 확인, 또는 활성 토픽 전환 (`/flow-topic switch <name>`) |
+| `/flow-worktree <topic>` | 확정 토픽을 격리 sibling worktree 로 프로비저닝 + cmux 세션 기동 (start), 또는 문서 sync-back + worktree 제거 (`teardown`). plan 이후 flow 는 worktree 세션에서 실행해 main dev-context 격리. `wf-worktree-context` 에 위임. |
 | `/harness:learn` | 세션 패턴 추출 → skills/learned/에 저장 |
 
 ## 에이전트
@@ -252,9 +255,17 @@ node .harness/scripts/dev-context.js set-field --field=config.graphify.targets -
 
 graphify는 코드베이스·문서·연구 자료를 지식 그래프로 변환해 god nodes·surprising connections·community 구조를 시각화하는 Stage 1 평가 도구다. 본 하네스에서는 시범 빌드(Stage 1)로 채택 여부를 판단하며, 통과 시 Stage 2 spec을 별도로 작성한다.
 
+### 포지셔닝: 네비게이션은 LSP, graphify는 on-demand 아키텍처 조감
+
+graphify는 코드 네비게이션 도구가 아니다. 심볼 정의 찾기·참조 추적·파일 구조 파악 같은 일상 네비게이션은 LSP 기반 도구(serena 등)가 라이브로 처리한다 — 항상 최신·타입 인지·정확하며, precomputed 그래프보다 신선도·정확도에서 우위다. 배포 대상 프로젝트가 LSP 기반 의미 검색 도구를 이미 쓰면 graphify를 그 위에 자동 갱신으로 얹지 않는다. 중복이며, LSP가 라이브로 답하는 것을 매 턴/커밋 리빌드로 근사하는 비용만 든다.
+
+graphify의 고유 가치는 LSP가 못 하는 **전체 코드베이스 조감**이다 — god nodes(중심성 높은 추상), community 구조, 의외의 결합. 이건 **on-demand 1회성 빌드**로 얻는다. 분기 전·대규모 리팩토링 전 아키텍처 점검 시점에 한 번 돌린다. 상시 자동 갱신(커밋 훅·턴 종료 훅) 통합은 본 하네스 기본값이 아니다.
+
 ### 분석 대상 설정 (config.graphify.targets)
 
-graphify 빌드의 분석 대상은 `dev-context.json`의 `config.graphify.targets` 배열에 정의한다. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구한다 (hard error). 본 하네스 권장값은 `["./src", "./docs/specs", "scripts"]`, 배포된 하네스 권장값은 `["./.claude", "./.harness", "./docs"]`.
+graphify 빌드의 분석 대상은 `dev-context.json`의 `config.graphify.targets` 배열에 정의한다. 미설정·빈 배열이면 풀 빌드를 거부하고 사용자에게 명시 설정을 요구한다 (hard error). 본 하네스(prose 중심 메타 저장소) 권장값은 `["./src", "./docs/specs", "scripts"]`다.
+
+배포 대상 프로젝트는 실제 코드 디렉토리(`./src`, `./packages`, `./apps` 등 해당 프로젝트의 소스 루트)를 targets로 지정한다 — AST 채널이 주축이 되어야 빌드 비용이 통제된다. 하네스 인프라 디렉토리(`./.claude`, `./.harness`)는 마크다운 중심이라 graphify 빌드가 LLM 추출 의존(고비용)으로 기울고, 그 구조 정보는 LSP 도구·`harness-guide.md`가 이미 더 싸게 제공하므로 targets에서 제외한다. 코드가 거의 없는 마크다운 중심 프로젝트는 빌드 비용 대비 효용이 낮으니 도입 전 비용을 가늠한다.
 
 ```bash
 # 조회
@@ -285,16 +296,15 @@ uv run graphify scripts --out graphify-out/g-scripts.json
 uv run graphify merge-graphs graphify-out/g-src.json graphify-out/g-docs-specs.json graphify-out/g-scripts.json --out graphify-out/graph.json
 ```
 
-**배포된 하네스 (`["./.claude", "./.harness", "./docs"]`)**: 동일하게 디렉토리별 빌드 + merge-graphs 패턴을 적용한다.
+**배포 대상 프로젝트 (실코드 디렉토리, 예 `["./apps", "./packages"]`)**: 동일하게 디렉토리별 빌드 + merge-graphs 패턴을 적용한다.
 
 ```
-uv run graphify ./.claude --out graphify-out/g-claude.json
-uv run graphify ./.harness --out graphify-out/g-harness.json
-uv run graphify ./docs --out graphify-out/g-docs.json
-uv run graphify merge-graphs graphify-out/g-claude.json graphify-out/g-harness.json graphify-out/g-docs.json --out graphify-out/graph.json
+uv run graphify ./apps --out graphify-out/g-apps.json
+uv run graphify ./packages --out graphify-out/g-packages.json
+uv run graphify merge-graphs graphify-out/g-apps.json graphify-out/g-packages.json --out graphify-out/graph.json
 ```
 
-배포 프로젝트는 `src/` 구조가 없으므로 분석 대상 디렉토리를 `targets`에 직접 명시한다. 단일 호출 동작이 graphify v2에서 안정화되면 본 가이드를 단순화할 수 있다.
+배포 프로젝트는 자신의 소스 루트를 `targets`에 직접 명시한다 (`./src` 단일 구조든 모노레포 `./apps`·`./packages`든). 마크다운 중심 인프라 디렉토리(`./.claude`, `./.harness`)는 제외한다. 단일 호출 동작이 graphify v2에서 안정화되면 본 가이드를 단순화할 수 있다.
 
 ### 출력 위치
 
