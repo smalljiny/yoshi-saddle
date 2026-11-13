@@ -11,6 +11,17 @@
 
 input=$(cat)
 
+# Pick the first Python that actually runs (python3 → python).
+# Windows ships a python3 Microsoft Store stub that exists on PATH but exits non-zero.
+find_python() {
+    local c
+    for c in python3 python; do
+        command -v "$c" >/dev/null 2>&1 || continue
+        "$c" -c 'import sys' >/dev/null 2>&1 && { printf '%s' "$c"; return 0; }
+    done
+    return 1
+}
+
 # Resolve project root from this script's location (cwd-independent)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -19,10 +30,13 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 if command -v jq &>/dev/null; then
     model=$(printf '%s' "$input" | jq -r '.model.display_name // .model.id // "?"' 2>/dev/null)
 else
-    # jq not available — fallback: try python3, then grep/sed, then "?"
-    model=$(printf '%s' "$input" | python3 -c \
-        'import json,sys; m=json.load(sys.stdin).get("model",{}); print(m.get("display_name") or m.get("id") or "?")' \
-        2>/dev/null)
+    # jq not available — fallback: try a working Python, then grep/sed, then "?"
+    model=""
+    if python_bin=$(find_python); then
+        model=$(printf '%s' "$input" | "$python_bin" -c \
+            'import json,sys; m=json.load(sys.stdin).get("model",{}); print(m.get("display_name") or m.get("id") or "?")' \
+            2>/dev/null)
+    fi
     if [ -z "$model" ]; then
         model=$(printf '%s' "$input" | grep -o '"display_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
             | sed 's/.*"display_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
