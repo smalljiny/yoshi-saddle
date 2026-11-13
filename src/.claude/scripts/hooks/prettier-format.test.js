@@ -127,6 +127,18 @@ describe('hook integration (fake prettier)', () => {
     assert.deepEqual(JSON.parse(readFileSync(join(project, 'prettier-args.json'), 'utf8')), ['--write', name])
   })
 
+  // '-' 로 시작하는 경로는 prettier 옵션(--plugin 등)으로 해석되어 임의 JS 로드가 가능하므로 거부한다.
+  test("'-' 로 시작하는 파일 경로(옵션 주입)는 prettier 를 실행하지 않고 exit 0", (t) => {
+    if (skipReason) {
+      t.skip(skipReason)
+      return
+    }
+    rmSync(join(project, 'prettier-args.json'), { force: true })
+    const run = spawnSync(process.execPath, [HOOK, '--plugin=./evil.js'], { cwd: project, encoding: 'utf8' })
+    assert.equal(run.status, 0)
+    assert.equal(existsSync(join(project, 'prettier-args.json')), false, 'prettier 가 옵션 주입 값으로 실행됨')
+  })
+
   test('지원하지 않는 확장자는 prettier 를 실행하지 않고 exit 0', (t) => {
     if (skipReason) {
       t.skip(skipReason)

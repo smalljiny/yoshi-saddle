@@ -105,12 +105,15 @@ export function resolveSafePath(repoRoot, rawPath) {
 // 직접 실행될 때만 main()을 호출한다 (테스트의 import 시 실행 방지).
 // import.meta.url 은 실제 경로로 해석되지만 argv[1] 은 입력한 경로 그대로라, symlink·junction
 // 을 거쳐 실행하면 문자열 비교가 어긋나 main()이 조용히 건너뛰어진다. 양쪽을 realpath로 맞춘다.
+// realpath 가 실패하면 조용히 건너뛰지 않고 path.resolve 비교로 폴백한다 (출력 없이 exit 0 방지).
+// 같은 가드가 .claude/scripts/hooks/prettier-format.js 에도 있다 — 함께 수정한다.
 function isEntryPoint() {
   if (!process.argv[1]) return false;
+  const self = fileURLToPath(import.meta.url);
   try {
-    return fs.realpathSync.native(process.argv[1]) === fs.realpathSync.native(fileURLToPath(import.meta.url));
+    return fs.realpathSync.native(process.argv[1]) === fs.realpathSync.native(self);
   } catch {
-    return false;
+    return path.resolve(process.argv[1]) === path.resolve(self);
   }
 }
 

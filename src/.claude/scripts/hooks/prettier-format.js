@@ -5,7 +5,7 @@
 
 import { spawnSync } from 'child_process'
 import { existsSync, realpathSync } from 'fs'
-import { dirname, join } from 'path'
+import { dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
 const SUPPORTED_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
@@ -57,7 +57,9 @@ function main() {
   const filePath = process.argv[2] || ''
   const cwd = resolveCwd(process.platform, process.env, process.cwd())
 
-  if (!filePath || !isSupportedFile(filePath)) {
+  // '-' 로 시작하는 값(예: --plugin=./evil.js)은 prettier 옵션으로 해석되어 임의 JS 를
+  // 로드할 수 있으므로 포맷 대상에서 제외한다. args 형식은 바꾸지 않는다 (macOS·Linux 동작 유지).
+  if (!filePath || filePath.startsWith('-') || !isSupportedFile(filePath)) {
     process.exit(0)
   }
 
@@ -84,13 +86,15 @@ function main() {
   process.exit(0)
 }
 
-// 직접 실행될 때만 main()을 호출한다 (테스트의 import 시 실행 방지). symlink 경유 실행도 고려해 realpath로 비교.
+// 직접 실행될 때만 main()을 호출한다 (테스트의 import 시 실행 방지). symlink 경유 실행도 고려해 realpath로 비교하고,
+// realpath 가 실패하면 path.resolve 비교로 폴백한다. 같은 가드가 .harness/scripts/validate-path.js 에도 있다 — 함께 수정한다.
 function isEntryPoint() {
   if (!process.argv[1]) return false
+  const self = fileURLToPath(import.meta.url)
   try {
-    return realpathSync.native(process.argv[1]) === realpathSync.native(fileURLToPath(import.meta.url))
+    return realpathSync.native(process.argv[1]) === realpathSync.native(self)
   } catch {
-    return false
+    return resolve(process.argv[1]) === resolve(self)
   }
 }
 

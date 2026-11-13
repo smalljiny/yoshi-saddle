@@ -83,7 +83,11 @@ apply_excludes() {
   shift
   local name
 
-  rm -rf "$root/.claude/sessions" "$root/.claude/settings.local.json" "$root/.claude/checkpoints.log"
+  # 대상의 .claude 가 symlink 이면 BSD cp -a 는 백업에 링크 그대로 복사한다. 그 링크를 거쳐
+  # 지우면 원본 sessions 등이 삭제되므로, 링크인 경우 고정 제외 처리를 건너뛴다 (링크만 백업됨).
+  if [ ! -L "$root/.claude" ]; then
+    rm -rf "$root/.claude/sessions" "$root/.claude/settings.local.json" "$root/.claude/checkpoints.log"
+  fi
   find "$root" -name '.DS_Store' -prune -exec rm -rf {} +
   for name in "$@"; do
     find "$root" -name "$name" -prune -exec rm -rf {} +
