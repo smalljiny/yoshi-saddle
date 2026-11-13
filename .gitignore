@@ -6,6 +6,9 @@
 # 로컬 작업 문서 (개발 중 임시 파일)
 docs/_local/
 
+# src/ 하위에 생기는 로컬 세션 로그 (배포 제외 대상, 커밋하지 않음)
+/src/.claude/sessions/
+
 # wf-deep-research 자동 생성 리서치 보고서 (재생성 가능, 민감 내용 포함 가능)
 docs/research/research-*.md
 
