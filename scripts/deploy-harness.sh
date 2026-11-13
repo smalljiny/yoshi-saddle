@@ -241,7 +241,7 @@ INNER
 
   if [ "$block_state" -eq 1 ]; then
     backup_existing ".gitignore"
-    node "$REPO_DIR/.harness/scripts/deploy-manifest.js" strip-gitignore-block "$gitignore_path"
+    node "$HELPER" strip-gitignore-block "$gitignore_path"
     info "stripped outdated harness block from .gitignore"
   else
     backup_existing ".gitignore"
@@ -298,6 +298,9 @@ detect_copy_tool
 SCRIPT_DIR="$(resolve_script_dir)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_DIR="$REPO_DIR/src"
+# manifest helper 는 원본(src/)에서 읽는다. 루트 .harness/ 는 self-sync 결과물이라
+# clone 직후에는 없으므로, 루트 사본을 쓰면 첫 실행이 스스로 시작될 수 없다.
+HELPER="$SOURCE_DIR/.harness/scripts/deploy-manifest.js"
 
 [ -d "$SOURCE_DIR" ] || die "src/ layout not found at $SOURCE_DIR — run this from the harness root after Task 1"
 
@@ -328,11 +331,11 @@ TEMP_WRITE_HELPER="$TEMP_HELPER_DIR/deploy-manifest.js"
 STAGE_DIR=""
 trap 'rm -f "$CURRENT_FILES_LIST" "$THIS_DEPLOY_SKIPPED_LIST" "$MANIFEST_FILES_LIST" "$PREV_FILES_LIST" "$OBSOLETE_LIST"; rm -rf "$TEMP_HELPER_DIR"; [ -z "$STAGE_DIR" ] || rm -rf "$STAGE_DIR"' EXIT
 
-[ -f "$REPO_DIR/.harness/scripts/deploy-manifest.js" ] \
-  || die "deploy-manifest.js helper missing at $REPO_DIR/.harness/scripts/deploy-manifest.js"
-cp "$REPO_DIR/.harness/scripts/deploy-manifest.js" "$TEMP_WRITE_HELPER"
+[ -f "$HELPER" ] \
+  || die "deploy-manifest.js helper missing at $HELPER"
+cp "$HELPER" "$TEMP_WRITE_HELPER"
 
-node "$REPO_DIR/.harness/scripts/deploy-manifest.js" list-src "$SOURCE_DIR" > "$CURRENT_FILES_LIST"
+node "$HELPER" list-src "$SOURCE_DIR" > "$CURRENT_FILES_LIST"
 
 # git 메타데이터: 실패 시 빈 값 → 헬퍼가 null 로 기록.
 SOURCE_COMMIT="$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null || true)"
@@ -413,7 +416,7 @@ PREV_MANIFEST_PATH="$TARGET_DIR/.harness/.deploy-manifest.json"
 if [ -f "$PREV_MANIFEST_PATH" ]; then
   # 헬퍼는 손상된 매니페스트에서도 stderr 경고 + exit 0 정책이라 stderr 를 살려둬야
   # cleanup 가 silent 비활성화되는 사고를 사용자가 인지할 수 있다.
-  node "$REPO_DIR/.harness/scripts/deploy-manifest.js" read-files "$PREV_MANIFEST_PATH" \
+  node "$HELPER" read-files "$PREV_MANIFEST_PATH" \
     > "$PREV_FILES_LIST" || true
   if [ ! -s "$PREV_FILES_LIST" ]; then
     info "previous manifest unreadable or empty; skipping cleanup"
