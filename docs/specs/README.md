@@ -21,6 +21,7 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 | [topic-lifecycle.md](topic-lifecycle.md) | 전체 토픽 상태 기계. `phase:status` 전환표, 커맨드 게이트, `dev-context.js` CLI 계약, Codex 스킬 연동 |
 | [dev-context-config.md](dev-context-config.md) | `dev-context.json`의 전역 `config` 섹션 계약. `config.dev_impl.*`·`config.git.*`·`config.review.*`·`config.codex.*`·`config.docs.*`·`config.graphify.*` 스키마 및 `/flow-setup git` 동작 |
 | [hook-command-paths.md](hook-command-paths.md) | Claude Code hook 설정의 command 경로 prefix는 `${CLAUDE_PROJECT_DIR}` 사용. 작업 디렉토리 무관 정상 동작 |
+| [cross-platform-support.md](cross-platform-support.md) | 플랫폼별 지원 범위와 Windows(Git Bash) 대응 — deploy cp 대체, 훅 셸 없는 실행, 상태줄 Python 탐색, 검증 명령(macOS 머지 게이트) |
 | [planner-progress-tracking.md](planner-progress-tracking.md) | `planner` 에이전트 5개 마일스톤(P1~P5)을 Claude Code Task 도구로 표면화하는 진행 추적 프로토콜 |
 | [statusline.md](statusline.md) | Claude Code 상태줄 설정. 토픽·phase 표시 |
 | [adapter-deep-research](wf-deep-research.md) | skill-registry search-adapter 기반 6단계 심층 연구 워크플로우 (firecrawl·exa 동적 선택). 파일명은 후속 cleanup 토픽에서 rename. |

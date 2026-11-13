@@ -106,7 +106,7 @@ version: N
 | `./scripts/deploy-harness.sh` | self-sync | `src/` → 루트. 모든 항목을 동기화. 매니페스트 기반 selective cleanup 으로 이전 deploy 가 설치한 파일 중 현재 src/ 에 없는 것만 백업 후 삭제(stale 잔존 방지). 백업 생성 없음. |
 | `./scripts/deploy-harness.sh /path/to/project` | external | `src/` → 외부 프로젝트. 파일별 보존 정책 적용. 사용자가 추가한 `.claude/`/`.codex/`/`.harness/` 파일은 매니페스트에 없으므로 보존됨. 백업(`TARGET_DIR/.harness-backups/`) 생성. |
 
-selective cleanup 메커니즘과 매니페스트 스키마 상세는 [`deploy-harness-manifest.md`](deploy-harness-manifest.md).
+selective cleanup 메커니즘과 매니페스트 스키마 상세는 [`deploy-manifest.md`](deploy-manifest.md).
 
 ### 파일별 보존 정책
 
@@ -211,11 +211,14 @@ self-sync 모드에서는 `--no-backup` 옵션 지정 여부와 무관하게 `BA
 
 ### src/ 제외 파일
 
-`src/`는 배포 대상 컴포넌트만 포함한다. rsync 복사 시 아래 항목은 항상 제외된다:
+`src/`는 배포 대상 컴포넌트만 포함한다. 복사 시(rsync 경로·cp 대체 경로 공통) 아래 항목은 항상 제외된다:
 
 - `.claude/sessions/` — 세션 로그 (git-ignored)
 - `.claude/settings.local.json` — 로컬 설정 (git-ignored)
 - `.claude/checkpoints.log` — 체크포인트 로그 (git-ignored)
+- `.DS_Store` — 깊이와 무관하게 제외
+
+rsync 가 없으면(예: Windows Git Bash) cp 대체 경로가 임시 디렉토리에서 위 항목을 지운 뒤 대상에 덮어쓴다. 복사 도구별 동작은 [`deploy-manifest.md`](deploy-manifest.md#복사-도구) 참조.
 
 ### AGENTS.md @import 미지원
 

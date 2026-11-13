@@ -65,7 +65,9 @@ CANON_PATH=$(node .harness/scripts/validate-path.js --topic="$TOPIC" --field=<sp
 1. `topic`/`field` 입력을 정규식(`[a-zA-Z0-9_-]` / `[a-zA-Z0-9_.]`)으로 검증
 2. `dev-context.json`에서 경로 읽기 (`execFileSync` — 셸 우회 없음)
 3. 절대경로·선행 대시·`..` 순회·제어 문자·셸 메타문자 거부
-4. `fs.realpathSync()`로 정규화 후 repo 루트 내부 확인
+4. repo 루트(`git rev-parse --show-toplevel`)도 `fs.realpathSync()`로 정규화한 뒤, 대상 경로의 `fs.realpathSync()` 결과(파일이 아직 없으면 `path.resolve()`)가 그 루트 내부인지 확인. Windows에서 git은 `C:/...`, Node는 `C:\...`를 돌려주므로 루트 정규화가 없으면 repo 안 경로가 모두 거부된다
+
+3~4단계는 `export function resolveSafePath(repoRoot, rawPath)`(`{ ok: true, path }` 또는 `{ ok: false, reason }`)로 분리되어 단위 테스트된다. CLI `main()`은 스크립트가 직접 실행될 때만 동작하며, 진입 판정은 `argv[1]`과 모듈 경로를 realpath로 비교한다(실패 시 `path.resolve` 비교). symlink·junction을 거쳐 실행해도 `main()`이 건너뛰어져 출력 없이 exit 0으로 끝나지 않는다.
 
 **보안 노트**: 경로가 repo 내부로 한정되고(`repoRoot + path.sep` 검사) `workspace-write` sandbox가 `codex exec` 동작을 제한함으로써 위험을 경계한다.
 
