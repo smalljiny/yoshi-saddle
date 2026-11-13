@@ -3,18 +3,22 @@
  * Stop 훅: 세션 중 수정된 파일에서 console.log를 감사한다.
  */
 
-import { execSync, spawnSync } from 'child_process'
+import { execFileSync, spawnSync } from 'child_process'
 
-const cwd = process.env.PWD || process.cwd()
+// Git Bash 의 PWD 는 POSIX 형식(/c/...)일 수 있어 win32 에서는 process.cwd() 를 쓴다.
+const cwd = process.platform === 'win32' ? process.cwd() : (process.env.PWD || process.cwd())
 
 function getModifiedFiles() {
   try {
-    const output = execSync('git diff --name-only HEAD 2>/dev/null', {
+    // stderr 셸 리디렉션은 Windows cmd.exe 가 해석하지 못하므로 git 을 셸 없이
+    // 실행하고 stderr 는 stdio 로 버린다.
+    const output = execFileSync('git', ['diff', '--name-only', 'HEAD'], {
       cwd,
       encoding: 'utf-8',
       timeout: 5000,
+      stdio: ['ignore', 'pipe', 'ignore'],
     })
-    return output.trim().split('\n').filter(f =>
+    return output.trim().split(/\r?\n/).filter(f =>
       f && (f.endsWith('.ts') || f.endsWith('.tsx') || f.endsWith('.js') || f.endsWith('.jsx'))
     )
   } catch {
