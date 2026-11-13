@@ -128,6 +128,34 @@ describe('CLI entry point', () => {
     assertUsage(script)
   })
 
+  // CLI 인자 검증·오류 메시지 형식이 그대로인지 확인한다 (exit 1 + 기존 stderr 접두어).
+  function runCli(...args) {
+    const result = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' })
+    if (result.error) throw result.error
+    return result
+  }
+
+  test('잘못된 topic → Invalid topic: + exit 1', () => {
+    const result = runCli('--topic=bad topic!', '--field=plan')
+    assert.equal(result.status, 1)
+    assert.equal(result.stderr, 'Invalid topic: bad topic!\n')
+    assert.equal(result.stdout, '')
+  })
+
+  test('잘못된 field → Invalid field: + exit 1', () => {
+    const result = runCli('--topic=ok-topic', '--field=plan;rm')
+    assert.equal(result.status, 1)
+    assert.equal(result.stderr, 'Invalid field: plan;rm\n')
+  })
+
+  test('읽을 수 없는 topic → Failed to read path + exit 1 (빈 출력으로 성공하지 않음)', () => {
+    const result = runCli('--topic=no-such-topic-for-test', '--field=plan')
+    assert.equal(result.status, 1)
+    // dev-context.js 의 stderr 가 먼저 상속 출력되므로 포함 여부로 확인한다.
+    assert.ok(result.stderr.includes('Failed to read path (topic=no-such-topic-for-test field=plan)'), result.stderr)
+    assert.equal(result.stdout, '')
+  })
+
   test('디렉토리 링크(junction/symlink)를 거쳐 실행해도 main()이 돈다', () => {
     linkBase = join(realpathSync(tmpdir()), `validate-path-link-${Date.now()}-${Math.random().toString(36).slice(2)}`)
     mkdirSync(linkBase, { recursive: true })
