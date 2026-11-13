@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-worktree
 description: Manage a topic's isolated worktree lifecycle — provision + launch a worktree-rooted Claude session (start), or sync-back documents and remove the worktree (teardown). Delegates provisioning/teardown to wf-worktree-context; owns cmux launch, completion gate, and main dev-context reconciliation.
 origin: harness
@@ -7,6 +7,8 @@ user-invocable: true
 ---
 
 # /flow-worktree
+
+> **Platform**: macOS only — requires cmux and symlink support (Windows not supported).
 
 지정한 토픽의 격리 worktree 생애주기를 관리한다 — **start**(프로비저닝 + worktree 세션 기동)와 **teardown**(문서 sync-back + worktree 제거). 프로비저닝·제거 스크립트는 `wf-worktree-context` 에 위임하고, 이 스킬은 cmux 세션 기동·완료 게이트·브랜치 안전·main dev-context 정합화를 소유한다.
 

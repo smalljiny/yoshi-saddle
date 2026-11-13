@@ -1,11 +1,13 @@
 ---
-version: 1
+version: 2
 name: wf-worktree-context
 description: Provision an isolated sibling git worktree for a confirmed topic and inject the git-untracked harness context (shared tooling symlinks, .harness copy, per-worktree docs/_local, spec/plan handoff copy, env, dev-context isolation), then tear it down with a docs/_local/done sync-back. Use when a topic moves to worktree-rooted implementation so /flow-* runs isolated from the main hub's dev-context, or when removing such a worktree. Not for browser/cmux control — pane targeting stays with the caller.
 origin: harness
 ---
 
 # wf-worktree-context
+
+> **Platform**: macOS only — requires cmux and symlink support (Windows not supported).
 
 토픽 하나를 repo 밖 sibling worktree 에서 격리 작업하기 위해, git-미추적 하네스 컨텍스트를 주입한다. 하네스(`.claude`·`.harness`·`.codex` 등)가 git-미추적인 프로젝트에서는 fresh worktree 체크아웃에 이들이 없다. 이 스킬이 실증 교정된 매니페스트대로 주입·핸드오프·부트스트랩하고, 종료 시 아카이브를 메인으로 sync-back 한다.
 
