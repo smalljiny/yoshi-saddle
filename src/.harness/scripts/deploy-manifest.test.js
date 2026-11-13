@@ -84,6 +84,18 @@ describe('deploy-manifest.js', () => {
       assert.deepEqual(lines, expected)
     })
 
+    // macOS·Linux에서는 path.relative가 원래 '/'를 돌려주므로 수정 전에도 통과한다.
+    // Windows에서는 '\'가 섞여 나와 실패한다 (obsolete 정리·플랫폼 간 manifest 비교 보호).
+    test('출력 경로 구분자는 OS와 무관하게 "/"이다', () => {
+      const srcDir = workPath('src')
+      mkdirSync(join(srcDir, 'a', 'b'), { recursive: true })
+      writeFileSync(join(srcDir, 'a', 'b', 'c.md'), 'c\n', 'utf8')
+
+      const result = run('list-src', srcDir)
+      assert.ok(!result.stdout.includes('\\'), `'\\' 구분자가 없어야 함: ${result.stdout}`)
+      assert.deepEqual(result.stdout.split('\n').filter(Boolean), ['a/b/c.md'])
+    })
+
     test('빈 디렉토리는 결과에 포함되지 않음 (파일만)', () => {
       const srcDir = workPath('src')
       mkdirSync(join(srcDir, '.claude', 'empty-skill'), { recursive: true })
@@ -107,7 +119,7 @@ describe('deploy-manifest.js', () => {
       assert.notEqual(result.status, 0)
     })
 
-    test('심볼릭 링크는 따라가지 않음 (회귀 보호)', () => {
+    test('심볼릭 링크는 따라가지 않음 (회귀 보호)', (t) => {
       const srcDir = workPath('src')
       const outsideDir = workPath('outside')
       mkdirSync(srcDir, { recursive: true })
@@ -119,8 +131,12 @@ describe('deploy-manifest.js', () => {
         symlinkSync(outsideDir, join(srcDir, 'link-to-outside'))
         symlinkSync(join(outsideDir, 'should-not-appear.md'), join(srcDir, 'link-to-file.md'))
       } catch (e) {
-        // 일부 환경(특히 Windows)에서 심링크 권한이 없으면 테스트를 스킵하는 대신 명확히 실패한다.
-        // POSIX 환경에서는 이 경로가 동작해야 한다.
+        // Windows는 개발자 모드가 꺼져 있으면 심링크 생성이 EPERM이다. 이 경우만 skip하고
+        // 이유를 남긴다 (Windows 미검증 — POSIX 실행으로 판정). POSIX에서는 명확히 실패한다.
+        if (process.platform === 'win32' && e.code === 'EPERM') {
+          t.skip('Windows symlink EPERM (개발자 모드 꺼짐) — POSIX에서 검증')
+          return
+        }
         throw e
       }
 
@@ -208,6 +224,31 @@ describe('deploy-manifest.js', () => {
       assert.ok(result.stderr.includes('의심스러운 경로'), 'stderr 에 경고 필요')
       assert.ok(result.stderr.includes('../../../etc/passwd'), '.. 경고')
       assert.ok(result.stderr.includes('/etc/passwd'), '절대경로 경고')
+    })
+
+    // 수정 전 Windows에서 쓰인 매니페스트는 '\' 구분자를 담고 있다. 그대로 두면
+    // list-src('/' 출력)와 비교할 때 모든 항목이 OBSOLETE로 분류된다.
+    test("레거시 '\\' 구분자 항목은 '/'로 정규화해 출력", () => {
+      const legacy = workPath('legacy.json')
+      writeFileSync(legacy, JSON.stringify({
+        manifest_version: 1,
+        files: ['.claude\\agents\\a.md', 'CLAUDE.md'],
+      }), 'utf8')
+
+      const result = run('read-files', legacy)
+      assert.deepEqual(result.stdout.split('\n').filter(Boolean), ['.claude/agents/a.md', 'CLAUDE.md'])
+    })
+
+    test("'\\' 구분자의 .. 경로도 의심스러운 경로로 무시", () => {
+      const malicious = workPath('malicious-bs.json')
+      writeFileSync(malicious, JSON.stringify({
+        manifest_version: 1,
+        files: ['..\\..\\etc\\passwd', 'foo\\..\\..\\bar.md', 'ok.md'],
+      }), 'utf8')
+
+      const result = run('read-files', malicious)
+      assert.deepEqual(result.stdout.split('\n').filter(Boolean), ['ok.md'])
+      assert.ok(result.stderr.includes('의심스러운 경로'), 'stderr 에 경고 필요')
     })
 
     test('files 배열에 string 이 아닌 엔트리는 무시 (조용히)', () => {
