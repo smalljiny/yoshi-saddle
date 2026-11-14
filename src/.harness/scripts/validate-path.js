@@ -59,17 +59,34 @@ function main() {
     process.exit(1);
   }
 
-  // 절대경로·leading dash·경로 탐색·제어 문자·쉘 메타문자 거부
-  if (/^\//.test(rawPath) || /^-/.test(rawPath) || /\.\./.test(rawPath) || /[\x00-\x1f]/.test(rawPath)) {
-    process.stderr.write(`UNSAFE path rejected: ${rawPath}\n`);
-    process.exit(1);
-  }
-  if (/[^a-zA-Z0-9_.\/\-]/.test(rawPath)) {
-    process.stderr.write(`UNSAFE path chars rejected: ${rawPath}\n`);
+  const result = resolveSafePath(repoRoot, rawPath);
+  if (!result.ok) {
+    process.stderr.write(`${result.reason}\n`);
     process.exit(1);
   }
 
-  const fullPath = path.join(repoRoot, rawPath);
+  process.stdout.write(result.path + '\n');
+}
+
+// 경로 검증·정규화. 성공: { ok: true, path }, 실패: { ok: false, reason } (reason은 CLI stderr 메시지 그대로).
+export function resolveSafePath(repoRoot, rawPath) {
+  // 절대경로·leading dash·경로 탐색·제어 문자·쉘 메타문자 거부
+  if (/^\//.test(rawPath) || /^-/.test(rawPath) || /\.\./.test(rawPath) || /[\x00-\x1f]/.test(rawPath)) {
+    return { ok: false, reason: `UNSAFE path rejected: ${rawPath}` };
+  }
+  if (/[^a-zA-Z0-9_.\/\-]/.test(rawPath)) {
+    return { ok: false, reason: `UNSAFE path chars rejected: ${rawPath}` };
+  }
+
+  // Windows에서 git은 'C:/...', Node는 'C:\...'를 돌려준다. 루트를 realpath로 같은 형식에
+  // 맞춘 뒤 비교해야 저장소 안 경로가 거부되지 않는다 (POSIX에서는 symlink 루트도 정규화됨).
+  let root;
+  try {
+    root = fs.realpathSync(repoRoot);
+  } catch {
+    return { ok: false, reason: `Repo root not found: ${repoRoot}` };
+  }
+  const fullPath = path.join(root, rawPath);
 
   let canonPath;
   try {
@@ -79,12 +96,27 @@ function main() {
     canonPath = path.resolve(fullPath);
   }
 
-  if (!canonPath.startsWith(repoRoot + path.sep) && canonPath !== repoRoot) {
-    process.stderr.write(`Path escapes repo root: ${rawPath}\n`);
-    process.exit(1);
+  if (!canonPath.startsWith(root + path.sep) && canonPath !== root) {
+    return { ok: false, reason: `Path escapes repo root: ${rawPath}` };
   }
-
-  process.stdout.write(canonPath + '\n');
+  return { ok: true, path: canonPath };
 }
 
-main();
+// 직접 실행될 때만 main()을 호출한다 (테스트의 import 시 실행 방지).
+// import.meta.url 은 실제 경로로 해석되지만 argv[1] 은 입력한 경로 그대로라, symlink·junction
+// 을 거쳐 실행하면 문자열 비교가 어긋나 main()이 조용히 건너뛰어진다. 양쪽을 realpath로 맞춘다.
+// realpath 가 실패하면 조용히 건너뛰지 않고 path.resolve 비교로 폴백한다 (출력 없이 exit 0 방지).
+// 같은 가드가 .claude/scripts/hooks/prettier-format.js 에도 있다 — 함께 수정한다.
+function isEntryPoint() {
+  if (!process.argv[1]) return false;
+  const self = fileURLToPath(import.meta.url);
+  try {
+    return fs.realpathSync.native(process.argv[1]) === fs.realpathSync.native(self);
+  } catch {
+    return path.resolve(process.argv[1]) === path.resolve(self);
+  }
+}
+
+if (isEntryPoint()) {
+  main();
+}

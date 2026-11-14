@@ -7,7 +7,7 @@
 //   node .harness/scripts/deploy-manifest.js strip-gitignore-block <gitignore-path>
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, readdirSync, statSync } from 'node:fs'
-import { join, relative, dirname } from 'node:path'
+import { join, relative, dirname, sep } from 'node:path'
 
 const SUBCOMMANDS = ['list-src', 'read-files', 'write', 'strip-gitignore-block']
 
@@ -63,7 +63,9 @@ function cmdListSrc(positional) {
       if (ent.isDirectory()) {
         stack.push(full)
       } else if (ent.isFile()) {
-        files.push(relative(srcDir, full))
+        // Windows의 path.relative는 '\'를 돌려준다. manifest는 플랫폼 간 공유되고
+        // obsolete 정리가 '/'로 경로를 분해하므로 구분자를 '/'로 통일한다.
+        files.push(relative(srcDir, full).split(sep).join('/'))
       }
     }
   }
@@ -103,8 +105,11 @@ function cmdReadFiles(positional) {
   // 호출자(deploy 스크립트)가 매니페스트 경로를 rm/rsync/rmdir 의 인자로 사용하므로,
   // 매니페스트가 사용자 편집·외부 도구로 손상돼 path traversal 시도가 들어와도
   // TARGET_DIR 밖으로 escape 하지 않도록 emit 단계에서 가드한다 (defense-in-depth).
-  for (const entry of data.files) {
-    if (typeof entry !== 'string') continue
+  for (const rawEntry of data.files) {
+    if (typeof rawEntry !== 'string') continue
+    // 수정 전 Windows 에서 쓰인 매니페스트는 '\' 구분자를 담는다. list-src 출력('/')과
+    // 비교되도록 정규화하고, 정규화 후에 가드를 적용해 '..\' traversal 도 차단한다.
+    const entry = rawEntry.replaceAll('\\', '/')
     if (entry.startsWith('/') || /(?:^|\/)\.\.(?:\/|$)/.test(entry) || /[\0\n\r]/.test(entry)) {
       warn(`read-files: 의심스러운 경로 무시: ${entry}`)
       continue

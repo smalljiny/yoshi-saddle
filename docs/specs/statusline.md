@@ -67,7 +67,15 @@ Claude Code가 상태바를 업데이트할 때 스크립트를 실행하며 JSO
 
 ### jq 미설치 폴백
 
-`jq`가 없으면 `python3` 또는 `grep/sed`로 모델명을 추출하고 `<model> | 📌<topic>`만 출력한다. 컨텍스트 바는 생략된다.
+`jq`가 없으면 Python 또는 `grep/sed`로 모델명을 추출하고 `<model> | 📌<topic>`만 출력한다. 컨텍스트 바는 생략된다.
+
+Python 탐색 순서는 `python3` → `python`이며, PATH에 있는 것만으로 고르지 않고 `-c 'import sys'`가 실제로 성공하는 첫 인터프리터를 쓴다. Windows의 `python3`는 Microsoft Store 설치 안내용 가짜 실행 파일이라 PATH에 있어도 실행이 실패하므로 건너뛰고 `python`을 쓴다. 실행되는 Python이 없으면 `grep/sed` 경로로 간다.
+
+컨텍스트 사용량 바(`<bar> <pct>%`)를 표시하려면 `jq`가 필요하다. Windows에서는 다음 명령으로 설치한다.
+
+```
+winget install jqlang.jq
+```
 
 ## 제약사항
 

@@ -64,8 +64,71 @@ resolve_script_dir() {
   cd "$(dirname "$script_path")" && pwd -P
 }
 
-require_rsync() {
-  command -v rsync >/dev/null 2>&1 || die "rsync is required but was not found"
+# rsync 가 있으면 기존 rsync 경로를, 없으면(예: Windows Git Bash) cp 대체 경로를 쓴다.
+detect_copy_tool() {
+  if command -v rsync >/dev/null 2>&1; then
+    COPY_TOOL=rsync
+  else
+    COPY_TOOL=cp
+  fi
+}
+
+# cp 경로 전용: rsync 의 COMMON_RSYNC_OPTS 제외 규칙을 <transfer-root> 아래에서 재현한다.
+# <transfer-root> 는 rsync 전송 루트(복사 대상 항목의 부모 디렉토리)에 해당한다.
+# extra basename 은 rsync 의 앵커 없는 --exclude 처럼 깊이와 무관하게 지운다.
+# 이 함수는 임시 stage 디렉토리와 새로 만든 백업 디렉토리 안에서만 호출한다 —
+# 대상 디렉토리에 호출하면 사용자 데이터(sessions 등)가 지워진다.
+apply_excludes() {
+  local root="$1"
+  shift
+  local name
+
+  # 대상의 .claude 가 symlink 이면 BSD cp -a 는 백업에 링크 그대로 복사한다. 그 링크를 거쳐
+  # 지우면 원본 sessions 등이 삭제되므로, 링크인 경우 고정 제외 처리를 건너뛴다 (링크만 백업됨).
+  if [ ! -L "$root/.claude" ]; then
+    rm -rf "$root/.claude/sessions" "$root/.claude/settings.local.json" "$root/.claude/checkpoints.log"
+  fi
+  find "$root" -name '.DS_Store' -prune -exec rm -rf {} +
+  for name in "$@"; do
+    find "$root" -name "$name" -prune -exec rm -rf {} +
+  done
+}
+
+# cp 경로 copy_item: 원본을 임시 stage 에 복사해 그 안에서만 제외 대상을 지운 뒤
+# 대상에 cp -a 로 덮어쓴다. 대상 쪽에서는 아무것도 지우지 않아 rsync 경로와 같은
+# 보존 계약(sessions·settings.local.json·checkpoints.log·사용자 파일 유지)을 지킨다.
+copy_item_cp() {
+  local rel="$1"
+  shift
+  local source="$SOURCE_DIR/$rel"
+  local name
+  local opt
+  local excludes=()
+  local file
+
+  name="$(basename "$rel")"
+  for opt in "$@"; do
+    case "$opt" in
+      --exclude=*) excludes+=("${opt#--exclude=}") ;;
+      *) die "cp fallback: unsupported copy option: $opt" ;;
+    esac
+  done
+
+  STAGE_DIR="$(mktemp -d)"
+  # source 끝에 '/' 를 붙이지 않는다 (BSD cp 는 끝 '/' 가 있으면 내용만 복사한다).
+  cp -a "$source" "$STAGE_DIR/"
+  apply_excludes "$STAGE_DIR" ${excludes[@]+"${excludes[@]}"}
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    while IFS= read -r file; do
+      info "would copy: ${file#"$STAGE_DIR/"}"
+    done < <(find "$STAGE_DIR/$name" -type f | LC_ALL=C sort)
+  else
+    cp -af "$STAGE_DIR/$name" "$TARGET_DIR/"
+  fi
+
+  rm -rf "$STAGE_DIR"
+  STAGE_DIR=""
 }
 
 make_absolute_path() {
@@ -105,6 +168,12 @@ backup_existing() {
   # 디렉토리 rel (예: .claude) 의 경우에도 dest_parent 가 BACKUP_DIR 자체가 되어 동일한 결과.
   local dest_parent="$BACKUP_DIR/$(dirname "$rel")"
   mkdir -p "$dest_parent"
+  if [ "$COPY_TOOL" = "cp" ]; then
+    # 백업은 이번 실행이 새로 만든 디렉토리라 임시 stage 없이 백업 안에서 제외 대상을 지운다.
+    cp -af "$source" "$dest_parent/"
+    apply_excludes "$dest_parent"
+    return 0
+  fi
   rsync "${COMMON_RSYNC_OPTS[@]}" "$source" "$dest_parent/"
 }
 
@@ -117,6 +186,10 @@ copy_item() {
   [ -e "$source" ] || die "source item is missing: $rel"
 
   backup_existing "$rel"
+  if [ "$COPY_TOOL" = "cp" ]; then
+    copy_item_cp "$rel" ${extra_opts[@]+"${extra_opts[@]}"}
+    return 0
+  fi
   if [ "$DRY_RUN" -eq 1 ]; then
     rsync "${COMMON_RSYNC_OPTS[@]}" ${SYNC_RSYNC_OPTS[@]+"${SYNC_RSYNC_OPTS[@]}"} ${extra_opts[@]+"${extra_opts[@]}"} --dry-run --itemize-changes "$source" "$TARGET_DIR/"
   else
@@ -172,7 +245,7 @@ INNER
 
   if [ "$block_state" -eq 1 ]; then
     backup_existing ".gitignore"
-    node "$REPO_DIR/.harness/scripts/deploy-manifest.js" strip-gitignore-block "$gitignore_path"
+    node "$HELPER" strip-gitignore-block "$gitignore_path"
     info "stripped outdated harness block from .gitignore"
   else
     backup_existing ".gitignore"
@@ -224,11 +297,14 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-require_rsync
+detect_copy_tool
 
 SCRIPT_DIR="$(resolve_script_dir)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 SOURCE_DIR="$REPO_DIR/src"
+# manifest helper 는 원본(src/)에서 읽는다. 루트 .harness/ 는 self-sync 결과물이라
+# clone 직후에는 없으므로, 루트 사본을 쓰면 첫 실행이 스스로 시작될 수 없다.
+HELPER="$SOURCE_DIR/.harness/scripts/deploy-manifest.js"
 
 [ -d "$SOURCE_DIR" ] || die "src/ layout not found at $SOURCE_DIR — run this from the harness root after Task 1"
 
@@ -255,13 +331,15 @@ OBSOLETE_LIST="$(mktemp)"
 # Node 가 ESM 으로 인식하도록 .js 확장자가 필요하므로 임시 디렉토리에 그 이름으로 복사한다.
 TEMP_HELPER_DIR="$(mktemp -d)"
 TEMP_WRITE_HELPER="$TEMP_HELPER_DIR/deploy-manifest.js"
-trap 'rm -f "$CURRENT_FILES_LIST" "$THIS_DEPLOY_SKIPPED_LIST" "$MANIFEST_FILES_LIST" "$PREV_FILES_LIST" "$OBSOLETE_LIST"; rm -rf "$TEMP_HELPER_DIR"' EXIT
+# cp 경로의 stage 디렉토리 (copy_item_cp 가 사용 직후 지우며, 중간 실패 시 EXIT trap 이 정리).
+STAGE_DIR=""
+trap 'rm -f "$CURRENT_FILES_LIST" "$THIS_DEPLOY_SKIPPED_LIST" "$MANIFEST_FILES_LIST" "$PREV_FILES_LIST" "$OBSOLETE_LIST"; rm -rf "$TEMP_HELPER_DIR"; [ -z "$STAGE_DIR" ] || rm -rf "$STAGE_DIR"' EXIT
 
-[ -f "$REPO_DIR/.harness/scripts/deploy-manifest.js" ] \
-  || die "deploy-manifest.js helper missing at $REPO_DIR/.harness/scripts/deploy-manifest.js"
-cp "$REPO_DIR/.harness/scripts/deploy-manifest.js" "$TEMP_WRITE_HELPER"
+[ -f "$HELPER" ] \
+  || die "deploy-manifest.js helper missing at $HELPER"
+cp "$HELPER" "$TEMP_WRITE_HELPER"
 
-node "$REPO_DIR/.harness/scripts/deploy-manifest.js" list-src "$SOURCE_DIR" > "$CURRENT_FILES_LIST"
+node "$HELPER" list-src "$SOURCE_DIR" > "$CURRENT_FILES_LIST"
 
 # git 메타데이터: 실패 시 빈 값 → 헬퍼가 null 로 기록.
 SOURCE_COMMIT="$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null || true)"
@@ -322,6 +400,7 @@ ITEMS=(
 info "mode: $MODE"
 info "source: $SOURCE_DIR"
 info "target: $TARGET_DIR"
+info "copy tool: $COPY_TOOL"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   info "dry run: no files will be written"
@@ -341,7 +420,7 @@ PREV_MANIFEST_PATH="$TARGET_DIR/.harness/.deploy-manifest.json"
 if [ -f "$PREV_MANIFEST_PATH" ]; then
   # 헬퍼는 손상된 매니페스트에서도 stderr 경고 + exit 0 정책이라 stderr 를 살려둬야
   # cleanup 가 silent 비활성화되는 사고를 사용자가 인지할 수 있다.
-  node "$REPO_DIR/.harness/scripts/deploy-manifest.js" read-files "$PREV_MANIFEST_PATH" \
+  node "$HELPER" read-files "$PREV_MANIFEST_PATH" \
     > "$PREV_FILES_LIST" || true
   if [ ! -s "$PREV_FILES_LIST" ]; then
     info "previous manifest unreadable or empty; skipping cleanup"
