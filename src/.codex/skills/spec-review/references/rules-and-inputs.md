@@ -73,4 +73,4 @@ Where `<yymmddhhmmss>` is the current local datetime at review time.
 
 - The spec document itself (read in full)
 - `docs/_local/dev-context.json` (for topic context)
-- Related spec or design documents referenced in the spec's "관련 문서" section, if present
+- Related spec or design documents referenced in the spec's "관련 문서" or "Related Documents" section, if present

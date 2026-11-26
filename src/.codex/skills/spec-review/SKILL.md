@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 name: spec-review
 description: >-
   Review a spec document against an 8-point quality gate. Resolves spec path from:
@@ -51,6 +51,8 @@ If the user explicitly provides a spec path, always use it regardless of `dev-co
 - Read project rules from `.harness/rules/` (shared) and `.claude/rules/` (Claude operational) where relevant
 
 ### 2. Evaluate the 8 mandatory checks
+
+Read `.harness/contracts/spec.md` and follow its format exactly. Interpret legacy headings with the alias table in `references/checklist-template.md`. Judge review-required sections and equivalent planning structures with the rules in that file, not with the contract's generation format. Use the contract as the expected structure of the spec under review. Do not rewrite the spec.
 
 Apply the checklist in `references/checklist-template.md`.
 See `references/rules-and-inputs.md` for context loading rules and field definitions.
