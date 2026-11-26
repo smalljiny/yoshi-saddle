@@ -367,6 +367,195 @@ describe('정상 fixture (위반 0, exit 0)', () => {
   })
 })
 
+const ALLOW = '.harness/i18n/residual-allow.json'
+
+function allow(entries) {
+  return { [ALLOW]: JSON.stringify(entries, null, 2) + '\n' }
+}
+
+function countKinds(result) {
+  const counts = {}
+  for (const k of kinds(result)) counts[k] = (counts[k] ?? 0) + 1
+  return counts
+}
+
+describe('residual·stale-allow (스펙 §3.8 허용 목록 기준)', () => {
+  // X3: 형식 토큰이 인라인 코드로 본문에 있다. 이전 중 문자열이 바뀌었다고 가정한다.
+  const changedBody = 'Write `Acceptance: N/M eval 통과됨` at the end.\n'
+
+  test('(1) 변경된 X3 문자열: 바뀐 문자열을 등록하면 residual 0·stale-allow 0', () => {
+    tree({
+      [SKILL]: changedBody,
+      ...allow([{ file: SKILL, text: 'Acceptance: N/M eval 통과됨', reason: 'consumer-parsed format token' }]),
+    })
+    expectClean(run())
+  })
+
+  test('(1) 변경된 X3 문자열: 바뀌기 전 문자열을 등록하면 stale-allow 1·residual 1', () => {
+    tree({
+      [SKILL]: changedBody,
+      ...allow([{ file: SKILL, text: 'Acceptance: N/M eval 통과', reason: 'consumer-parsed format token' }]),
+    })
+    const r = run()
+    assert.equal(r.status, 1)
+    assert.deepEqual(countKinds(r), { residual: 1, 'stale-allow': 1 }, r.stderr)
+  })
+
+  // X6: 새 후보로 찾은 매칭 데이터(큰따옴표 구간).
+  const x6Body = 'Match the legacy heading "구현 계획" when parsing.\n'
+
+  test('(2) 새 후보 X6 문자열: 새 문자열을 등록하면 residual 0·stale-allow 0', () => {
+    tree({ [SKILL]: x6Body, ...allow([{ file: SKILL, text: '구현 계획', reason: 'parsed data token' }]) })
+    expectClean(run())
+  })
+
+  test('(2) 새 후보 X6 문자열: 바뀌기 전 문자열을 등록하면 stale-allow 1·residual 1', () => {
+    tree({ [SKILL]: x6Body, ...allow([{ file: SKILL, text: '구현계획', reason: 'parsed data token' }]) })
+    const r = run()
+    assert.equal(r.status, 1)
+    assert.deepEqual(countKinds(r), { residual: 1, 'stale-allow': 1 }, r.stderr)
+  })
+
+  test('(3) 등록한 X4·X1과 미등록 메시지 코드 블록 줄이 한 파일에 있으면 residual 1건(메시지 줄)', () => {
+    const body = [
+      'Create the task with `subject="P1: Spec 문서 분석"`.',
+      '',
+      '```bash',
+      '# 토픽 상태를 읽는다',
+      'node dev-context.js read --field=phase',
+      '```',
+      '',
+      '```',
+      '구현을 시작할 수 없습니다.',
+      '```',
+      '',
+    ].join('\n')
+    tree({
+      [SKILL]: body,
+      ...allow([
+        { file: SKILL, text: 'subject="P1: Spec 문서 분석"', reason: 'instructions-en: X4' },
+        { file: SKILL, text: '# 토픽 상태를 읽는다', reason: 'instructions-en: X1' },
+      ]),
+    })
+    const r = run()
+    expectOnly(r, 'residual', 1)
+    assert.match(r.lines[0], /^\.claude\/skills\/demo\/SKILL\.md:9: residual: 구현을 시작할 수 없습니다\.$/)
+  })
+
+  test('카탈로그 파일 안 한글은 residual이 아니다', () => {
+    tree({ [SKILL]: '{{msg:A}}\n', ...pair(SKILL_EN, SKILL_KO, { A: 'a' }, { A: '"한글" `한글`' }) })
+    expectClean(run())
+  })
+
+  test('허용 목록 항목의 file이 다른 파일이면 일치하지 않는다', () => {
+    tree({
+      [SKILL]: 'Show "한글 안내".\n',
+      '.claude/agents/x.md': 'Agent body.\n',
+      ...allow([{ file: '.claude/agents/x.md', text: '한글 안내', reason: 'instructions-en: X2' }]),
+    })
+    const r = run()
+    assert.deepEqual(countKinds(r), { residual: 1, 'stale-allow': 1 }, r.stderr)
+  })
+
+  test('stale-allow 진단 줄에 항목의 file 값이 들어간다', () => {
+    tree({ [SKILL]: 'English only.\n', ...allow([{ file: SKILL, text: '사라진 문구', reason: 'parsed data token' }]) })
+    const r = run()
+    expectOnly(r, 'stale-allow', 1)
+    assert.match(r.lines[0], /^\.harness\/i18n\/residual-allow\.json:2: stale-allow: \.claude\/skills\/demo\/SKILL\.md 사라진 문구$/)
+  })
+
+  test('stack-* 본문의 한글은 검사 대상 밖', () => {
+    tree({ '.claude/skills/stack-x/SKILL.md': '"한글"\n' })
+    expectClean(run())
+  })
+
+  test('허용 목록 파일이 없으면 빈 목록으로 처리한다', () => {
+    tree({ [SKILL]: 'English only.\n' })
+    expectClean(run())
+  })
+
+  test('인라인 코드가 든 큰따옴표 구간은 원문 그대로 단위가 된다', () => {
+    tree({ [SKILL]: 'Say "안내 `x` 끝" now.\n', ...allow([{ file: SKILL, text: '안내 `x` 끝', reason: 'parsed data token' }]) })
+    expectClean(run())
+  })
+
+  test('짝이 맞지 않는 따옴표가 있는 줄은 줄 전체가 단위 (누락 방지)', () => {
+    const r = (tree({ [SKILL]: 'Width 5" and "한글" here.\n' }), run())
+    expectOnly(r, 'residual', 1)
+    assert.match(r.lines[0], /residual: Width 5" and "한글" here\.$/)
+  })
+
+  test('둥근 큰따옴표와 들여쓴 코드 블록 줄(앞뒤 공백 제거)', () => {
+    tree({
+      [SKILL]: '- Show “둥근 안내”.\n\n  ```\n    들여쓴 메시지  \n  ```\n',
+      ...allow([
+        { file: SKILL, text: '둥근 안내', reason: 'parsed data token' },
+        { file: SKILL, text: '들여쓴 메시지', reason: 'instructions-en: X1' },
+      ]),
+    })
+    expectClean(run())
+  })
+
+  test('한글 없는 인라인 코드·큰따옴표는 residual이 아니다', () => {
+    tree({ [SKILL]: 'Run `node x.js` and print "done".\n' })
+    expectClean(run())
+  })
+})
+
+describe('허용 목록 스키마 오류는 format 위반', () => {
+  const cases = [
+    ['배열 아님', '{"file": "x"}\n'],
+    ['JSON 파싱 실패', '[{"file": }\n'],
+    ['file 누락', JSON.stringify([{ text: 't', reason: 'r' }])],
+    ['text 누락', JSON.stringify([{ file: SKILL, reason: 'r' }])],
+    ['reason 누락', JSON.stringify([{ file: SKILL, text: 't' }])],
+    ['빈 문자열', JSON.stringify([{ file: SKILL, text: '', reason: 'r' }])],
+    ['객체 아님', JSON.stringify(['x'])],
+  ]
+  for (const [name, content] of cases) {
+    test(name, () => {
+      tree({ [SKILL]: 'English only.\n', [ALLOW]: content })
+      const r = run()
+      expectOnly(r, 'format', 1)
+      assert.match(r.lines[0], /^\.harness\/i18n\/residual-allow\.json:\d+: format: /)
+    })
+  }
+})
+
+describe('허용 목록 진단 줄 번호', () => {
+  const ok = (text) => ({ file: SKILL, text, reason: 'parsed data token' })
+
+  test('세 번째 항목 스키마 오류는 그 항목의 시작 줄(12)', () => {
+    tree({ [SKILL]: '"가" "나"\n', ...allow([ok('가'), ok('나'), { file: SKILL, text: '' , reason: 'r' }]) })
+    const r = run()
+    expectOnly(r, 'format', 1)
+    assert.match(r.lines[0], /^\.harness\/i18n\/residual-allow\.json:12: format: /)
+  })
+
+  test('[와 같은 줄의 항목, 특수문자 든 문자열, CRLF·BOM', () => {
+    const content = '﻿[{"file": "x[{,\\"", "text": "t", "reason": "r"},\r\n {"file": "' + SKILL + '", "text": "다", "reason": ""}]\r\n'
+    tree({ [SKILL]: '"다"\n', [ALLOW]: content })
+    const r = run()
+    assert.deepEqual(kinds(r).sort(), ['format', 'residual', 'stale-allow'], r.stderr)
+    assert.match(r.stderr, /residual-allow\.json:1: stale-allow: x\[\{,"/)
+    assert.match(r.stderr, /residual-allow\.json:2: format: /)
+  })
+
+  test('중복 항목은 두 번째 항목 줄에 format', () => {
+    tree({ [SKILL]: '"가"\n', ...allow([ok('가'), ok('가')]) })
+    const r = run()
+    expectOnly(r, 'format', 1)
+    assert.match(r.lines[0], /^\.harness\/i18n\/residual-allow\.json:7: format: duplicate/)
+  })
+
+  test('JSON 파싱 실패는 파서가 알려준 줄', () => {
+    tree({ [SKILL]: 'x\n', [ALLOW]: '[\n  {"file": "a",\n  }\n]\n' })
+    const r = run()
+    expectOnly(r, 'format', 1)
+    assert.match(r.lines[0], /residual-allow\.json:[1-9]\d*: format: invalid JSON/)
+  })
+})
+
 describe('진단 형식과 실행 오류', () => {
   test('위반 stderr의 모든 줄이 진단 형식이고 경로에 \\가 없다', () => {
     tree({

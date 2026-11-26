@@ -4,10 +4,13 @@
 // 사용법: node .harness/scripts/i18n-check.js [--root=<dir>]
 // 위반 없음: stdout 요약 + exit 0
 // 위반 있음: stderr에 `<file>:<line>: <kind>: <detail>` 한 줄씩 + exit 1
+// 검사: 카탈로그 형식·쌍, 참조 토큰 해석·미사용 ID, 잔존 한글(residual)과 허용 목록(.harness/i18n/residual-allow.json)
 // 실행 오류(잘못된 인자·루트 없음·예기치 않은 예외): stderr 원인 + exit 2
 //
 // 코드 구간 인식은 Markdown의 부분 집합이다: 줄 단위 인라인 코드(여러 줄에 걸친 코드 구간 미지원),
 // 줄 시작 펜스(``` · ~~~, 들여쓰기 허용, 인용 블록 안 펜스 미지원), 백슬래시 이스케이프 미지원.
+// residual 단위는 줄 단위다: 여러 줄 큰따옴표는 짝이 맞지 않는 줄로 보고 줄 전체를 단위로 삼으며,
+// 펜스 여는 줄의 info 문자열은 검사하지 않는다. 단위 문자열은 원문 그대로다(앞뒤 공백 포함).
 // 파서 상태(state·section)와 위반 누적 배열은 함수 안에서만 쓰는 지역 가변 상태다.
 
 import fs from 'node:fs'
@@ -42,7 +45,12 @@ const KIND_ORDER = [
   'malformed-ref',
   'unresolved-ref',
   'unused-id',
+  'residual',
+  'stale-allow',
 ]
+const HANGUL_RE = /[ᄀ-ᇿ㄰-㆏ꥠ-꥿가-힯ힰ-퟿]/
+const ALLOW_LIST = `${I18N_DIR}/residual-allow.json`
+const ALLOW_FIELDS = ['file', 'text', 'reason']
 
 // ---------------------------------------------------------------------------
 // 파일 시스템 유틸
@@ -306,13 +314,14 @@ function findBacktickRun(line, from, len) {
   return -1
 }
 
-// 인라인 코드 구간을 같은 길이의 공백으로 가린다(토큰 인식 범위 밖).
-function maskInlineCode(line) {
-  let out = ''
+// 인라인 코드 구간을 같은 길이의 공백으로 가린 줄(토큰 인식 범위)과 각 구간의 내용을 돌려준다.
+function splitInlineCode(line) {
+  let masked = ''
+  const spans = []
   let i = 0
   while (i < line.length) {
     if (line[i] !== '`') {
-      out += line[i]
+      masked += line[i]
       i += 1
       continue
     }
@@ -320,15 +329,31 @@ function maskInlineCode(line) {
     while (j < line.length && line[j] === '`') j += 1
     const close = findBacktickRun(line, j, j - i)
     if (close < 0) {
-      out += line.slice(i, j)
+      masked += line.slice(i, j)
       i = j
       continue
     }
+    spans.push(line.slice(j, close))
     const end = close + (j - i)
-    out += ' '.repeat(end - i)
+    masked += ' '.repeat(end - i)
     i = end
   }
-  return out
+  return { masked, spans }
+}
+
+// 큰따옴표("…", “…”) 구간 내용. 위치는 인라인 코드를 가린 줄에서 찾고, 내용은 원문 줄에서 잘라 낸다
+// (가린 줄과 원문 줄은 길이가 같다 — 따옴표 안 인라인 코드도 원문 그대로 단위에 들어간다).
+function quotedSpans(raw, masked) {
+  return [...masked.matchAll(/"[^"]*"|“[^”]*”/g)].map((m) => raw.slice(m.index + 1, m.index + m[0].length - 1))
+}
+
+// residual 검사 단위: 한글이 든 인라인 코드·큰따옴표 구간 내용.
+// 짝이 맞지 않는 따옴표가 있으면(인치 표기·여러 줄 인용 등) 구간을 믿을 수 없으므로,
+// 가린 줄에 한글이 있을 때 줄 전체(앞뒤 공백 제거)를 단위로 삼아 누락을 막는다.
+function lineUnits(raw, masked, spans) {
+  const unbalanced = (masked.match(/"/g) ?? []).length % 2 === 1 || (masked.match(/“/g) ?? []).length !== (masked.match(/”/g) ?? []).length
+  const textUnits = unbalanced ? (HANGUL_RE.test(masked) ? [raw.trim()] : []) : quotedSpans(raw, masked)
+  return [...spans, ...textUnits].filter((s) => HANGUL_RE.test(s))
 }
 
 function parseToken(content) {
@@ -365,34 +390,41 @@ function scanLineTokens(masked, n, file, out) {
   }
 }
 
-// 본문 텍스트에서 코드 블록·인라인 코드 밖 참조 토큰을 모은다.
+// 본문 텍스트에서 코드 블록·인라인 코드 밖 참조 토큰과 residual 검사 단위를 모은다.
+// 코드 블록은 한글이 든 줄 하나(앞뒤 공백 제거)가 검사 단위다.
 function scanBody(text, file) {
-  const out = { tokens: [], malformed: [] }
+  const out = { tokens: [], malformed: [], units: [] }
   let fence = null
   splitLines(text).forEach((raw, i) => {
+    const n = i + 1
     if (fence) {
       if (isFenceClose(raw, fence)) fence = null
+      else if (HANGUL_RE.test(raw)) out.units.push({ file, line: n, text: raw.trim() })
       return
     }
     fence = fenceOpen(raw)
     if (fence) return
-    scanLineTokens(maskInlineCode(raw), i + 1, file, out)
+    const { masked, spans } = splitInlineCode(raw)
+    scanLineTokens(masked, n, file, out)
+    for (const unit of lineUnits(raw, masked, spans)) out.units.push({ file, line: n, text: unit })
   })
   return out
 }
 
-function collectRefs(root, components, violations) {
+function scanComponents(root, components, violations) {
   const refs = new Map()
+  const units = []
   for (const component of components) {
     const tokens = []
     for (const file of component.bodyFiles) {
       const scanned = scanBody(fs.readFileSync(path.join(root, file), 'utf8'), file)
       tokens.push(...scanned.tokens)
+      units.push(...scanned.units)
       violations.push(...scanned.malformed)
     }
     refs.set(component.key, tokens)
   }
-  return refs
+  return { refs, units }
 }
 
 // ---------------------------------------------------------------------------
@@ -477,6 +509,91 @@ function checkCommonUnused(components, refs, catalogs, violations) {
 }
 
 // ---------------------------------------------------------------------------
+// 잔존 한글: residual, stale-allow, 허용 목록 스키마
+
+// 최상위 JSON 배열 원소마다 시작 줄 번호를 구한다(문자열 안 괄호는 무시).
+function arrayElementLines(text) {
+  const lines = []
+  let depth = 0
+  let line = 1
+  let inString = false
+  let expectValue = false
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]
+    if (ch === '\n') line += 1
+    if (inString) {
+      if (ch === '\\') i += 1
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (depth === 1 && expectValue && !/[\s,\]]/.test(ch)) {
+      lines.push(line)
+      expectValue = false
+    }
+    if (ch === '"') inString = true
+    else if (ch === '[' || ch === '{') depth += 1
+    else if (ch === ']' || ch === '}') depth -= 1
+    if (depth === 1 && (ch === '[' || ch === ',')) expectValue = true
+  }
+  return lines
+}
+
+function validateAllowEntry(entry) {
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return 'entry must be an object'
+  const bad = ALLOW_FIELDS.filter((k) => typeof entry[k] !== 'string' || entry[k] === '')
+  return bad.length > 0 ? `entry needs non-empty string fields: ${bad.join(', ')}` : null
+}
+
+// 허용 목록을 읽어 유효한 항목만 { file, text, line }으로 돌려준다. 파일이 없으면 빈 목록이다.
+function loadAllowList(root, violations) {
+  const abs = path.join(root, ALLOW_LIST)
+  if (!isFile(abs)) return []
+  const report = (line, detail) => violations.push({ file: ALLOW_LIST, line, kind: 'format', detail })
+  const text = fs.readFileSync(abs, 'utf8').replace(/^﻿/, '')
+  let data
+  try {
+    data = JSON.parse(text)
+  } catch (error) {
+    const at = /line (\d+)/.exec(error.message)
+    report(at ? Number(at[1]) : 0, `invalid JSON: ${error.message}`)
+    return []
+  }
+  if (!Array.isArray(data)) {
+    report(0, 'allow list must be a JSON array')
+    return []
+  }
+  const lines = arrayElementLines(text)
+  const entries = []
+  const seen = new Set()
+  data.forEach((entry, i) => {
+    const line = lines[i] ?? 0
+    const problem = validateAllowEntry(entry)
+    if (problem) return report(line, problem)
+    const key = `${entry.file}\u0000${entry.text}`
+    if (seen.has(key)) return report(line, `duplicate entry for ${entry.file} ${entry.text}`)
+    seen.add(key)
+    entries.push({ file: entry.file, text: entry.text, line })
+  })
+  return entries
+}
+
+function checkResidual(units, allowList, violations) {
+  const key = (file, text) => `${file}\u0000${text}`
+  const allowed = new Set(allowList.map((e) => key(e.file, e.text)))
+  const found = new Set(units.map((u) => key(u.file, u.text)))
+  for (const unit of units) {
+    if (!allowed.has(key(unit.file, unit.text))) {
+      violations.push({ file: unit.file, line: unit.line, kind: 'residual', detail: unit.text })
+    }
+  }
+  for (const entry of allowList) {
+    if (!found.has(key(entry.file, entry.text))) {
+      violations.push({ file: ALLOW_LIST, line: entry.line, kind: 'stale-allow', detail: `${entry.file} ${entry.text}` })
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 실행
 
 export function check(root) {
@@ -485,10 +602,11 @@ export function check(root) {
   const templates = discoverCatalogTemplates(root)
   const catalogs = loadCatalogs(root, templates, violations)
   checkCatalogPairs(catalogs, violations)
-  const refs = collectRefs(root, components, violations)
+  const { refs, units } = scanComponents(root, components, violations)
   checkRefs(components, refs, catalogs, violations)
   checkOwnUnused(components, refs, catalogs, violations)
   checkCommonUnused(components, refs, catalogs, violations)
+  checkResidual(units, loadAllowList(root, violations), violations)
   const bodyFiles = components.reduce((n, c) => n + c.bodyFiles.length, 0)
   const catalogFiles = [...catalogs.values()].reduce((n, p) => n + LANGS.filter((l) => p[l]).length, 0)
   return { violations: sortViolations(violations), stats: { bodyFiles, catalogFiles } }
@@ -504,7 +622,8 @@ function sortViolations(violations) {
 }
 
 function formatViolation({ file, line, kind, detail }) {
-  return `${toPosix(file)}:${line}: ${kind}: ${detail}`
+  // 진단은 한 줄 계약이다 — detail 안의 줄바꿈(예: JSON 파서 메시지)을 공백으로 바꾼다.
+  return `${toPosix(file)}:${line}: ${kind}: ${detail.replace(/\s*[\r\n]+\s*/g, ' ')}`
 }
 
 function resolveRoot(argv) {
