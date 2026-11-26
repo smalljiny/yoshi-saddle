@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: flow-plan
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 origin: harness
@@ -256,28 +256,6 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=planReview
 ## Plan Document Format
 
 See `.harness/contracts/implementation-plan.md` for the canonical format.
-
-```markdown
-# Implementation Plan: <topic name>
-
-## Overview
-[Summary]
-
-## Spec Reference
-> Based on: `docs/_local/active/<topic>/spec.md`
-
-## Story List
-
-### [ ] Story 1: <title>
-- **Type**: tdd | config | infra | refactor | prompt
-- **Goal**: [What this Story achieves]
-- **Tasks**:
-  - [ ] T1.1 — <imperative subject>
-- **Completion Criteria**:
-  - [ ] Criterion 1
-
-### [ ] Story 2: ...
-```
 
 ## Key Principles
 

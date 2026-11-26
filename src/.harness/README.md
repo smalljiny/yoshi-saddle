@@ -99,7 +99,7 @@ node .harness/scripts/lang.js resolve --kind=commit
 
 **⚠ 수정 규칙**:
 - 플레이스홀더를 추가·제거하면 `/flow-pr` 명령어의 치환 로직도 함께 수정한다.
-- 영향 범위 체크리스트(`## 영향 범위` 섹션)는 `commit-scopes.md`의 scope 목록과 동기화한다.
+- `## Impact` 섹션 체크리스트는 `commit-scopes.md`의 scope 목록과 동기화한다.
 
 ---
 
@@ -110,7 +110,7 @@ node .harness/scripts/lang.js resolve --kind=commit
 **⚠ 수정 규칙**:
 - 새 scope가 반복 사용되면 이 파일에 추가한다.
 - 테이블 형식(`| scope | description |`)은 유지한다 — `plan-review`가 파서로 읽는다.
-- `pr-body.md`의 영향 범위 체크리스트도 함께 업데이트한다.
+- `pr-body.md`의 `## Impact` 체크리스트도 함께 업데이트한다.
 
 ---
 

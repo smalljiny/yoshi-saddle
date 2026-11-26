@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: spec-review-pending-pr-dependency
 description: Codex spec-review가 미병합 PR의 파일을 "없음"으로 판단해 NOT READY를 반복할 때의 해결 패턴
 origin: learned
@@ -32,6 +32,6 @@ learned_at: 2026-04-25
 ## Why It Works
 
 Codex spec-review 스킬은 `ls` / `cat`으로 실제 파일을 확인한다.
-파일이 없으면 구현 가능성 체크(Gate 7)에서 FAIL을 반환한다.
+파일이 없으면 Implementation Readiness 체크(Gate 7)에서 FAIL을 반환한다.
 선행 조건 표가 있으면 리뷰어가 "설계는 병합 후 전제"임을 인식하고
 파일 부재를 게이트 실패가 아닌 선행 조건 미충족으로 취급한다.

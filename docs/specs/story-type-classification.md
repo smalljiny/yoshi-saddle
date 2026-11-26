@@ -41,7 +41,7 @@ planner §4.5.5와 plan-review Gate 5 결정 테이블은 path 트리거가 확�
 | 소비자 | 역할 | Type 처리 |
 |--------|------|----------|
 | planner 에이전트 | implementation plan 작성 시 Type 결정 + Tasks↔Criteria 매핑 자가 점검 | contract 표 + carve-out을 따라 각 Story Type 결정. §4.5.5(Story Type 결정 안내)에서 contract Triggers를 1차 단서, path > extension precedence를 명시(`scripts/` 하위는 확장자 무관 `infra`), Eval Case 명시적 존재 여부로 `prompt` 판별. §4.4.5(Tasks↔Criteria 1:1 매핑 자가 점검)에서 Tasks의 `preserve X` / `do not break Y` / `verify Z` 형태 보존·검증 의무가 Completion Criteria에 1:1 반영됐는지 plan 출력 직전 확인. |
-| plan-review 스킬 (Codex) | Gate 5 (Story 타입 정확성) + Gate 4 (완료 기준 명확성) 검증 | Gate 5: 5행 파일 경로 결정 테이블(`tdd`/`config`/`infra`/`refactor`/`prompt`) + `behavioral change` 같은 주관 판단 금지 + path 트리거가 확장자 트리거보다 우선 + Story Type 열거형 외 값(`docs`·`feat`·`chore` 등 Commit type) 즉시 FAIL + `prompt` 타입은 Eval Case 형식·Acceptance 라인 검증. Gate 4: Tasks 보존·검증 의무 ↔ Completion Criteria 1:1 매핑 점검(누락 1건 NOTE, 2건 이상 FAIL). |
+| plan-review 스킬 (Codex) | Gate 5 (Story Type Accuracy) + Gate 4 (Completion Criteria Verifiable) 검증 | Gate 5: 5행 파일 경로 결정 테이블(`tdd`/`config`/`infra`/`refactor`/`prompt`) + `behavioral change` 같은 주관 판단 금지 + path 트리거가 확장자 트리거보다 우선 + Story Type 열거형 외 값(`docs`·`feat`·`chore` 등 Commit type) 즉시 FAIL + `prompt` 타입은 Eval Case 형식·Acceptance 라인 검증. Gate 4: Tasks 보존·검증 의무 ↔ Completion Criteria 1:1 매핑 점검(누락 1건 NOTE, 2건 이상 FAIL). |
 | `/flow-impl` | Story 시작 시 Type별 에이전트 라우팅 (Step 5) | `tdd`→tdd-specialist, `prompt`→prompt-engineer, `refactor`→refactor-cleaner, `config`·`infra`→직접 처리 |
 
 ### Type별 추가 게이트

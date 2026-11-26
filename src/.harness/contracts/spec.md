@@ -3,68 +3,68 @@
 - **Producer**: Claude brainstorming skill (content) + `/flow-spec` (persistence)
 - **Consumer**: `/flow-spec` Step 7 (split analysis), Codex `spec-review` skill (quality validation)
 
-스펙 문서가 갖춰야 할 섹션 구조와 PR 병합 단위 판단 기준을 정의한다.
-`/flow-spec`은 브레인스토밍 호출 시 이 파일을 형식 기준으로 주입한다.
+This contract defines the section structure a spec document must have and the criteria for judging a mergeable PR unit.
+`/flow-spec` injects this file as the format reference when it invokes brainstorming.
 
-버전 정책: 섹션 구조나 분할 기준 변경 시 PR 본문에 변경점을 명시한다.
-YAML frontmatter 및 version 필드는 사용하지 않는다.
+Version policy: when the section structure or the split criteria change, state the change in the PR body.
+Do not use YAML frontmatter or a version field.
 
 ---
 
-## 스펙 문서 형식
+## Spec Document Format
 
-### 필수 섹션 (모든 토픽)
+### Required Sections (all topics)
 
 ```markdown
-# <기능명> 스펙
+# <Feature Name> Spec
 
-**상태**: Draft
-**작성일**: YYYY-MM-DD
-**작성자**: @<username>
+**Status**: Draft
+**Date**: YYYY-MM-DD
+**Author**: @<username>
 
-> **문서 범위**: 이 문서가 다루는 범위
+> **Scope**: what this document covers
 
-## 1. 개요
-### 1.1 배경
-### 1.2 목적
+## 1. Overview
+### 1.1 Background
+### 1.2 Purpose
 
-## 2. 목표
+## 2. Goals
 
-<!-- ## 3. 은 아래 "선택 섹션"에서 토픽 유형에 맞는 것을 사용한다 -->
+<!-- For ## 3., use the one section from "Optional Sections" below that fits the topic type -->
 
-## 4. 의사결정
+## 4. Decisions
 
-| 항목 | 결정 | 근거 |
-|------|------|------|
+| Item | Decision | Rationale |
+|------|----------|-----------|
 
-## 5. 범위 밖 (Non-goals)
+## 5. Non-goals
 
 ## 6. Open Questions
 
-## 7. 관련 문서
+## 7. Related Documents
 ```
 
-### 선택 섹션 (토픽 유형에 따라 포함)
+### Optional Sections (by topic type)
 
-| 섹션 | Code / Feature | Workflow / Policy | Role / Structure |
-|------|---------------|-------------------|-----------------|
-| `## 3. 아키텍처` (전체 구조, 주요 컴포넌트) | ✅ 포함 | ⬜ 해당 없으면 생략 | ⬜ 해당 없으면 생략 |
-| `## 3. 역할 정의` (역할 경계, 책임 분리) | ⬜ 해당 없으면 생략 | ✅ 포함 | ✅ 포함 |
+| Section | Code / Feature | Workflow / Policy | Role / Structure |
+|---------|---------------|-------------------|-----------------|
+| `## 3. Architecture` (overall structure, main components) | ✅ Include | ⬜ Omit if not applicable | ⬜ Omit if not applicable |
+| `## 3. Role Definition` (role boundaries, responsibility separation) | ⬜ Omit if not applicable | ✅ Include | ✅ Include |
 
-섹션 번호 `## 3.`은 해당하는 선택 섹션에 사용한다. 토픽이 어떤 유형에도 명확히 맞지 않으면 `역할 정의` 구조를 사용해 경계와 책임을 기술한다 — `## 3.`은 항상 어떤 형태로든 필요하다.
+Use exactly one `## 3.` heading: the optional section that fits the topic type. When the topic does not clearly fit any type, use the `Role Definition` structure to describe boundaries and responsibilities — every spec needs a `## 3.` section in one of these forms.
 
 ---
 
-## 분할 판단 기준 (PR 병합 가능 단위 체크)
+## Split Criteria (Mergeable Unit Check)
 
-스펙 작성 중 아래 질문으로 단위가 PR 병합에 적합한지 점검한다. `/flow-spec` Step 7(분할 추천)도 동일 기준을 사용한다.
+While writing a spec, check with the questions below whether the unit is suitable for a single PR merge. `/flow-spec` Step 7 (split recommendation) uses the same criteria.
 
-| 기준 | 판단 질문 |
-|------|----------|
-| 독립 배포 가능 | 이 스펙만 merge해도 시스템이 정상 동작하는가? |
-| 독립 롤백 가능 | 이 변경만 revert해도 다른 기능이 깨지지 않는가? |
-| 다른 PR에 비의존 | 동시 진행 중인 다른 PR의 완료 없이도 merge 가능한가? |
-| Coupling Rationale | 여러 목표가 의존 사슬로 묶여야 한다면 §1.3에 coupling rationale을 명시했는가? |
+| Criterion | Question |
+|-----------|----------|
+| Independently deployable | Does the system work correctly when only this spec is merged? |
+| Independently revertible | Does reverting only this change leave other features intact? |
+| Independent of other PRs | Can this be merged without waiting for other in-flight PRs? |
+| Coupling Rationale | If several goals must stay together as a dependency chain, does §1.3 state the coupling rationale? |
 
-**단위가 너무 크다는 신호**: 목표가 3개 이상이고 각각 독립 배포 가능한 경우 → 분할 권장.
-**단위를 유지하는 정당한 이유**: 부분 merge 시 워크플로우가 깨지거나 이중 검증 비용이 발생하는 의존 사슬.
+**Signal that the unit is too large**: 3 or more goals, each independently deployable → recommend splitting.
+**Valid reason to keep the unit**: a dependency chain where a partial merge breaks the workflow or doubles verification cost.

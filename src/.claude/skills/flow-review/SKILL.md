@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: flow-review
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 origin: harness
@@ -67,7 +67,7 @@ node .harness/scripts/dev-context.js update-state \
   --topic=<topic> --phase=review --status=in-progress
 ```
 
-Capture the current HEAD sha for later use in Step 8 (처리 내역 산출):
+Capture the current HEAD sha for later use in Step 8 (Resolution computation):
 
 ```bash
 SAVED_SHA=$(git rev-parse HEAD)
@@ -187,9 +187,9 @@ ADVERSARIAL_OUTPUT=$(node "$COMPANION_PATH" adversarial-review --wait --base "<b
 - 성공(exit 0): `adversarialStatus="run"`, `ADVERSARIAL_OUTPUT`을 `## Adversarial Review` 원문으로 보관 (Step 9에서 사용)
 - 비-0 exit: 경고 출력, `adversarialStatus="skipped"`, `skipReason="companion exited non-zero"` (stdout 일부를 말미에 첨부)
 
-`adversarialStatus="run"`인 경우 Step 6과 동일한 규칙으로 CRITICAL·HIGH 이슈를 review-fix commit으로 반영한 뒤 Step 8로 진행한다. severity가 명시되지 않은 설계 challenge는 보고서 `## Adversarial Review` 원문 섹션에만 반영하고 처리 내역 표에서 제외한다.
+`adversarialStatus="run"`인 경우 Step 6과 동일한 규칙으로 CRITICAL·HIGH 이슈를 review-fix commit으로 반영한 뒤 Step 8로 진행한다. severity가 명시되지 않은 설계 challenge는 보고서 `## Adversarial Review` 원문 섹션에만 반영하고 `## Resolution` 표에서 제외한다.
 
-### 8. Compute 처리 내역
+### 8. Compute Resolution
 
 review-fix commit 완료 후 실행한다.
 
@@ -207,7 +207,7 @@ git log <SAVED_SHA>..HEAD --oneline
 - `reviewer`: code-reviewer | security-reviewer | adversarial-review
 - `status`: fixed | deferred
 
-severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)는 처리 내역 표에서 제외하고 `## Adversarial Review` 원문 섹션에 보존한다.
+severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)는 `## Resolution` 표에서 제외하고 `## Adversarial Review` 원문 섹션에 보존한다.
 
 ### 9. Write review-report file
 
@@ -216,38 +216,14 @@ severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)�
 docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 ```
 
-`.harness/contracts/review-report.md`의 Required Format을 준수해 파일을 작성한다:
+Read `.harness/contracts/review-report.md` and follow its format exactly.
 
-```markdown
-# Review Report
-
-- topic: <topic>
-- timestamp: <YYMMDDHHmmss>
-- baseBranch: <baseBranch>
-
-## Reviewers
-
-| reviewer | status | skipReason |
-|---|---|---|
-| code-reviewer | run \| skipped | — |
-| security-reviewer | run \| skipped | — |
-| adversarial-review | run \| skipped | <skipReason 또는 —> |
-
-## Code Review
-<code-reviewer 원문 출력>
-
-## Security Review
-<security-reviewer 원문 출력>
-
-## Adversarial Review
-<ADVERSARIAL_OUTPUT 원문 또는 "skipped: <skipReason>">
-
-## 처리 내역
-
-| issue | severity | reviewer | status |
-|---|---|---|---|
-| <issueSummary> | <severity> | <reviewer> | <status> |
-```
+보고서의 각 섹션은 다음 값으로 채운다:
+- 헤더 필드: `topic`은 현재 토픽, `timestamp`는 파일명의 `<YYMMDDHHmmss>`와 같은 값, `baseBranch`는 Step 4에서 읽은 `config.git.baseBranch`
+- `## Reviewers` 표: 각 리뷰어의 `status`와 `skipReason` (`adversarial-review`는 Step 7의 `adversarialStatus`·`skipReason`)
+- `## Code Review`·`## Security Review`: 각 리뷰어 원문 출력
+- `## Adversarial Review`: `ADVERSARIAL_OUTPUT` 원문, 또는 skipped이면 `skipped: <skipReason>`
+- `## Resolution` 표: Step 8에서 정리한 각 이슈의 `issueSummary`·`severity`·`reviewer`·`status`
 
 ### 10. Completion Report
 
