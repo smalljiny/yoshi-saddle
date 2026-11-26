@@ -44,81 +44,81 @@ docs/_local/active/<topic>/implementation-plan.md
 
 ## Task Line Format
 
-각 Story 내부의 `**Tasks**:` 목록 항목은 다음 규칙을 따른다.
+Each item in a Story's `**Tasks**:` list follows these rules.
 
-- **라인 형식**: `- [ ] T<storyN>.<taskM> — <subject>`
-  - 예: `- [ ] T1.1 — Update version field in component files`
-- **first-line subject 규칙**: 첫 줄은 한 줄 명령형 subject로 작성한다. 이 subject는 `/flow-impl`이 Story 시작 시점에 호출하는 TaskCreate의 `subject` 필드로 그대로 입력 가능해야 한다.
-- **권장 길이**: subject는 80자 이내.
-- **sub-bullet·코드 블록·표**: 구현자 디테일로 허용된다. 단, Claude Task 도구의 entry에는 first-line subject만 반영되며 sub-bullet은 반영되지 않는다.
+- **Line format**: `- [ ] T<storyN>.<taskM> — <subject>`
+  - Example: `- [ ] T1.1 — Update version field in component files`
+- **First-line subject rule**: Write the first line as a one-line imperative subject. The subject must be usable unchanged as the `subject` field of the TaskCreate call `/flow-impl` makes when a Story starts.
+- **Recommended length**: Keep the subject to 80 characters or fewer.
+- **Sub-bullets, code blocks, tables**: Allowed as implementer detail. The Claude Task tool entry receives only the first-line subject; sub-bullets are not carried over.
 
 ## Story Type Definitions
 
-> **Story Type ≠ Commit Type.** Story Type은 아래 5종만 허용 (`tdd|config|infra|refactor|prompt`).
-> Conventional Commits 타입(`feat|fix|docs|refactor|test|chore|perf|ci`)은 `**Commit**` 필드에서만 사용한다.
-> `refactor`는 양쪽에 등장하지만 서로 다른 개념이다. 본 절은 **Story Type**의 `refactor`를 정의한다.
+> **Story Type ≠ Commit Type.** Story Type allows only the 5 values below (`tdd|config|infra|refactor|prompt`).
+> Conventional Commits types (`feat|fix|docs|refactor|test|chore|perf|ci`) are used only in the `**Commit**` field.
+> `refactor` appears in both lists but means different things. This section defines the **Story Type** `refactor`.
 
 | Type | When to Use | Triggers |
 |------|-------------|----------|
-| `tdd` | 새 동작 추가 (RED-GREEN-REFACTOR) | 신규 함수·클래스·API 동작 |
-| `config` | 프롬프트·문서·설정 파일 변경 (실행 코드 아님) | `.claude/`, `.codex/`, `.harness/`, `docs/`, README, spec 재배치, skill/command/rule 파일 추가·이동·병합. **단, LLM 프롬프트 본문 개선(에이전트·스킬·커맨드·규칙 프롬프트 내용 자체)은 `prompt`; `scripts/` 하위 실행 코드(`.js`/`.ts`/`.py` 등)는 `infra`·`refactor`·`tdd`** |
-| `infra` | 스크립트·툴링 (비즈니스 로직 아님) | `scripts/`, CI 워크플로우, deploy 스크립트 |
-| `refactor` | **실행 코드 파일 (`.ts`/`.js`/`.py` 등)** 재구조화 (테스트 커버리지 존재) | 코드 파일 재구조화. **markdown·yaml·json 변경은 `config`** |
-| `prompt` | LLM 프롬프트 작성/개선 + Eval Case 평가 | 프롬프트 본문 개선 + PROPOSE→EVAL→REFINE 사이클 필요 |
+| `tdd` | Add new behavior (RED-GREEN-REFACTOR) | New function, class, or API behavior |
+| `config` | Change prompt, document, or configuration files (not executable code) | `.claude/`, `.codex/`, `.harness/`, `docs/`, README, spec relocation, adding/moving/merging skill/command/rule files. **Exception: improving LLM prompt content itself (agent, skill, command, or rule prompt text) is `prompt`; executable code under `scripts/` (`.js`/`.ts`/`.py`, etc.) is `infra`, `refactor`, or `tdd`** |
+| `infra` | Scripts and tooling (not business logic) | `scripts/`, CI workflows, deploy scripts |
+| `refactor` | Restructure **executable code files (`.ts`/`.js`/`.py`, etc.)** (test coverage exists) | Code file restructuring. **markdown, yaml, and json changes are `config`** |
+| `prompt` | Write or improve an LLM prompt + evaluate Eval Cases | Prompt content improvement that needs a PROPOSE→EVAL→REFINE cycle |
 
 ## Prompt Task Eval Schema
 
-`prompt` 타입 Story의 Completion Criteria 형식. planner·plan-review·prompt-engineer가 공유하는 계약.
+Completion Criteria format for `prompt` type Stories. A contract shared by planner, plan-review, and prompt-engineer.
 
-### 전략 선택
+### Strategy Selection
 
-| 전략 식별자 | 적용 기준 | 필수 필드 |
+| Strategy | When to Apply | Required Fields |
 |---|---|---|
-| `direct` | 정확한 텍스트·구조 일치 | Input, Expected |
-| `rubric` | 주관적 품질 (어조, 간결성, 준수 여부) | Input, Criteria, Rubric, Pass |
-| `judge` | 복잡한 추론·정확성 (Claude-as-judge 별도 평가) | Input, Expected, Pass, Judge Criteria |
+| `direct` | Exact text or structure match | Input, Expected |
+| `rubric` | Subjective quality (tone, conciseness, adherence) | Input, Criteria, Rubric, Pass |
+| `judge` | Complex reasoning or correctness (separate Claude-as-judge evaluation) | Input, Expected, Pass, Judge Criteria |
 
-> 전략 태그(`[direct]`, `[rubric]`, `[judge]`)가 없으면 `direct`로 해석한다.
-> Rubric은 1-5 정수 척도를 권장한다. 후속 필드가 여러 줄인 Eval Case는 4-space 들여쓰기를 사용한다.
+> When no strategy tag (`[direct]`, `[rubric]`, `[judge]`) is present, interpret the Eval Case as `direct`.
+> Recommended: a 1-5 integer scale for Rubric. Indent continuation fields of a multi-line Eval Case with 4 spaces.
 
-### Eval Case 형식 예시
+### Eval Case Format Examples
 
-**`direct` 전략** (기본값 — 전략 태그 생략 가능):
+**`direct` strategy** (default — the strategy tag may be omitted):
 ```markdown
-- [ ] Eval 1: Input: "<시나리오>" → Expected: "<기대 출력 텍스트 또는 패턴>"
+- [ ] Eval 1: Input: "<scenario>" → Expected: "<expected output text or pattern>"
 ```
 
-**`rubric` 전략:**
+**`rubric` strategy:**
 ```markdown
-- [ ] Eval 2 [rubric]: Input: "<시나리오>"
-    Criteria: "<평가 기준>"
-    Rubric: "1=<나쁜 예 설명>, 5=<좋은 예 설명>"
+- [ ] Eval 2 [rubric]: Input: "<scenario>"
+    Criteria: "<evaluation criteria>"
+    Rubric: "1=<description of a poor result>, 5=<description of a good result>"
     Pass: score >= N
 ```
 
-**`judge` 전략:**
+**`judge` strategy:**
 ```markdown
-- [ ] Eval 3 [judge]: Input: "<시나리오>"
-    Expected: "<기대 동작 설명 (비교 기준용)>"
-    Judge Criteria: "<judge가 평가할 항목 (예: instruction adherence, factual accuracy)>"
+- [ ] Eval 3 [judge]: Input: "<scenario>"
+    Expected: "<expected behavior description (comparison baseline)>"
+    Judge Criteria: "<items the judge evaluates (e.g. instruction adherence, factual accuracy)>"
     Pass: judge verdict == ACCEPT
 ```
 
-### Acceptance 계산 규칙
+### Acceptance Calculation Rules
 
 ```markdown
 - [ ] Acceptance: N/M eval 통과
 ```
 
-- Acceptance 라인은 모든 `prompt` Story에 **필수**다. N=M인 경우에도 명시한다.
-- M = Eval Case 총 개수; N = 통과 요건 개수 (기본값 N = M)
-- N ≠ M이면 명시적 표기 (예: `Acceptance: 2/3 eval 통과`)
-- 각 Eval의 Pass 조건이 충족되면 통과로 계산
+- The Acceptance line is **required** in every `prompt` Story. Write it even when N=M.
+- M = total number of Eval Cases; N = number required to pass (default N = M)
+- When N ≠ M, state it explicitly (e.g. `Acceptance: 2/3 eval 통과`)
+- An Eval counts as passed when its Pass condition is met
 
-### `prompt` 타입 전체 예시
+### Full `prompt` Type Example
 
 ```markdown
-### [ ] Story N: <프롬프트 파일 개선>
+### [ ] Story N: <improve prompt file>
 - **Type**: prompt
 - **Goal**: ...
 - **Tasks**:
@@ -129,7 +129,7 @@ docs/_local/active/<topic>/implementation-plan.md
       Criteria: "..."
       Rubric: "1=..., 5=..."
       Pass: score >= 4
-  - [ ] Acceptance: 2/2 eval 통과   ← 필수 (N=M인 경우도 명시)
+  - [ ] Acceptance: 2/2 eval 통과   ← required (write it even when N=M)
 - **Commit**: `feat(agent): ...`
 ```
 
