@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: plan-review
 description: >-
   Review an implementation plan against an 8-point quality gate. Resolves plan
@@ -72,9 +72,12 @@ Do not infer the spec path from the plan path or directory.
 
 ### 2. Evaluate the 8 mandatory checks
 
+Read `.harness/contracts/implementation-plan.md` and follow its format exactly.
+Use that contract as the expected structure of the plan under review (Story fields, Type, Tasks, Commit). Do not rewrite the plan.
+
 Apply the checklist in `references/checklist-template.md`.
 
-**Commit 섹션 검증** (warning level, not a separate check — apply within check 4 "완료 기준 명확성"):
+**Commit 섹션 검증** (warning level, not a separate check — apply within check 4 "Completion Criteria Verifiable"):
 
 For each Story block that contains a `**Commit**:` field (plans written after `pr-driven-commit-workflow` Task 4):
 - `type` must be one of: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`, `ci` → warn if not
@@ -84,7 +87,7 @@ For each Story block that contains a `**Commit**:` field (plans written after `p
 
 **If a Story has no `**Commit**` field**: skip Commit validation for that Story (backward-compatible). Do not fail the plan for missing Commit fields.
 
-**Task 라인 first-line subject 검증** (warning level, fold-in within check 4 "완료 기준 명확성"):
+**Task 라인 first-line subject 검증** (warning level, fold-in within check 4 "Completion Criteria Verifiable"):
 
 For each Story's `**Tasks**:` list, validate every `- [ ] T<storyN>.<taskM> — <subject>` line:
 - Subject must be non-empty → warn if missing
@@ -103,6 +106,7 @@ This check produces warnings; it does not add a 9th checklist item — Checklist
 
 ### 4. Persist review artifacts
 
+- Read `.harness/contracts/plan-review.md` and follow its format exactly.
 - Write the review report to `<dirname(plan)>/plan-review-<yymmddhhmmss>.md`.
 - Update dev-context.json state:
 
@@ -116,32 +120,6 @@ Always write `planReview` regardless of decision.
 ## Output Format
 
 See `.harness/contracts/plan-review.md` for the canonical report format.
-
-The report written to disk must follow this structure exactly:
-
-```markdown
-# Plan Review Result
-
-- Plan: <plan-path>
-- Spec: <spec-path>
-- Decision: READY | READY WITH NOTE | NOT READY
-
-## Checklist
-- [PASS|FAIL|NOTE] 1. 목표 커버리지 - <evidence>
-- [PASS|FAIL|NOTE] 2. Non-goals 준수 - <evidence>
-- [PASS|FAIL|NOTE] 3. Story 독립성 - <evidence>
-- [PASS|FAIL|NOTE] 4. 완료 기준 명확성 - <evidence>
-- [PASS|FAIL|NOTE] 5. Story 타입 정확성 - <evidence>
-- [PASS|FAIL|NOTE] 6. Story 규모 적정성 - <evidence>
-- [PASS|FAIL|NOTE] 7. 구현 순서 타당성 - <evidence>
-- [PASS|FAIL|NOTE] 8. 범위 초과 없음 - <evidence>
-
-## Notes
-- <only include when Decision is READY WITH NOTE>
-
-## Required Fixes
-- <only include when Decision is NOT READY>
-```
 
 ## Resources
 
