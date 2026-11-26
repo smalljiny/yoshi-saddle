@@ -83,7 +83,7 @@ Claude Code 기반 개발 하네스의 구조·워크플로우·에이전트·�
 | `.harness/commit-scopes.md` | **프로젝트별 커밋 스코프 목록**. `plan-review`가 Commit 필드 검증에 사용 (경고 수준). 다른 프로젝트에 하네스를 복사할 때 이 파일을 대상 프로젝트 스코프 표로 교체. |
 | `.harness/contracts/` | Claude↔Codex 교환 문서 형식 명세 (spec-review, plan-review, implementation-plan). |
 | `.harness/templates/` | 재사용 가능한 템플릿 (예: `/flow-pr`용 `pr-body.md`). |
-| `.harness/scripts/` | CLI 스크립트 (`dev-context.js` — 토픽 라이프사이클 상태 관리자). |
+| `.harness/scripts/` | CLI 스크립트 (`dev-context.js` — 토픽 라이프사이클 상태 관리자, `lang.js` — 대화·문서·커밋 언어 결정: `node .harness/scripts/lang.js resolve --kind=conversation\|docs\|commit` → `ko`/`en` 한 줄). |
 
 ## 개발 워크플로우
 

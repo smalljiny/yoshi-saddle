@@ -25,6 +25,7 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 | [planner-progress-tracking.md](planner-progress-tracking.md) | `planner` 에이전트 5개 마일스톤(P1~P5)을 Claude Code Task 도구로 표면화하는 진행 추적 프로토콜 |
 | [statusline.md](statusline.md) | Claude Code 상태줄 설정. 토픽·phase 표시 |
 | [adapter-deep-research](wf-deep-research.md) | skill-registry search-adapter 기반 6단계 심층 연구 워크플로우 (firecrawl·exa 동적 선택). 파일명은 후속 cleanup 토픽에서 rename. |
+| [language-resolution.md](language-resolution.md) | `lang.js resolve`로 대화·문서·커밋 언어를 `ko`/`en`으로 결정. CLAUDE.md·AGENTS.md `## Language` 마커 블록 문법과 Claude Code `language` 설정 우선순위, 오류·경고 계약 |
 | [wf-task-tracking.md](wf-task-tracking.md) | implementation 에이전트(tdd-specialist·refactor-cleaner·prompt-engineer)의 Task 도구 추적 정형 패턴 |
 
 ### workflows/ — 단계별 워크플로우 (커맨드)
