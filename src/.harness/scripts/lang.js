@@ -16,6 +16,14 @@ const FALLBACK_LANGUAGE = 'en'
 // docs·commit 블록을 찾는 파일 순서 (프로젝트 루트 기준 상대 경로, 경고 표기에도 그대로 쓴다)
 const BLOCK_FILES = Object.freeze(['CLAUDE.md', 'AGENTS.md'])
 
+// conversation 언어를 찾는 Claude Code settings 파일 순서 (local → project → user).
+// label은 경고 표기다 — 사용자 설정은 홈 절대 경로 대신 리터럴 `~/.claude/settings.json`으로 쓴다.
+const SETTINGS_FILES = Object.freeze([
+  Object.freeze({ base: 'root', rel: '.claude/settings.local.json', label: '.claude/settings.local.json' }),
+  Object.freeze({ base: 'root', rel: '.claude/settings.json', label: '.claude/settings.json' }),
+  Object.freeze({ base: 'home', rel: '.claude/settings.json', label: '~/.claude/settings.json' }),
+])
+
 const BEGIN_MARKER = '<!-- harness-language:begin -->'
 const END_MARKER = '<!-- harness-language:end -->'
 
@@ -205,7 +213,46 @@ function resolveDocsLike(kind, root) {
   return { language: FALLBACK_LANGUAGE, warnings }
 }
 
+// settings 파일 하나에서 language를 읽는다. 값이 비어 있지 않은 문자열이면 found: true.
+// 파싱 오류 사유는 고정 문구다 — JSON.parse 메시지에는 입력 본문이 들어갈 수 있어 노출하지 않는다.
+function resolveFromSettingsFile(absolutePath, label) {
+  const read = readText(absolutePath, label)
+  if (read.status !== 'ok') return { found: false, warnings: read.warnings }
+  let settings
+  try {
+    settings = JSON.parse(read.content)
+  } catch {
+    return { found: false, warnings: [`cannot read ${label}: invalid JSON`] }
+  }
+  if (settings === null || typeof settings !== 'object' || Array.isArray(settings)) {
+    return { found: false, warnings: [`cannot read ${label}: top-level value is not an object`] }
+  }
+  const value = Object.hasOwn(settings, 'language') ? settings.language : undefined
+  if (typeof value !== 'string' || value.trim() === '') return { found: false, warnings: [] }
+  return { found: true, ...languageFromValue(value, label) }
+}
+
+/**
+ * conversation 언어를 결정한다. settings 파일을 local → project → user 순으로 보고
+ * language 값이 있는 첫 파일에서 멈춘다. 셋 다 없으면 docs 결정 결과(경고 포함)를 쓴다.
+ * @param {string} root 프로젝트 루트
+ * @param {string} home 사용자 홈
+ * @returns {{language: 'ko' | 'en', warnings: string[]}}
+ */
+function resolveConversation(root, home) {
+  const bases = { root, home }
+  let warnings = []
+  for (const file of SETTINGS_FILES) {
+    const result = resolveFromSettingsFile(path.join(bases[file.base], file.rel), file.label)
+    warnings = [...warnings, ...result.warnings]
+    if (result.found) return { language: result.language, warnings }
+  }
+  const docs = resolveDocsLike('docs', root)
+  return { language: docs.language, warnings: [...warnings, ...docs.warnings] }
+}
+
 const RESOLVERS = Object.freeze({
+  conversation: resolveConversation,
   docs: (root) => resolveDocsLike('docs', root),
   commit: (root) => resolveDocsLike('commit', root),
 })

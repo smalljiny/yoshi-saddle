@@ -287,7 +287,7 @@ describe('parseLanguageBlock — 줄바꿈', () => {
 
 // ── resolve CLI ─────────────────────────────────────────────────────────────
 // 테스트마다 임시 디렉토리에 루트·홈을 만들고 LANG_JS_ROOT·LANG_JS_HOME으로 주입한다.
-describe('resolve CLI — docs·commit', () => {
+describe('resolve CLI', () => {
   let base
   let root
   let home
@@ -311,8 +311,18 @@ describe('resolve CLI — docs·commit', () => {
     writeFileSync(file, content, 'utf8')
   }
 
+  function writeHome(rel, content) {
+    const file = join(home, rel)
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, content, 'utf8')
+  }
+
   function run(...args) {
-    const result = spawnSync(process.execPath, [LANG_JS, ...args], {
+    return runWithNodeArgs([], ...args)
+  }
+
+  function runWithNodeArgs(nodeArgs, ...args) {
+    const result = spawnSync(process.execPath, [...nodeArgs, LANG_JS, ...args], {
       encoding: 'utf8',
       env: { ...process.env, LANG_JS_ROOT: root, LANG_JS_HOME: home },
     })
@@ -540,7 +550,7 @@ describe('resolve CLI — docs·commit', () => {
       '위치 인자 추가': ['resolve', '--kind=docs', 'extra'],
       '--kind 값 분리': ['resolve', '--kind', 'docs'],
       '대문자 kind': ['resolve', '--kind=DOCS'],
-      'conversation (Story 3 전까지 미지원)': ['resolve', '--kind=conversation'],
+      '--kind=Conversation': ['resolve', '--kind=Conversation'],
       '--kind=__proto__': ['resolve', '--kind=__proto__'],
       '--kind=toString': ['resolve', '--kind=toString'],
     }
@@ -553,6 +563,169 @@ describe('resolve CLI — docs·commit', () => {
     test('설정이 malformed여도 형식 오류가 우선', () => {
       write('CLAUDE.md', doc(BEGIN))
       expectRun(['resolve'], { stdout: '', stderr: USAGE, status: 1 })
+    })
+  })
+
+  describe('conversation', () => {
+    const conv = ['resolve', '--kind=conversation']
+    const LOCAL = '.claude/settings.local.json'
+    const PROJECT = '.claude/settings.json'
+    const USER = '.claude/settings.json' // PROJECT와 같은 상대 경로지만 writeHome으로 홈 기준에 쓴다
+    const json = (value) => JSON.stringify(value)
+    const unsupported = (value, file) => `unsupported language '${value}' in ${file}, using en\n`
+    const cannotRead = (file, reason) => `cannot read ${file}: ${reason}\n`
+
+    describe('settings 우선순위', () => {
+      test('local만 Korean → ko', () => {
+        write(LOCAL, json({ language: 'Korean' }))
+        expectRun(conv, ok('ko'))
+      })
+
+      test('project만 한국어 → ko', () => {
+        write(PROJECT, json({ language: '한국어' }))
+        expectRun(conv, ok('ko'))
+      })
+
+      test('user만 Korean, docs 블록 없음 → ko', () => {
+        writeHome(USER, json({ language: 'Korean' }))
+        expectRun(conv, ok('ko'))
+      })
+
+      test('local 없음 + project ko + user en → ko', () => {
+        write(PROJECT, json({ language: 'ko' }))
+        writeHome(USER, json({ language: 'en' }))
+        expectRun(conv, ok('ko'))
+      })
+
+      test('local en + project ko → en (상위가 하위를 가림)', () => {
+        write(LOCAL, json({ language: 'en' }))
+        write(PROJECT, json({ language: 'ko' }))
+        expectRun(conv, ok('en'))
+      })
+
+      test('settings 값이 docs 블록보다 우선', () => {
+        write(LOCAL, json({ language: 'english' }))
+        write('CLAUDE.md', block('- docs: ko'))
+        expectRun(conv, ok('en'))
+      })
+
+      test('local french + project ko → en + 경고 (하위로 안 넘어감)', () => {
+        write(LOCAL, json({ language: 'french' }))
+        write(PROJECT, json({ language: 'ko' }))
+        expectRun(conv, ok('en', unsupported('french', LOCAL)))
+      })
+
+      test('user french만 → en + ~/.claude/settings.json 표기 경고', () => {
+        writeHome(USER, json({ language: 'french' }))
+        expectRun(conv, ok('en', unsupported('french', '~/.claude/settings.json')))
+      })
+
+      test('user 값이 임시 홈 절대 경로 → 값은 그대로 표시, 파일 표기는 리터럴', () => {
+        writeHome(USER, json({ language: home }))
+        assert.deepEqual(run(...conv), ok('en', unsupported(home, '~/.claude/settings.json')))
+      })
+    })
+
+    describe('docs fallback', () => {
+      test('settings 셋 다 없음 + CLAUDE.md docs: ko → ko', () => {
+        write('CLAUDE.md', block('- docs: ko'))
+        expectRun(conv, ok('ko'))
+      })
+
+      test('settings 셋 다 없음 + 블록 없음 → en', () => {
+        expectRun(conv, ok('en'))
+      })
+
+      test('settings 셋 다 없음 + CLAUDE.md docs: french → en + docs 미지원 경고', () => {
+        write('CLAUDE.md', block('- docs: french'))
+        expectRun(conv, ok('en', unsupported('french', 'CLAUDE.md')))
+      })
+
+      test('settings 경고 뒤에 docs 경고가 이어짐', () => {
+        write(LOCAL, '{')
+        write('CLAUDE.md', block('- docs: french'))
+        expectRun(conv, ok('en', cannotRead(LOCAL, 'invalid JSON') + unsupported('french', 'CLAUDE.md')))
+      })
+
+      test('commit 블록 값은 conversation에 쓰지 않음', () => {
+        write('CLAUDE.md', block('- commit: ko'))
+        expectRun(conv, ok('en'))
+      })
+    })
+
+    describe('미설정으로 보는 값', () => {
+      const unsetValues = { 숫자: 1, 배열: ['ko'], null: null, 객체: { ko: true }, 불리언: true, '공백뿐': '   ', '빈 문자열': '' }
+      for (const [name, value] of Object.entries(unsetValues)) {
+        test(`local language가 ${name} → 경고 없이 project ko`, () => {
+          write(LOCAL, json({ language: value }))
+          write(PROJECT, json({ language: 'ko' }))
+          expectRun(conv, ok('ko'))
+        })
+      }
+
+      test('language 키 없는 settings({}) → 경고 없이 다음 파일', () => {
+        write(LOCAL, '{}')
+        writeHome(USER, json({ language: 'ko' }))
+        expectRun(conv, ok('ko'))
+      })
+
+      test('Object.prototype.language 오염은 읽지 않음 (Object.hasOwn 가드)', () => {
+        write(LOCAL, '{}')
+        const pollute = ['--import', 'data:text/javascript,Object.prototype.language="Korean"']
+        assert.deepEqual(runWithNodeArgs(pollute, ...conv), ok('en'))
+      })
+    })
+
+    describe('읽기·파싱 오류', () => {
+      test('local 잘못된 JSON + project ko → ko + invalid JSON 경고', () => {
+        write(LOCAL, '{"language": ')
+        write(PROJECT, json({ language: 'ko' }))
+        expectRun(conv, ok('ko', cannotRead(LOCAL, 'invalid JSON')))
+      })
+
+      test('local 잘못된 JSON 본문에 임시 루트 경로 → stderr에 경로 없음', () => {
+        write(LOCAL, `{"language": "${root}"`)
+        write(PROJECT, json({ language: 'ko' }))
+        expectRun(conv, ok('ko', cannotRead(LOCAL, 'invalid JSON')))
+      })
+
+      test('user 잘못된 JSON 본문에 임시 홈 경로 + docs ko → ko, 경로 없음', () => {
+        writeHome(USER, `{"language": "${home}"`)
+        write('CLAUDE.md', block('- docs: ko'))
+        expectRun(conv, ok('ko', cannotRead('~/.claude/settings.json', 'invalid JSON')))
+      })
+
+      test('user settings가 디렉토리 + docs ko → ko + EISDIR 경고', () => {
+        mkdirSync(join(home, USER), { recursive: true })
+        write('CLAUDE.md', block('- docs: ko'))
+        expectRun(conv, ok('ko', cannotRead('~/.claude/settings.json', 'EISDIR')))
+      })
+
+      test('local settings가 디렉토리 + project ko → ko + EISDIR 경고', () => {
+        mkdirSync(join(root, LOCAL), { recursive: true })
+        write(PROJECT, json({ language: 'ko' }))
+        expectRun(conv, ok('ko', cannotRead(LOCAL, 'EISDIR')))
+      })
+
+      const nonObjects = { null: 'null', 배열: '["ko"]', 문자열: '"ko"', 숫자: '1', 불리언: 'true' }
+      for (const [name, content] of Object.entries(nonObjects)) {
+        test(`local 최상위가 ${name} → 비객체 경고 + project ko`, () => {
+          write(LOCAL, content)
+          write(PROJECT, json({ language: 'ko' }))
+          expectRun(conv, ok('ko', cannotRead(LOCAL, 'top-level value is not an object')))
+        })
+      }
+
+      test('project 잘못된 JSON + user ko → ko + project 경고', () => {
+        write(PROJECT, 'not json')
+        writeHome(USER, json({ language: 'ko' }))
+        expectRun(conv, ok('ko', cannotRead(PROJECT, 'invalid JSON')))
+      })
+    })
+
+    test('CRLF settings도 같은 결과', () => {
+      write(LOCAL, '{\r\n  "language": "Korean"\r\n}\r\n')
+      expectRun(conv, ok('ko'))
     })
   })
 })
