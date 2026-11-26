@@ -28,66 +28,66 @@ The latest review report is determined by descending filename sort.
 |---|---|---|
 | code-reviewer | run \| skipped | — |
 | security-reviewer | run \| skipped | — |
-| adversarial-review | run \| skipped | <사유 또는 —> |
+| adversarial-review | run \| skipped | <reason or —> |
 
 ## Code Review
-<code-reviewer 원문 출력>
+<raw code-reviewer output>
 
 ## Security Review
-<security-reviewer 원문 출력>
+<raw security-reviewer output>
 
 ## Adversarial Review
-<companion stdout 원문 또는 "skipped: <skipReason>">
+<raw companion stdout or "skipped: <skipReason>">
 
-## 처리 내역
+## Resolution
 
 | issue | severity | reviewer | status |
 |---|---|---|---|
-| <이슈 한 줄 요약 (80자 이내)> | CRITICAL \| HIGH \| MEDIUM \| LOW | <reviewer> | fixed \| deferred |
+| <one-line issue summary (80 characters or fewer)> | CRITICAL \| HIGH \| MEDIUM \| LOW | <reviewer> | fixed \| deferred |
 ```
 
 ## Field Definitions
 
-### Reviewers 표
+### Reviewers Table
 
-| 필드 | 값 | 설명 |
+| Field | Value | Description |
 |---|---|---|
-| `reviewer` | `code-reviewer` \| `security-reviewer` \| `adversarial-review` | 리뷰어 식별자 |
-| `status` | `run` \| `skipped` | 실행 여부 |
-| `skipReason` | 문자열 또는 `—` | skipped 시 필수; run 시 `—` |
+| `reviewer` | `code-reviewer` \| `security-reviewer` \| `adversarial-review` | Reviewer identifier |
+| `status` | `run` \| `skipped` | Execution state |
+| `skipReason` | string or `—` | Required when skipped; `—` when run |
 
-### 처리 내역 표
+### Resolution Table
 
-| 필드 | 값 | 설명 |
+| Field | Value | Description |
 |---|---|---|
-| `issue` | 문자열 | 원문 이슈의 한 줄 요약, 80자 이내 |
-| `severity` | `CRITICAL` \| `HIGH` \| `MEDIUM` \| `LOW` | 리뷰어가 분류한 severity |
-| `reviewer` | 리뷰어 식별자 | 이슈 출처 |
-| `status` | `fixed` \| `deferred` | 처리 결과 |
+| `issue` | string | One-line summary of the original issue, 80 characters or fewer |
+| `severity` | `CRITICAL` \| `HIGH` \| `MEDIUM` \| `LOW` | Severity assigned in the review |
+| `reviewer` | Reviewer identifier | Source of the issue |
+| `status` | `fixed` \| `deferred` | Resolution outcome |
 
-severity가 명시되지 않은 이슈(adversarial-review의 설계 challenge 등)는 처리 내역 표에서 제외한다.
-해당 내용은 `## Adversarial Review` 원문 섹션에서 확인한다.
+Exclude issues without an explicit severity (such as adversarial-review design challenges) from the Resolution table.
+Those items remain in the raw `## Adversarial Review` section.
 
-## 처리 내역 산출 알고리즘
+## Resolution Algorithm
 
-1. `/flow-review` Step 3(Transition)에서 `SAVED_SHA = git rev-parse HEAD` 캡처
-2. review-fix commit 완료 후 `git log <SAVED_SHA>..HEAD --oneline` 실행
-3. 신규 commit **있음** → CRITICAL·HIGH: `fixed`, MEDIUM·LOW: `deferred`
-4. 신규 commit **없음** → 모든 이슈: `deferred`
+1. In `/flow-review` Step 3 (Transition), capture `SAVED_SHA = git rev-parse HEAD`
+2. After the review-fix commits are done, execute `git log <SAVED_SHA>..HEAD --oneline`
+3. New commits **exist** → CRITICAL, HIGH: `fixed`; MEDIUM, LOW: `deferred`
+4. **No** new commits → every issue: `deferred`
 
-## skip 사유 목록
+## Skip Reasons
 
-| skipReason | 조건 | 경고 |
+| skipReason | Condition | Warning |
 |---|---|---|
-| `disabled` | `config.review.adversarial_enabled` 미설정 또는 `false` | 없음 (정상 opt-out) |
-| `codex unavailable` | `config.codex.available=false` | 출력 |
-| `codex not authenticated` | `config.codex.authenticated=false` | 출력 |
-| `companion not found` | companion 스크립트 경로 해결 실패 (캐시 디렉터리 없음 또는 containment 검증 실패) | 출력 |
-| `companion exited non-zero` | companion 실행 후 비-0 exit code | 출력 |
+| `disabled` | `config.review.adversarial_enabled` unset or `false` | None (normal opt-out) |
+| `codex unavailable` | `config.codex.available=false` | Printed |
+| `codex not authenticated` | `config.codex.authenticated=false` | Printed |
+| `companion not found` | Failed to resolve the companion script path (cache directory missing or containment check failed) | Printed |
+| `companion exited non-zero` | Companion exited with a non-zero exit code | Printed |
 
 ## State Transition Responsibility
 
-`/flow-review` Step 3(Transition)에서 `review:in-progress`로 이미 전환되므로, 보고서 작성(Step 9) 시점의 추가 상태 전환은 없다.
+`/flow-review` Step 3 (Transition) already moves the workflow state to `review:in-progress`, so writing the report (Step 9) makes no further state transition.
 
 ## Example
 
@@ -107,20 +107,20 @@ severity가 명시되지 않은 이슈(adversarial-review의 설계 challenge �
 | adversarial-review | skipped | disabled |
 
 ## Code Review
-**CRITICAL**: `auth.ts:42` — JWT secret이 하드코딩되어 있습니다. 환경 변수로 이동하세요.
-**MEDIUM**: `utils.ts:15` — 함수명이 동작을 설명하지 않습니다.
+**CRITICAL**: `auth.ts:42` — The JWT secret is hardcoded. Move it to an environment variable.
+**MEDIUM**: `utils.ts:15` — The function name does not describe its behavior.
 
 ## Security Review
-**HIGH**: `api.ts:88` — 입력값 검증 없이 SQL 쿼리에 삽입됩니다.
+**HIGH**: `api.ts:88` — Input is inserted into a SQL query without validation.
 
 ## Adversarial Review
 skipped: disabled
 
-## 처리 내역
+## Resolution
 
 | issue | severity | reviewer | status |
 |---|---|---|---|
-| JWT secret 하드코딩 (auth.ts:42) | CRITICAL | code-reviewer | fixed |
-| SQL 입력값 검증 누락 (api.ts:88) | HIGH | security-reviewer | fixed |
-| 함수명 불명확 (utils.ts:15) | MEDIUM | code-reviewer | deferred |
+| Hardcoded JWT secret (auth.ts:42) | CRITICAL | code-reviewer | fixed |
+| Missing SQL input validation (api.ts:88) | HIGH | security-reviewer | fixed |
+| Unclear function name (utils.ts:15) | MEDIUM | code-reviewer | deferred |
 ```
