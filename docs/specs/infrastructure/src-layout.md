@@ -50,8 +50,17 @@ version: N
 ## 기술 스택
 [기술 목록]
 
-## 언어 규칙
-[언어 정책]
+## Language
+
+Replies to the user follow the Claude Code `language` setting.
+
+<!-- harness-language:begin -->
+- docs: ko
+- commit: ko
+- comments: ko
+- code identifiers: en
+- component files: en (executable instructions only; translation catalogs are data)
+<!-- harness-language:end -->
 
 @.harness/harness-guide.md
 ```
@@ -69,13 +78,24 @@ version: N
 ## 기술 스택
 [기술 목록]
 
-## 언어 규칙
-[언어 정책]
+## Language
+
+Replies to the user follow the Claude Code `language` setting.
+
+<!-- harness-language:begin -->
+- docs: ko
+- commit: ko
+- comments: ko
+- code identifiers: en
+- component files: en (executable instructions only; translation catalogs are data)
+<!-- harness-language:end -->
 
 <!-- harness-guide:begin -->
 [harness-guide.md 본문 내용 (frontmatter 제외)]
 <!-- harness-guide:end -->
 ```
+
+`## Language` 섹션의 `harness-language` 마커 블록은 `lang.js`가 docs·commit 언어를 읽는 원본이다(블록 문법은 [language-resolution.md](../language-resolution.md)). 하네스 저장소의 `src/CLAUDE.md`·`src/AGENTS.md`는 이 형식이다. `/flow-init`은 아직 자유 텍스트 `## 언어 규칙` 섹션을 생성하며, 블록 생성으로의 전환은 후속 토픽이 맡는다.
 
 경계: `<!-- harness-guide:begin -->` 라인 이전이 프로젝트 섹션이다. begin/end 마커 사이는 현재 `.harness/harness-guide.md` 본문을 직접 포함하며, end 마커 이후 내용은 업데이트 시 보존된다. AGENTS.md에는 YAML frontmatter를 포함하지 않는다.
 

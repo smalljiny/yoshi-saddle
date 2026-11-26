@@ -11,7 +11,7 @@ Claude Code와 Codex가 공유하는 인프라 디렉토리다.
 .harness/
 ├── contracts/          Producer↔Consumer 인터페이스 명세
 ├── rules/              공유 코딩 규칙 (Claude + Codex)
-├── scripts/            CLI 스크립트 (dev-context.js)
+├── scripts/            CLI 스크립트 (dev-context.js, lang.js)
 ├── templates/          직접 인스턴스화되는 채우기 문서
 └── commit-scopes.md    프로젝트별 commit scope 목록
 ```
@@ -74,6 +74,14 @@ node .harness/scripts/dev-context.js set-field --topic=<topic> --field=refDoc --
 ```
 
 계약(contract)은 `.harness/contracts/` 또는 `.claude/skills/meta-dev-context/SKILL.md`를 참조한다.
+
+`lang.js`는 대화·문서·커밋 언어를 `ko`/`en` 한 줄로 결정하는 CLI다. 계약은 `docs/specs/language-resolution.md`를 참조한다.
+
+```bash
+node .harness/scripts/lang.js resolve --kind=conversation   # Claude Code language 설정 → 없으면 docs 결과
+node .harness/scripts/lang.js resolve --kind=docs           # CLAUDE.md → AGENTS.md의 harness-language 블록
+node .harness/scripts/lang.js resolve --kind=commit
+```
 
 **⚠ 수정 규칙**:
 - `dev-context.js`에 새 명령어를 추가하면 `dev-context.test.js`도 함께 업데이트한다.
