@@ -17,7 +17,7 @@ planner가 작성하는 plan `**Commit**` 필드, `/flow-impl`이 실행하는 �
 | `.harness/rules/git-workflow.md` | **단일 진실 원천**. 핵심 규칙·적용 대상·금지 카테고리·carve-out·grandfathering·Before/After 예시를 정의한다. |
 | `.claude/agents/planner.md` | `**Commit**` 필드 작성 시 정책 위임 (`Load .harness/rules/git-workflow.md and follow its 메시지 콘텐츠 정책 절.`). |
 | `.claude/agents/code-reviewer.md` | plan `**Commit**` 필드에서 위반 패턴을 감지해 WARNING 출력. 자동 수정·차단 없음. |
-| `.harness/templates/pr-body.md` | `## 변경사항`·`## 목적` 섹션 HTML 주석에 정책 인지 힌트 1줄씩. |
+| `.harness/templates/pr-body.md` | `## Changes`·`## Purpose` 섹션 HTML 주석에 정책 인지 힌트 1줄씩. |
 
 ### 금지 카테고리
 

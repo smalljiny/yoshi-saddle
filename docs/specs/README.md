@@ -26,6 +26,7 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 | [statusline.md](statusline.md) | Claude Code 상태줄 설정. 토픽·phase 표시 |
 | [adapter-deep-research](wf-deep-research.md) | skill-registry search-adapter 기반 6단계 심층 연구 워크플로우 (firecrawl·exa 동적 선택). 파일명은 후속 cleanup 토픽에서 rename. |
 | [language-resolution.md](language-resolution.md) | `lang.js resolve`로 대화·문서·커밋 언어를 `ko`/`en`으로 결정. CLAUDE.md·AGENTS.md `## Language` 마커 블록 문법과 Claude Code `language` 설정 우선순위, 오류·경고 계약 |
+| [doc-format-unification.md](doc-format-unification.md) | 산출물 형식 단일 원본(`.harness/contracts/`·`pr-body.md`), 영어 고정 제목·체크 항목 이름, 형식 복제본 대신 contract 필수 읽기, Codex spec-review 구 한국어 제목 별칭과 섹션 중복 판정 |
 | [wf-task-tracking.md](wf-task-tracking.md) | implementation 에이전트(tdd-specialist·refactor-cleaner·prompt-engineer)의 Task 도구 추적 정형 패턴 |
 
 ### workflows/ — 단계별 워크플로우 (커맨드)

@@ -4,7 +4,7 @@
 
 ## 개요
 
-`/flow-review`는 구현 완료 후 PR 전 단계에서 실행한다. code-reviewer와 security-reviewer는 병렬로 실행되고, adversarial-review는 CRITICAL·HIGH 수정이 완료된 후 순차적으로 실행된다. 세 리뷰어의 결과와 처리 내역은 `docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md`에 저장되며, `/flow-done` 아카이브 시 `done/<topic>/`으로 이동된다.
+`/flow-review`는 구현 완료 후 PR 전 단계에서 실행한다. code-reviewer와 security-reviewer는 병렬로 실행되고, adversarial-review는 CRITICAL·HIGH 수정이 완료된 후 순차적으로 실행된다. 세 리뷰어의 결과와 처리 결과(`## Resolution`)는 `docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md`에 저장되며, `/flow-done` 아카이브 시 `done/<topic>/`으로 이동된다.
 
 ## 구조
 
@@ -37,8 +37,8 @@ docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 | 5 | code-reviewer + security-reviewer **병렬** 실행. code-reviewer는 코드 품질뿐 아니라 plan 내 모든 Story `**Commit**` 필드에 대해 워크플로우 노출 패턴(슬래시 커맨드·서브에이전트·스킬 이름)을 일괄 점검하여 WARNING만 출력한다 — 자동 수정·차단 없음. 정책 정의는 [commit-pr-message-policy.md](../commit-pr-message-policy.md) 참조. |
 | 6 | 이슈 분류(CRITICAL/HIGH/MEDIUM/LOW) → CRITICAL·HIGH 수정 → review-fix commit |
 | 7 | adversarial-review **순차** 실행 (활성화 조건 충족 시) |
-| 8 | 처리 내역 산출 (`git log SAVED_SHA..HEAD`) |
-| 9 | review-report 파일 저장 |
+| 8 | Resolution 산출 (`git log SAVED_SHA..HEAD`) |
+| 9 | review-report 파일 저장 — 작성 직전 `.harness/contracts/review-report.md`를 읽고 그 형식을 그대로 따른다 |
 | 10 | Completion Report 출력 |
 
 ### adversarial-review 활성화 조건
@@ -61,18 +61,18 @@ node .harness/scripts/dev-context.js set-field \
   --field=config.review.adversarial_enabled --value=true
 ```
 
-### 처리 내역 산출
+### Resolution 산출
 
 `SAVED_SHA`(Step 3 캡처)부터 현재 HEAD까지 신규 commit 존재 여부로 분류한다.
 
 - **신규 commit 있음**: CRITICAL·HIGH → `fixed`, MEDIUM·LOW → `deferred`
 - **신규 commit 없음**: 모든 이슈 → `deferred`
 
-severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)는 처리 내역 표에서 제외하고 `## Adversarial Review` 원문 섹션에 보존한다.
+severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)는 `## Resolution` 표에서 제외하고 `## Adversarial Review` 원문 섹션에 보존한다.
 
 ### review-report 포맷
 
-`.harness/contracts/review-report.md`가 필수 구조를 정의한다.
+`.harness/contracts/review-report.md`가 필수 구조를 정의하는 유일한 원본이다. `flow-review` SKILL은 형식 블록을 복제하지 않고 각 섹션을 채울 값만 기술한다. 제목·표 헤더는 영어로 고정한다.
 
 ```markdown
 # Review Report
@@ -85,7 +85,7 @@ severity가 명시되지 않은 adversarial-review 이슈(설계 challenge 등)�
 ## Security Review  ← security-reviewer 원문
 ## Adversarial Review  ← companion stdout 또는 "skipped: <skipReason>"
 
-## 처리 내역
+## Resolution
 | issue (80자 이내) | severity | reviewer | status |
 ```
 

@@ -103,7 +103,7 @@ Codex는 `current_topic`이 등록되어 있으면 `topics[current_topic].spec` 
 
 ### 분할 추천 기준
 
-분할 단위는 **PR 병합 단위**다. 각 서브 토픽이 독립 배포·revert 가능하고 다른 서브 토픽에 의존하지 않을 때만 분할을 추천한다.
+분할 단위는 **PR 병합 단위**다. 판단 기준은 `.harness/contracts/spec.md`의 `## Split Criteria (Mergeable Unit Check)` 절이다. 각 서브 토픽이 독립 배포·revert 가능하고 다른 서브 토픽에 의존하지 않을 때만 분할을 추천한다.
 
 | 조건 | 결정 |
 |------|------|
@@ -115,7 +115,7 @@ Codex는 `current_topic`이 등록되어 있으면 `topics[current_topic].spec` 
 
 ### spec-review 체크리스트의 섹션 3 수용 규칙
 
-Codex `spec-review` 체크리스트 항목 3(아키텍처 충분성)은 코드 토픽의 `## 3. 아키텍처`와 비코드 토픽의 `## 3. 역할 정의`를 모두 수용한다. 어떤 형태로든 섹션 3이 부재하면 FAIL이다.
+Codex `spec-review` 체크리스트 항목 3(Architecture Sufficient for Planning)은 코드 토픽의 `## 3. Architecture`와 비코드 토픽의 `## 3. Role Definition`, 구 한국어 제목 `## 3. 아키텍처`·`## 3. 역할 정의`, 동등한 계획 구조 섹션을 모두 수용한다. 어떤 형태로든 섹션 3이 부재하면 FAIL이다. 새 스펙은 영어 제목을 쓰며, 구 제목 별칭과 섹션 중복 판정은 [doc-format-unification.md](../doc-format-unification.md)를 따른다.
 
 ## 제약사항
 
