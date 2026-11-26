@@ -12,11 +12,17 @@ Codex CLI가 이 저장소에서 작업할 때의 안내 파일. Claude Code는 
 - **Node.js** — 훅 스크립트, `dev-context.js` 상태 관리자 (`.harness/scripts/`, `.claude/scripts/`)
 - **Markdown** — 에이전트, 스킬, 커맨드, 규칙 컴포넌트 파일
 
-## 언어 규칙
+## Language
 
-- 문서, 주석, 커밋 메시지: **한국어**
-- 코드 식별자 (변수, 함수, 파일명, 디렉토리명): **영어**
-- 컴포넌트 파일 (에이전트, 스킬, 커맨드, 규칙): **영어**
+Replies to the user follow the Claude Code `language` setting.
+
+<!-- harness-language:begin -->
+- docs: ko
+- commit: ko
+- comments: ko
+- code identifiers: en
+- component files: en (executable instructions only; translation catalogs are data)
+<!-- harness-language:end -->
 
 <!-- harness-guide:begin -->
 # 하네스 가이드
