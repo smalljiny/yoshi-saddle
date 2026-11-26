@@ -1,7 +1,15 @@
-// lang.test.js — 언어 값 정규화·언어 규칙 블록 판정 테스트
-import { test, describe } from 'node:test'
+// lang.test.js — 언어 값 정규화·언어 규칙 블록 판정·resolve CLI 테스트
+import { test, describe, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { normalizeLanguage, parseLanguageBlock } from './lang.js'
+
+const LANG_JS = join(dirname(fileURLToPath(import.meta.url)), 'lang.js')
+const USAGE = 'usage: node .harness/scripts/lang.js resolve --kind=conversation|docs|commit\n'
 
 const BEGIN = '<!-- harness-language:begin -->'
 const END = '<!-- harness-language:end -->'
@@ -274,5 +282,277 @@ describe('parseLanguageBlock — 줄바꿈', () => {
   test('CRLF 값에 \\r이 남지 않음', () => {
     const crlf = block('- docs: ko').replaceAll('\n', '\r\n')
     assert.deepEqual(parseLanguageBlock(crlf), { status: 'valid', values: { docs: 'ko' } })
+  })
+})
+
+// ── resolve CLI ─────────────────────────────────────────────────────────────
+// 테스트마다 임시 디렉토리에 루트·홈을 만들고 LANG_JS_ROOT·LANG_JS_HOME으로 주입한다.
+describe('resolve CLI — docs·commit', () => {
+  let base
+  let root
+  let home
+
+  beforeEach(() => {
+    const id = `lang-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    base = join(realpathSync(tmpdir()), id)
+    root = join(base, 'root')
+    home = join(base, 'home')
+    mkdirSync(root, { recursive: true })
+    mkdirSync(home, { recursive: true })
+  })
+
+  afterEach(() => {
+    rmSync(base, { recursive: true, force: true })
+  })
+
+  function write(rel, content) {
+    const file = join(root, rel)
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, content, 'utf8')
+  }
+
+  function run(...args) {
+    const result = spawnSync(process.execPath, [LANG_JS, ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, LANG_JS_ROOT: root, LANG_JS_HOME: home },
+    })
+    return { stdout: result.stdout, stderr: result.stderr, status: result.status }
+  }
+
+  // stdout·stderr·exit code를 함께 단언하고, stderr에 임시 디렉토리 절대 경로가 없음을 확인한다.
+  function expectRun(args, expected) {
+    const actual = run(...args)
+    assert.deepEqual(actual, expected)
+    assert.ok(!actual.stderr.includes(base), `stderr에 임시 경로가 노출됨: ${actual.stderr}`)
+  }
+
+  const docs = ['resolve', '--kind=docs']
+  const commit = ['resolve', '--kind=commit']
+  const ok = (lang, stderr = '') => ({ stdout: `${lang}\n`, stderr, status: 0 })
+  const malformed = (file) => `malformed language block in ${file}\n`
+
+  describe('블록 선택과 파일 단위 fallback', () => {
+    test('CLAUDE.md 블록 docs: ko → ko', () => {
+      write('CLAUDE.md', block('- docs: ko'))
+      expectRun(docs, ok('ko'))
+    })
+
+    test('commit: en → --kind=commit이 en', () => {
+      write('CLAUDE.md', block('- docs: ko', '- commit: en'))
+      expectRun(commit, ok('en'))
+    })
+
+    test('docs: en + commit: ko → --kind=commit이 ko', () => {
+      write('CLAUDE.md', block('- docs: en', '- commit: ko'))
+      expectRun(commit, ok('ko'))
+    })
+
+    test('CLAUDE.md에 블록 없음 → AGENTS.md 블록', () => {
+      write('CLAUDE.md', doc('# Title', '- docs: en'))
+      write('AGENTS.md', block('- docs: ko'))
+      expectRun(docs, ok('ko'))
+    })
+
+    test('CLAUDE.md 없음 → AGENTS.md 블록', () => {
+      write('AGENTS.md', block('- commit: ko'))
+      expectRun(commit, ok('ko'))
+    })
+
+    test('둘 다 없음 → en, stderr 없음', () => {
+      expectRun(docs, ok('en'))
+    })
+
+    test('둘 다 블록 없음 → en', () => {
+      write('CLAUDE.md', doc('# A'))
+      write('AGENTS.md', doc('# B'))
+      expectRun(docs, ok('en'))
+    })
+  })
+
+  describe('블록 값', () => {
+    test('CLAUDE.md - docs: (빈 값) → en, AGENTS.md로 안 넘어감', () => {
+      write('CLAUDE.md', block('- docs:'))
+      write('AGENTS.md', block('- docs: ko'))
+      expectRun(docs, ok('en'))
+    })
+
+    test('CLAUDE.md에 docs 키 없음 → en (키 단위 fallback 없음)', () => {
+      write('CLAUDE.md', block('- commit: ko'))
+      write('AGENTS.md', block('- docs: ko'))
+      expectRun(docs, ok('en'))
+    })
+
+    test('CLAUDE.md에 commit 키 없음 → --kind=commit이 en (키 단위 fallback 없음)', () => {
+      write('CLAUDE.md', block('- docs: ko'))
+      write('AGENTS.md', block('- commit: ko'))
+      expectRun(commit, ok('en'))
+    })
+
+    test('CLAUDE.md docs: french + AGENTS.md docs: ko → en + 미지원 경고', () => {
+      write('CLAUDE.md', block('- docs: french'))
+      write('AGENTS.md', block('- docs: ko'))
+      expectRun(docs, ok('en', "unsupported language 'french' in CLAUDE.md, using en\n"))
+    })
+
+    test('미지원 값은 원래 대소문자로 표시', () => {
+      write('CLAUDE.md', block('- docs: French'))
+      expectRun(docs, ok('en', "unsupported language 'French' in CLAUDE.md, using en\n"))
+    })
+
+    test('AGENTS.md 미지원 값 경고는 AGENTS.md 표기', () => {
+      write('AGENTS.md', block('- commit: klingon'))
+      expectRun(commit, ok('en', "unsupported language 'klingon' in AGENTS.md, using en\n"))
+    })
+
+    test('- docs:ko → ko', () => {
+      write('CLAUDE.md', block('- docs:ko'))
+      expectRun(docs, ok('ko'))
+    })
+
+    test('- docs:   → en (누락)', () => {
+      write('CLAUDE.md', block('- docs:   '))
+      expectRun(docs, ok('en'))
+    })
+
+    test('정규화 영어 → en', () => {
+      write('CLAUDE.md', block('- docs: 영어'))
+      expectRun(docs, ok('en'))
+    })
+
+    test('정규화 Korean → ko', () => {
+      write('CLAUDE.md', block('- commit: Korean'))
+      expectRun(commit, ok('ko'))
+    })
+  })
+
+  describe('malformed와 키 반복', () => {
+    test('- docs: + - docs: ko → malformed 경고 + AGENTS.md 결과', () => {
+      write('CLAUDE.md', block('- docs:', '- docs: ko'))
+      write('AGENTS.md', block('- docs: ko'))
+      expectRun(docs, ok('ko', malformed('CLAUDE.md')))
+    })
+
+    test('docs: ko + docs: en → malformed 경고 + AGENTS.md 결과', () => {
+      write('CLAUDE.md', block('- docs: ko', '- docs: en'))
+      write('AGENTS.md', block('- docs: ko'))
+      expectRun(docs, ok('ko', malformed('CLAUDE.md')))
+    })
+
+    test('키 반복 + AGENTS.md 없음 → en', () => {
+      write('CLAUDE.md', block('- docs: ko', '- docs: en'))
+      expectRun(docs, ok('en', malformed('CLAUDE.md')))
+    })
+
+    test('comments 반복만 → 유효, 경고 없음', () => {
+      write('CLAUDE.md', block('- comments: ko', '- comments: en', '- docs: ko'))
+      expectRun(docs, ok('ko'))
+    })
+
+    test('블록 안 펜스 속 docs: en은 무시', () => {
+      write('CLAUDE.md', block('- docs: ko', FENCE3, '- docs: en', FENCE3))
+      expectRun(docs, ok('ko'))
+    })
+
+    test('CLAUDE.md·AGENTS.md 둘 다 malformed → 경고 2줄 + en', () => {
+      write('CLAUDE.md', doc(BEGIN, '- docs: ko'))
+      write('AGENTS.md', doc('- docs: ko', END))
+      expectRun(docs, ok('en', malformed('CLAUDE.md') + malformed('AGENTS.md')))
+    })
+  })
+
+  describe('마커·펜스', () => {
+    const malformedCases = {
+      'begin만': doc(BEGIN, '- docs: en'),
+      'end만': doc('- docs: en', END),
+      '역순': doc(END, '- docs: en', BEGIN),
+      '블록 둘': doc(BEGIN, '- docs: en', END, BEGIN, '- docs: en', END),
+    }
+    for (const [name, content] of Object.entries(malformedCases)) {
+      test(`${name} → malformed 경고 + AGENTS.md`, () => {
+        write('CLAUDE.md', content)
+        write('AGENTS.md', block('- docs: ko'))
+        expectRun(docs, ok('ko', malformed('CLAUDE.md')))
+      })
+    }
+
+    // 무시 케이스: CLAUDE.md의 마커가 인식되지 않아 블록 없음 → AGENTS.md(ko), 경고 없음
+    const ignoredCases = {
+      '펜스 안 마커': doc(FENCE3, BEGIN, '- docs: en', END, FENCE3),
+      '들여쓴 마커': doc(`    ${BEGIN}`, '- docs: en', `    ${END}`),
+      '4백틱 안 3백틱': doc(FENCE4, FENCE3, BEGIN, '- docs: en', END, FENCE3),
+      '~~~ 펜스는 ```로 닫히지 않음': doc('~~~', FENCE3, BEGIN, '- docs: en', END),
+      '3칸 들여쓴 여는 펜스': doc(`   ${FENCE3}`, BEGIN, '- docs: en', END, FENCE3),
+      '닫히지 않은 펜스': doc(FENCE3, BEGIN, '- docs: en', END),
+    }
+    for (const [name, content] of Object.entries(ignoredCases)) {
+      test(`${name} → 무시, AGENTS.md 결과`, () => {
+        write('CLAUDE.md', content)
+        write('AGENTS.md', block('- docs: ko'))
+        expectRun(docs, ok('ko'))
+      })
+    }
+
+    test('4칸 들여쓴 펜스는 펜스 아님 → 뒤 블록 인식', () => {
+      write('CLAUDE.md', doc(`    ${FENCE3}`, BEGIN, '- docs: ko', END))
+      write('AGENTS.md', block('- docs: en'))
+      expectRun(docs, ok('ko'))
+    })
+  })
+
+  describe('줄바꿈', () => {
+    const variants = {
+      '유효 블록': [block('- docs: ko'), docs, ok('ko')],
+      'malformed': [block('- docs: ko', '- docs: en'), docs, ok('en', malformed('CLAUDE.md'))],
+      '미지원 값': [block('- commit: french'), commit, ok('en', "unsupported language 'french' in CLAUDE.md, using en\n")],
+    }
+    for (const [name, [lf, args, expected]] of Object.entries(variants)) {
+      test(`CRLF와 LF가 같은 기대 결과 — ${name}`, () => {
+        write('CLAUDE.md', lf)
+        expectRun(args, expected)
+        write('CLAUDE.md', lf.replaceAll('\n', '\r\n'))
+        expectRun(args, expected)
+      })
+    }
+  })
+
+  describe('읽기 오류', () => {
+    test('CLAUDE.md가 디렉토리 → 읽기 오류 경고 + AGENTS.md 결과', () => {
+      mkdirSync(join(root, 'CLAUDE.md'))
+      write('AGENTS.md', block('- docs: ko'))
+      expectRun(docs, ok('ko', 'cannot read CLAUDE.md: EISDIR\n'))
+    })
+
+    test('AGENTS.md가 디렉토리 → 읽기 오류 경고 + en', () => {
+      mkdirSync(join(root, 'AGENTS.md'))
+      expectRun(docs, ok('en', 'cannot read AGENTS.md: EISDIR\n'))
+    })
+  })
+
+  describe('호출 형식 오류', () => {
+    const invalid = {
+      '인자 없음': [],
+      'resolve만': ['resolve'],
+      '--kind= 빈 값': ['resolve', '--kind='],
+      '--kind=foo': ['resolve', '--kind=foo'],
+      '알 수 없는 서브커맨드': ['unknown', '--kind=docs'],
+      '추가 옵션': ['resolve', '--kind=docs', '--extra'],
+      '--kind 중복': ['resolve', '--kind=docs', '--kind=commit'],
+      '위치 인자 추가': ['resolve', '--kind=docs', 'extra'],
+      '--kind 값 분리': ['resolve', '--kind', 'docs'],
+      '대문자 kind': ['resolve', '--kind=DOCS'],
+      'conversation (Story 3 전까지 미지원)': ['resolve', '--kind=conversation'],
+      '--kind=__proto__': ['resolve', '--kind=__proto__'],
+      '--kind=toString': ['resolve', '--kind=toString'],
+    }
+    for (const [name, args] of Object.entries(invalid)) {
+      test(`${name} → 사용법 + exit 1`, () => {
+        expectRun(args, { stdout: '', stderr: USAGE, status: 1 })
+      })
+    }
+
+    test('설정이 malformed여도 형식 오류가 우선', () => {
+      write('CLAUDE.md', doc(BEGIN))
+      expectRun(['resolve'], { stdout: '', stderr: USAGE, status: 1 })
+    })
   })
 })

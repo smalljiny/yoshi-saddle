@@ -1,6 +1,20 @@
 #!/usr/bin/env node
 // lang.js — 대화·문서·커밋 언어를 ko/en 중 하나로 결정한다.
-// 이 파일은 판정 순수 함수(값 정규화·언어 규칙 블록 판정)를 named export로 제공한다.
+// 사용법: node .harness/scripts/lang.js resolve --kind=conversation|docs|commit
+// 판정 순수 함수(값 정규화·언어 규칙 블록 판정)는 다른 서브커맨드가 재사용하도록 named export한다.
+
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const USAGE = 'usage: node .harness/scripts/lang.js resolve --kind=conversation|docs|commit'
+const FALLBACK_LANGUAGE = 'en'
+
+// docs·commit 블록을 찾는 파일 순서 (프로젝트 루트 기준 상대 경로, 경고 표기에도 그대로 쓴다)
+const BLOCK_FILES = Object.freeze(['CLAUDE.md', 'AGENTS.md'])
 
 const BEGIN_MARKER = '<!-- harness-language:begin -->'
 const END_MARKER = '<!-- harness-language:end -->'
@@ -124,4 +138,110 @@ export function parseLanguageBlock(content) {
   const values = collectValues(lines, outside, begins[0], ends[0])
   if (values === null) return { status: 'malformed' }
   return { status: 'valid', values }
+}
+
+// ── resolve CLI ─────────────────────────────────────────────────────────────
+
+// 프로젝트 루트·사용자 홈. LANG_JS_ROOT·LANG_JS_HOME은 테스트 전용 환경 변수다
+// (테스트가 임시 디렉토리를 루트·홈으로 주입할 때만 쓴다). 실제 호출에서는 설정하지 않는다.
+// 빈 문자열도 미설정으로 본다 (현재 디렉토리 기준으로 읽는 일을 막는다).
+function projectRoot() {
+  return process.env.LANG_JS_ROOT || path.join(__dirname, '../..')
+}
+
+function userHome() {
+  return process.env.LANG_JS_HOME || os.homedir()
+}
+
+// 파일을 읽는다. 없으면 missing(경고 없음), 읽기 실패면 error + 경고.
+// 경고 사유는 오류 코드만 쓴다 — error.message에는 절대 경로가 들어 있어 노출하지 않는다.
+function readText(absolutePath, label) {
+  try {
+    return { status: 'ok', content: fs.readFileSync(absolutePath, 'utf8'), warnings: [] }
+  } catch (error) {
+    if (error.code === 'ENOENT') return { status: 'missing', warnings: [] }
+    return { status: 'error', warnings: [`cannot read ${label}: ${error.code ?? 'read failed'}`] }
+  }
+}
+
+// 선택된 값(문자열)을 언어로 바꾼다. 누락이면 경고 없이 en, 미지원이면 en + 경고.
+function languageFromValue(raw, label) {
+  const normalized = normalizeLanguage(raw)
+  if (normalized === undefined) return { language: FALLBACK_LANGUAGE, warnings: [] }
+  if (normalized === null) {
+    return {
+      language: FALLBACK_LANGUAGE,
+      warnings: [`unsupported language '${raw.trim()}' in ${label}, using ${FALLBACK_LANGUAGE}`],
+    }
+  }
+  return { language: normalized, warnings: [] }
+}
+
+// 한 블록 파일에서 kind 값을 결정한다. 유효한 블록이 없으면 found: false.
+function resolveFromBlockFile(kind, root, label) {
+  const read = readText(path.join(root, label), label)
+  if (read.status !== 'ok') return { found: false, warnings: read.warnings }
+  const block = parseLanguageBlock(read.content)
+  if (block.status === 'none') return { found: false, warnings: [] }
+  if (block.status === 'malformed') return { found: false, warnings: [`malformed language block in ${label}`] }
+  const raw = Object.hasOwn(block.values, kind) ? block.values[kind] : ''
+  return { found: true, ...languageFromValue(raw, label) }
+}
+
+/**
+ * docs·commit 언어를 결정한다. CLAUDE.md → AGENTS.md 순으로 유효한 블록이 있는 첫 파일만 본다
+ * (키 단위 fallback 없음). 둘 다 없으면 en.
+ * @param {'docs' | 'commit'} kind
+ * @param {string} root 프로젝트 루트
+ * @returns {{language: 'ko' | 'en', warnings: string[]}}
+ */
+function resolveDocsLike(kind, root) {
+  let warnings = []
+  for (const label of BLOCK_FILES) {
+    const result = resolveFromBlockFile(kind, root, label)
+    warnings = [...warnings, ...result.warnings]
+    if (result.found) return { language: result.language, warnings }
+  }
+  return { language: FALLBACK_LANGUAGE, warnings }
+}
+
+const RESOLVERS = Object.freeze({
+  docs: (root) => resolveDocsLike('docs', root),
+  commit: (root) => resolveDocsLike('commit', root),
+})
+
+// 인자가 정확히 `resolve --kind=<허용 kind>` 형태면 kind, 아니면 null (호출 형식 오류).
+function parseKind(args) {
+  if (args.length !== 2 || args[0] !== 'resolve') return null
+  const match = /^--kind=(?<kind>.+)$/.exec(args[1])
+  if (!match || !Object.hasOwn(RESOLVERS, match.groups.kind)) return null
+  return match.groups.kind
+}
+
+function main() {
+  const kind = parseKind(process.argv.slice(2))
+  if (kind === null) {
+    process.stderr.write(`${USAGE}\n`)
+    process.exitCode = 1
+    return
+  }
+  const { language, warnings } = RESOLVERS[kind](projectRoot(), userHome())
+  for (const warning of warnings) process.stderr.write(`${warning}\n`)
+  process.stdout.write(`${language}\n`)
+}
+
+// 직접 실행될 때만 main()을 호출한다 (테스트의 import 시 실행 방지).
+// argv[1]과 import.meta.url을 realpath로 맞춰 symlink를 거친 실행도 인식한다 (validate-path.js와 같은 가드).
+function isEntryPoint() {
+  if (!process.argv[1]) return false
+  const self = fileURLToPath(import.meta.url)
+  try {
+    return fs.realpathSync.native(process.argv[1]) === fs.realpathSync.native(self)
+  } catch {
+    return path.resolve(process.argv[1]) === path.resolve(self)
+  }
+}
+
+if (isEntryPoint()) {
+  main()
 }
