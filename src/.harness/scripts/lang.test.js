@@ -48,6 +48,12 @@ describe('normalizeLanguage', () => {
     })
   }
 
+  for (const input of [undefined, null, 1, ['ko'], { ko: true }]) {
+    test(`비문자열 ${JSON.stringify(input)} → 누락(undefined)`, () => {
+      assert.equal(normalizeLanguage(input), undefined)
+    })
+  }
+
   for (const input of ['', '   ', '\t']) {
     test(`빈 값 ${JSON.stringify(input)} → 누락(undefined)`, () => {
       assert.equal(normalizeLanguage(input), undefined)
@@ -105,6 +111,7 @@ describe('parseLanguageBlock — 줄 문법', () => {
     ['- Docs: ko', {}],
     ['-docs: ko', {}],
     ['  - docs: ko', {}],
+    ['- docs : ko', {}],
   ]
   for (const [line, values] of cases) {
     test(`${JSON.stringify(line)} → ${JSON.stringify(values)}`, () => {
@@ -122,6 +129,57 @@ describe('parseLanguageBlock — 줄 문법', () => {
   test('블록 밖 키 줄은 무시', () => {
     const content = doc('- docs: en', BEGIN, '- commit: ko', END, '- docs: en')
     assert.deepEqual(parseLanguageBlock(content), { status: 'valid', values: { commit: 'ko' } })
+  })
+})
+
+describe('parseLanguageBlock — 키 줄 판정 성능·동치성', () => {
+  // 스펙 §3.3의 줄 문법 정규식. 구현이 이 정규식과 같은 결과를 내는지 비교하는 기준(oracle)으로만 쓴다.
+  const SPEC_KEY_LINE = /^-[ ]+(?<key>[a-z][a-z ]*?):[ \t]*(?<value>.*?)[ \t]*$/
+
+  function expectedValues(line) {
+    const match = SPEC_KEY_LINE.exec(line)
+    if (!match || !['docs', 'commit'].includes(match.groups.key)) return {}
+    return { [match.groups.key]: match.groups.value }
+  }
+
+  // 시드 고정 의사난수 (테스트 재현성)
+  function prng(seed) {
+    let state = seed
+    return () => {
+      state = (state * 1103515245 + 12345) % 2147483648
+      return state / 2147483648
+    }
+  }
+
+  test('무작위 줄 5000개에서 스펙 정규식과 같은 결과', () => {
+    const alphabet = ['-', ' ', ' ', '\t', 'd', 'o', 'c', 's', 'm', 'i', 't', ':', 'k', 'x', 'D', '\u2028', '\r']
+    const random = prng(42)
+    for (let i = 0; i < 5000; i += 1) {
+      const length = 1 + Math.floor(random() * 14)
+      const prefix = random() < 0.6 ? (random() < 0.5 ? '- docs:' : '- commit:') : ''
+      const tail = Array.from({ length }, () => alphabet[Math.floor(random() * alphabet.length)]).join('')
+      const line = prefix + tail
+      if (line.includes('\r')) continue
+      const actual = parseLanguageBlock(`${BEGIN}\n${line}\n${END}\n`)
+      assert.deepEqual(actual, { status: 'valid', values: expectedValues(line) }, JSON.stringify(line))
+    }
+  })
+
+  test('값 뒤 긴 공백 런 + 문자 줄도 선형 시간에 판정', () => {
+    const spaces = ' '.repeat(200000)
+    const started = performance.now()
+    const result = parseLanguageBlock(block(`- docs: a${spaces}x`, `- commit: ko${spaces}`))
+    const elapsed = performance.now() - started
+    assert.deepEqual(result, { status: 'valid', values: { docs: `a${spaces}x`, commit: 'ko' } })
+    assert.ok(elapsed < 500, `판정에 ${elapsed}ms 걸림`)
+  })
+
+  test('키 뒤 긴 공백 런(콜론 없음)도 선형 시간에 판정', () => {
+    const started = performance.now()
+    const result = parseLanguageBlock(block(`- docs${' '.repeat(200000)}x`))
+    const elapsed = performance.now() - started
+    assert.deepEqual(result, { status: 'valid', values: {} })
+    assert.ok(elapsed < 500, `판정에 ${elapsed}ms 걸림`)
   })
 })
 

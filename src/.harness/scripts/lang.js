@@ -30,7 +30,10 @@ const END_MARKER = '<!-- harness-language:end -->'
 // lang.js가 해석하는 블록 키. 나머지 키(comments 등)는 사람·모델용 규칙이라 해석·반복 판정하지 않는다.
 const RESOLVED_KEYS = Object.freeze(['docs', 'commit'])
 
-const KEY_LINE = /^-[ ]+(?<key>[a-z][a-z ]*?):[ \t]*(?<value>.*?)[ \t]*$/
+// 스펙 §3.3 줄 문법 `^-[ ]+(?<key>[a-z][a-z ]*?):[ \t]*(?<value>.*?)[ \t]*$`과 같은 결과를 내되,
+// 값 앞뒤 공백·탭 제거를 정규식 밖에서 해 긴 공백 런에서의 2차 백트래킹을 피한다.
+// 키 문자에는 ':'가 없으므로 key는 첫 ':' 앞까지다. rest의 문자 집합은 정규식 `.`과 같다(줄 구분 문자 제외).
+const KEY_LINE = /^-[ ]+(?<key>[a-z][a-z ]*):(?<rest>[^\n\r\u2028\u2029]*)$/
 const OPENING_FENCE = /^ {0,3}(?<fence>`{3,}|~{3,})(?<info>.*)$/
 
 const LANGUAGE_ALIASES = Object.freeze({
@@ -46,11 +49,11 @@ const LANGUAGE_ALIASES = Object.freeze({
 
 /**
  * 언어 값을 정규화한다. 앞뒤 공백 제거 → 소문자화 → 대응표 조회.
- * 호출자는 문자열만 전달한다 (비문자열 값은 호출 전에 미설정으로 거른다).
- * @param {string} raw
- * @returns {'ko' | 'en' | null | undefined} ko·en, 미지원이면 null, 빈 값(공백뿐 포함)이면 undefined(누락)
+ * @param {unknown} raw
+ * @returns {'ko' | 'en' | null | undefined} ko·en, 미지원이면 null, 빈 값(공백뿐 포함)·비문자열이면 undefined(누락)
  */
 export function normalizeLanguage(raw) {
+  if (typeof raw !== 'string') return undefined
   const value = raw.trim().toLowerCase()
   if (value === '') return undefined
   if (Object.hasOwn(LANGUAGE_ALIASES, value)) return LANGUAGE_ALIASES[value]
@@ -104,6 +107,23 @@ function isMarker(line, marker) {
   return line.startsWith(marker) && /^[ \t]*$/.test(line.slice(marker.length))
 }
 
+// 앞뒤의 공백·탭만 제거한다 (String.prototype.trim과 달리 다른 유니코드 공백은 남긴다).
+function trimSpacesAndTabs(text) {
+  const isBlank = (char) => char === ' ' || char === '\t'
+  let start = 0
+  let end = text.length
+  while (start < end && isBlank(text[start])) start += 1
+  while (end > start && isBlank(text[end - 1])) end -= 1
+  return text.slice(start, end)
+}
+
+// 키 줄이면 { key, value }, 아니면 null.
+function parseKeyLine(line) {
+  const match = KEY_LINE.exec(line)
+  if (!match) return null
+  return { key: match.groups.key, value: trimSpacesAndTabs(match.groups.rest) }
+}
+
 // 펜스 밖 줄에서 begin·end 마커 위치를 모은다.
 function findMarkers(lines, outside) {
   const begins = []
@@ -121,9 +141,9 @@ function collectValues(lines, outside, begin, end) {
   const entries = []
   for (let index = begin + 1; index < end; index += 1) {
     if (!outside[index]) continue
-    const match = KEY_LINE.exec(lines[index])
-    if (match && RESOLVED_KEYS.includes(match.groups.key)) {
-      entries.push([match.groups.key, match.groups.value])
+    const parsed = parseKeyLine(lines[index])
+    if (parsed && RESOLVED_KEYS.includes(parsed.key)) {
+      entries.push([parsed.key, parsed.value])
     }
   }
   const keys = entries.map(([key]) => key)
