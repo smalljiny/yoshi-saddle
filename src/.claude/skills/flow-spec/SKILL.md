@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-spec
 description: Write a spec for a new topic. Registers the topic in dev-context.json, writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 origin: harness
@@ -224,7 +224,7 @@ When the user returns after Codex review:
 - Read the review report
 - If decision is `NOT READY`:
   - Apply all Required Fixes to `spec.md`
-  - > **Pending PR dependency**: Gate 7 (구현 가능성)에서 "참조 파일이 존재하지 않는다"는 이유로 NOT READY가 반복된다면, 해당 파일이 미병합 PR에 있는지 확인한다. 그렇다면 스펙 최상단에 "구현 선행 조건" 표를 추가한다:
+  - > **Pending PR dependency**: Gate 7 (Implementation Readiness)에서 "참조 파일이 존재하지 않는다"는 이유로 NOT READY가 반복된다면, 해당 파일이 미병합 PR에 있는지 확인한다. 그렇다면 스펙 최상단에 "구현 선행 조건" 표를 추가한다:
     > ```markdown
     > | 선행 조건 | PR | 상태 |
     > |---------|-----|------|

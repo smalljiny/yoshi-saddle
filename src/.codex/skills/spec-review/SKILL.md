@@ -1,5 +1,5 @@
 ---
-version: 6
+version: 7
 name: spec-review
 description: >-
   Review a spec document against an 8-point quality gate. Resolves spec path from:
@@ -65,6 +65,7 @@ See `references/rules-and-inputs.md` for context loading rules and field definit
 
 ### 4. Persist review artifacts
 
+- Read `.harness/contracts/spec-review.md` and follow its format exactly.
 - Write the final review report to `<dirname(spec)>/spec-review-<yymmddhhmmss>.md`.
 - Determine the owning topic before writing `specReview`:
   1. Read `current_topic`:
@@ -95,31 +96,6 @@ See `references/rules-and-inputs.md` for context loading rules and field definit
 ## Output Format
 
 See `.harness/contracts/spec-review.md` for the canonical format contract.
-
-The review report written to disk must use this exact structure:
-
-```markdown
-# Spec Review Result
-
-- Spec: <spec-path>
-- Decision: READY | READY WITH NOTE | NOT READY
-
-## Checklist
-- [PASS|FAIL|NOTE] 1. 목표 명확성 - <evidence>
-- [PASS|FAIL|NOTE] 2. Non-goals 명시 - <evidence>
-- [PASS|FAIL|NOTE] 3. 아키텍처 충분성 - <evidence>
-- [PASS|FAIL|NOTE] 4. 의사결정 근거 - <evidence>
-- [PASS|FAIL|NOTE] 5. Open Questions - <evidence>
-- [PASS|FAIL|NOTE] 6. 내부 일관성 - <evidence>
-- [PASS|FAIL|NOTE] 7. 구현 가능성 - <evidence>
-- [PASS|FAIL|NOTE] 8. 범위 적정성 - <evidence>
-
-## Notes
-- <only include when Decision is READY WITH NOTE>
-
-## Required Fixes
-- <only include when Decision is NOT READY>
-```
 
 Use `[NOTE]` for non-blocking observations.
 

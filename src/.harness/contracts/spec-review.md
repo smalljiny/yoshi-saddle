@@ -23,14 +23,14 @@ The review report written to disk must use this exact structure:
 - Decision: READY | READY WITH NOTE | NOT READY
 
 ## Checklist
-- [PASS|FAIL|NOTE] 1. 목표 명확성 - <evidence>
-- [PASS|FAIL|NOTE] 2. Non-goals 명시 - <evidence>
-- [PASS|FAIL|NOTE] 3. 아키텍처 충분성 - <evidence>
-- [PASS|FAIL|NOTE] 4. 의사결정 근거 - <evidence>
-- [PASS|FAIL|NOTE] 5. Open Questions - <evidence>
-- [PASS|FAIL|NOTE] 6. 내부 일관성 - <evidence>
-- [PASS|FAIL|NOTE] 7. 구현 가능성 - <evidence>
-- [PASS|FAIL|NOTE] 8. 범위 적정성 - <evidence>
+- [PASS|FAIL|NOTE] 1. Clarity of Intent - <evidence>
+- [PASS|FAIL|NOTE] 2. Non-goals Defined - <evidence>
+- [PASS|FAIL|NOTE] 3. Architecture Sufficient for Planning - <evidence>
+- [PASS|FAIL|NOTE] 4. Decision Rationale Documented - <evidence>
+- [PASS|FAIL|NOTE] 5. Open Questions Documented - <evidence>
+- [PASS|FAIL|NOTE] 6. Internal Consistency - <evidence>
+- [PASS|FAIL|NOTE] 7. Implementation Readiness - <evidence>
+- [PASS|FAIL|NOTE] 8. Scope Appropriate - <evidence>
 
 ## Notes
 - <only include when Decision is READY WITH NOTE>
