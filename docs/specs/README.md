@@ -25,7 +25,8 @@ harness 구성 요소의 설계 계약과 동작 명세. 각 파일은 단일 �
 | [planner-progress-tracking.md](planner-progress-tracking.md) | `planner` 에이전트 5개 마일스톤(P1~P5)을 Claude Code Task 도구로 표면화하는 진행 추적 프로토콜 |
 | [statusline.md](statusline.md) | Claude Code 상태줄 설정. 토픽·phase 표시 |
 | [adapter-deep-research](wf-deep-research.md) | skill-registry search-adapter 기반 6단계 심층 연구 워크플로우 (firecrawl·exa 동적 선택). 파일명은 후속 cleanup 토픽에서 rename. |
-| [language-resolution.md](language-resolution.md) | `lang.js resolve`로 대화·문서·커밋 언어를 `ko`/`en`으로 결정. CLAUDE.md·AGENTS.md `## Language` 마커 블록 문법과 Claude Code `language` 설정 우선순위, 오류·경고 계약 |
+| [language-resolution.md](language-resolution.md) | `lang.js`로 대화·문서·커밋 언어를 `ko`/`en`으로 결정 (`resolve`·`explain`·`recommend`·`check`). CLAUDE.md·AGENTS.md `## Language` 마커 블록 문법과 Claude Code `language` 설정 우선순위, 오류·경고 계약 |
+| [flow-init-language-block.md](flow-init-language-block.md) | `/flow-init`의 `## Language` 블록 생성과 쓰기 안전장치 — recommend 권장값 질문, 시작 시 스냅숏, `lang.js check` 쓰기 전 검사, 재확인·백업 순서, 쓰기 중단 상태, explain 적용값 안내 |
 | [doc-format-unification.md](doc-format-unification.md) | 산출물 형식 단일 원본(`.harness/contracts/`·`pr-body.md`), 영어 고정 제목·체크 항목 이름, 형식 복제본 대신 contract 필수 읽기, Codex spec-review 구 한국어 제목 별칭과 섹션 중복 판정 |
 | [wf-task-tracking.md](wf-task-tracking.md) | implementation 에이전트(tdd-specialist·refactor-cleaner·prompt-engineer)의 Task 도구 추적 정형 패턴 |
 
