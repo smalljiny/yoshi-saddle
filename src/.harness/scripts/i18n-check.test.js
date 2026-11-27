@@ -176,6 +176,18 @@ describe('format', () => {
   })
 })
 
+describe('본문 코드 블록', () => {
+  test('본문에 닫히지 않은 코드 블록은 여는 줄의 format 위반', () => {
+    tree({
+      [SKILL]: '{{msg:HELLO}}\n\n```bash\necho {{msg:HELLO}}\n',
+      ...pair(SKILL_EN, SKILL_KO, { HELLO: 'hi' }),
+    })
+    const r = run()
+    expectOnly(r, 'format', 1)
+    assert.match(r.stderr, /SKILL\.md:3: format: unclosed code block/)
+  })
+})
+
 describe('placeholder-mismatch', () => {
   test('ko {topic} / en {name}이면 placeholder-mismatch 1건', () => {
     tree({
@@ -596,6 +608,33 @@ describe('진단 형식과 실행 오류', () => {
     const r = spawnSync(process.execPath, [link, `--root=${root}`], { encoding: 'utf8' })
     assert.equal(r.status, 1, r.stderr)
     assert.match(r.stderr, /malformed-ref/)
+  })
+
+  test('root 밖을 가리키는 symlink 허용 목록은 읽지 않는다', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'i18n-check-outside-'))
+    try {
+      writeFileSync(join(outside, 'secret.json'), '{"OUTSIDE_SECRET"', 'utf8')
+      mkdirSync(join(root, '.harness/i18n'), { recursive: true })
+      symlinkSync(join(outside, 'secret.json'), join(root, '.harness/i18n/residual-allow.json'))
+      const r = run()
+      assert.doesNotMatch(r.stderr, /OUTSIDE_SECRET/)
+      expectClean(r)
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  test('root 밖을 가리키는 symlink 스킬 디렉토리는 검사하지 않는다', () => {
+    const outside = mkdtempSync(join(tmpdir(), 'i18n-check-outside-'))
+    try {
+      mkdirSync(join(outside, 'demo'), { recursive: true })
+      writeFileSync(join(outside, 'demo', 'SKILL.md'), '{{msg:bad}}\n', 'utf8')
+      mkdirSync(join(root, '.claude'), { recursive: true })
+      symlinkSync(outside, join(root, '.claude/skills'))
+      expectClean(run())
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
   })
 
   test('알 수 없는 인자는 exit 2', () => {

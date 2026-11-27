@@ -75,10 +75,30 @@ function isFile(abs) {
   }
 }
 
+// abs의 실제 경로(symlink 해석 후)가 root의 실제 경로 안에 있는지 확인한다.
+// 검사 대상 트리 밖 파일을 읽어 진단에 내용이 섞이는 것을 막는다.
+function isInsideRoot(root, abs) {
+  try {
+    const realRoot = fs.realpathSync(root)
+    const real = fs.realpathSync(abs)
+    return real === realRoot || real.startsWith(realRoot + path.sep)
+  } catch {
+    return false
+  }
+}
+
+function isDirIn(root, abs) {
+  return isDir(abs) && isInsideRoot(root, abs)
+}
+
+function isFileIn(root, abs) {
+  return isFile(abs) && isInsideRoot(root, abs)
+}
+
 // relDir 아래 모든 *.md 파일을 루트 기준 '/' 상대 경로로 정렬해 돌려준다.
 function walkMd(root, relDir) {
   const abs = path.join(root, relDir)
-  if (!isDir(abs)) return []
+  if (!isDirIn(root, abs)) return []
   const out = []
   for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
     const rel = `${relDir}/${entry.name}`
@@ -90,7 +110,7 @@ function walkMd(root, relDir) {
 
 function listDirs(root, relDir) {
   const abs = path.join(root, relDir)
-  if (!isDir(abs)) return []
+  if (!isDirIn(root, abs)) return []
   return fs
     .readdirSync(abs, { withFileTypes: true })
     .filter((e) => e.isDirectory())
@@ -146,7 +166,7 @@ function discoverCatalogTemplates(root) {
   for (const base of SKILL_ROOTS) {
     for (const name of listDirs(root, base)) {
       const template = skillCatalogTemplate(`${base}/${name}`)
-      if (LANGS.some((l) => isFile(path.join(root, catalogPath(template, l))))) templates.add(template)
+      if (LANGS.some((l) => isFileIn(root, path.join(root, catalogPath(template, l))))) templates.add(template)
     }
   }
   for (const lang of LANGS) {
@@ -242,7 +262,7 @@ function loadCatalogs(root, templates, violations) {
     for (const lang of LANGS) {
       const file = catalogPath(template, lang)
       const abs = path.join(root, file)
-      if (!isFile(abs)) {
+      if (!isFileIn(root, abs)) {
         pair[lang] = null
         continue
       }
@@ -402,12 +422,17 @@ function scanBody(text, file) {
       else if (HANGUL_RE.test(raw)) out.units.push({ file, line: n, text: raw.trim() })
       return
     }
-    fence = fenceOpen(raw)
-    if (fence) return
+    const opened = fenceOpen(raw)
+    if (opened) {
+      fence = { ...opened, line: n }
+      return
+    }
     const { masked, spans } = splitInlineCode(raw)
     scanLineTokens(masked, n, file, out)
     for (const unit of lineUnits(raw, masked, spans)) out.units.push({ file, line: n, text: unit })
   })
+  // 닫히지 않은 코드 블록은 그 뒤 내용 전체를 검사에서 빼므로 위반으로 보고한다.
+  if (fence) out.malformed.push({ file, line: fence.line, kind: 'format', detail: 'unclosed code block' })
   return out
 }
 
@@ -547,7 +572,7 @@ function validateAllowEntry(entry) {
 // 허용 목록을 읽어 유효한 항목만 { file, text, line }으로 돌려준다. 파일이 없으면 빈 목록이다.
 function loadAllowList(root, violations) {
   const abs = path.join(root, ALLOW_LIST)
-  if (!isFile(abs)) return []
+  if (!isFileIn(root, abs)) return []
   const report = (line, detail) => violations.push({ file: ALLOW_LIST, line, kind: 'format', detail })
   const text = fs.readFileSync(abs, 'utf8').replace(/^﻿/, '')
   let data
