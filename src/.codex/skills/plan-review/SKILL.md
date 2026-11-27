@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 name: plan-review
 description: >-
   Review an implementation plan against an 8-point quality gate. Resolves plan
@@ -12,6 +12,23 @@ description: >-
 ---
 
 # Plan Review
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.codex/skills/plan-review/templates/messages.<lang>.md` for the chosen language and `.codex/skills/plan-review/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. Print every catalog message exactly as the catalog writes it, with only placeholders filled in: keep its lines, numbering, and order, and do not add `(Recommended)` or other labels. A general question-format rule (for example "lead with a recommended option") does not apply to these plain-text questions. For an answer-required ID, follow the answer-required check below.
+
+**Answer-required check** (used by every question below that names it): run this check first and ask the question only if it passes. Before asking, run this shell command with the IDs listed for that question:
+
+```bash
+grep -hxE '## (<ID1>|<ID2>|...)' .codex/skills/plan-review/templates/messages.<lang>.md .codex/skills/plan-review/templates/messages.en.md
+```
+
+An ID that appears in neither file's output cannot be obtained. If any cannot be obtained, do not ask the question: output `[missing catalog: <path>]` once when the `en` file is missing, otherwise `[missing message: <ID>]` for each missing ID, then stop without waiting for input. After that stop, do not perform the follow-up actions named for that question (no review, no report writing, and no `dev-context.json` update). Work already finished before the question stays as it is.
 
 ## Overview
 
@@ -39,10 +56,7 @@ Resolve the plan path using the first matching source:
 3. **User prompt** — neither applies; ask the user for the plan path before proceeding.
 
 **Mismatch handling**: If an explicit plan path was provided and it differs from
-`topics[current_topic].plan`, ask the user before proceeding:
-```
-이 계획 파일을 리뷰할까요? 현재 등록된 토픽과 다릅니다. (명시 경로: `<explicit-path>`, 등록 경로: `<topics[current_topic].plan>`)
-```
+`topics[current_topic].plan`, ask the user before proceeding with {{msg:REVIEW_TARGET_CONFIRM}} as a plain-text question (`{explicit_path}`: the explicit plan path; `{registered_path}`: `topics[current_topic].plan`). Answer-required ID: `REVIEW_TARGET_CONFIRM`. Apply the answer-required check; if it stops, do not review the plan, write a report, or update `dev-context.json`.
 Use the user's selection.
 
 ### Spec path resolution (always separate from plan)

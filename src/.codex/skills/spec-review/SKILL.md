@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 name: spec-review
 description: >-
   Review a spec document against an 8-point quality gate. Resolves spec path from:
@@ -9,6 +9,23 @@ description: >-
 ---
 
 # Spec Review
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.codex/skills/spec-review/templates/messages.<lang>.md` for the chosen language and `.codex/skills/spec-review/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. Print every catalog message exactly as the catalog writes it, with only placeholders filled in: keep its lines, numbering, and order, and do not add `(Recommended)` or other labels. A general question-format rule (for example "lead with a recommended option") does not apply to these plain-text questions. For an answer-required ID, follow the answer-required check below.
+
+**Answer-required check** (used by every question below that names it): run this check first and ask the question only if it passes. Before asking, run this shell command with the IDs listed for that question:
+
+```bash
+grep -hxE '## (<ID1>|<ID2>|...)' .codex/skills/spec-review/templates/messages.<lang>.md .codex/skills/spec-review/templates/messages.en.md
+```
+
+An ID that appears in neither file's output cannot be obtained. If any cannot be obtained, do not ask the question: output `[missing catalog: <path>]` once when the `en` file is missing, otherwise `[missing message: <ID>]` for each missing ID, then stop without waiting for input. After that stop, do not perform the follow-up actions named for that question (no `specReview` write; the report already written stays as it is). Work already finished before the question stays as it is.
 
 ## Overview
 
@@ -78,13 +95,7 @@ See `references/rules-and-inputs.md` for context loading rules and field definit
      ```bash
      node .harness/scripts/dev-context.js read --topic=<current_topic> --field=spec
      ```
-  3. **If the resolved spec path does not match the spec actually reviewed**, ask the user:
-     ```
-     리뷰한 스펙 경로(<reviewed-path>)가 현재 토픽(<current_topic>)에 등록된 경로(<registered-path>)와 다릅니다.
-     specReview 필드를 업데이트할 토픽을 확인해주세요:
-       1. <current_topic> (등록 경로 무시)
-       2. 업데이트 안 함
-     ```
+  3. **If the resolved spec path does not match the spec actually reviewed**, ask the user {{msg:SPEC_REVIEW_TARGET}} as a plain-text question (`{reviewed_path}`: the reviewed spec path; `{current_topic}`: `current_topic`; `{registered_path}`: its registered spec path). Answer-required ID: `SPEC_REVIEW_TARGET`. Apply the answer-required check; if it stops, skip the `specReview` write — the report written above stays as it is. Print the message text exactly as the catalog has it — the two numbered choice lines `1.` and `2.` in that order, unchanged — and accept `1` or `2` as the answer. Do not turn the choices into bullets, reorder them, or mark one as recommended (the AGENTS.md question rule targets `AskUserQuestion` and does not apply here).
      Do not silently write to the wrong topic.
 - Update `docs/_local/dev-context.json` via CLI (Codex owns this update):
   ```bash
