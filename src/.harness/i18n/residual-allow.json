@@ -10,5 +10,10 @@
   {"file": ".claude/agents/planner.md", "text": "- [ ] Acceptance: 2/2 eval 통과", "reason": "consumer-parsed format token"},
   {"file": ".claude/agents/planner.md", "text": "재배치", "reason": "parsed data token"},
   {"file": ".claude/skills/flow-docs/SKILL.md", "text": "- <번호>", "reason": "consumer-parsed format token"},
-  {"file": ".claude/skills/flow-docs/SKILL.md", "text": "+ <경로>", "reason": "consumer-parsed format token"}
+  {"file": ".claude/skills/flow-docs/SKILL.md", "text": "+ <경로>", "reason": "consumer-parsed format token"},
+  {"file": ".claude/skills/flow-impl/SKILL.md", "text": "(그 외)", "reason": "consumer-parsed format token"},
+  {"file": ".claude/skills/flow-impl/SKILL.md", "text": "X 중", "reason": "instructions-en: X4"},
+  {"file": ".claude/skills/flow-impl/SKILL.md", "text": "실패 처리", "reason": "parsed data token"},
+  {"file": ".claude/skills/flow-impl/SKILL.md", "text": "보고 누락", "reason": "parsed data token"},
+  {"file": ".claude/skills/flow-impl/SKILL.md", "text": "실제 미수행", "reason": "parsed data token"}
 ]
