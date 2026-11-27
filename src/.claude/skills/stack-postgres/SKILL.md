@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: stack-postgres
 description: PostgreSQL database patterns for query optimization, schema design, indexing, and security. Use when writing SQL queries or migrations, designing schemas, troubleshooting slow queries, implementing RLS, or working with *.sql, migrations/, schema.* files. Pairs with database-reviewer agent.
 origin: ECC
@@ -8,7 +8,7 @@ capabilities: [database, postgres]
 
 # PostgreSQL Patterns
 
-Quick reference for PostgreSQL best practices. For detailed guidance, use the `database-reviewer` agent.
+Quick reference for PostgreSQL best practices. For detailed guidance, use the `database-reviewer` agent. Immediately before the delegation, run `node .harness/scripts/lang.js resolve --kind=conversation`, `--kind=docs`, and `--kind=commit`; for each dimension, if the resolve exits non-zero or its stdout is not exactly `ko` or `en`, use `en`. Put `Language: conversation=<ko|en> docs=<ko|en> commit=<ko|en>` as the first line of the delegation prompt.
 
 ## When to Activate
 

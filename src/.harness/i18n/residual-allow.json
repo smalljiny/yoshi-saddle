@@ -64,5 +64,17 @@
   {"file": ".claude/skills/adapter-dependency-analysis/SKILL.md", "text": "→ 존재: stack-knip + stack-dependency-cruiser 로드", "reason": "instructions-en: X2"},
   {"file": ".claude/skills/adapter-dependency-analysis/SKILL.md", "text": "→ 미존재: 스킵 (에러 없이 종료) — Python, Go 등 비JS/TS 프로젝트", "reason": "instructions-en: X2"},
   {"file": ".claude/skills/adapter-dependency-analysis/SKILL.md", "text": "test -f package.json && echo \"JS/TS 프로젝트\" || echo \"비JS/TS — 스킵\"", "reason": "instructions-en: X1"},
-  {"file": ".claude/skills/adapter-dependency-analysis/SKILL.md", "text": "어댑터 스킬 로드", "reason": "consumer-parsed format token"}
+  {"file": ".claude/skills/adapter-dependency-analysis/SKILL.md", "text": "어댑터 스킬 로드", "reason": "consumer-parsed format token"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "X한다", "reason": "parsed data token"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "X 추가", "reason": "parsed data token"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "X 변경", "reason": "parsed data token"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "X 중", "reason": "parsed data token"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "버전 필드 업데이트한다", "reason": "instructions-en: X2"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "버전 필드 업데이트 중", "reason": "instructions-en: X2"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "X 검증", "reason": "parsed data token"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "엣지 케이스 검증", "reason": "instructions-en: X2"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "엣지 케이스 검증 중", "reason": "instructions-en: X2"},
+  {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": " 중", "reason": "parsed data token"},
+  {"file": ".claude/skills/wf-worktree-context/SKILL.md", "text": "# 옵션: --base <branch>(기본 develop) --main <path>", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/wf-worktree-context/SKILL.md", "text": "# 옵션: --force(미커밋 변경 있어도 제거) --keep-worktree(sync-back 만) --keep-original(원본 폐기 안 함)", "reason": "instructions-en: X1"}
 ]

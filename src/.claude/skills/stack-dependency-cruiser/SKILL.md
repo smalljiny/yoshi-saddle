@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: stack-dependency-cruiser
 description: Architecture and dependency analysis for JavaScript/TypeScript projects using dependency-cruiser. Detects circular dependencies, layer violations, orphan modules, and generates dependency graphs. Activate when package.json exists and circular deps or architecture validation is needed.
 origin: SCE
@@ -117,7 +117,7 @@ grep -r "import(" apps/ packages/ --include="*.ts"
 
 ## Integration
 
-After running, use the `refactor-cleaner` agent to safely fix violations.
+After running, use the `refactor-cleaner` agent to safely fix violations. Immediately before the delegation, run `node .harness/scripts/lang.js resolve --kind=conversation`, `--kind=docs`, and `--kind=commit`; for each dimension, if the resolve exits non-zero or its stdout is not exactly `ko` or `en`, use `en`. Put `Language: conversation=<ko|en> docs=<ko|en> commit=<ko|en>` as the first line of the delegation prompt.
 For unused files and exports, use `stack-knip`.
 The `adapter-dependency-analysis` skill orchestrates both tools for full project analysis.
 

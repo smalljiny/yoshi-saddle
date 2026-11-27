@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: stack-knip
 description: Dead code analysis for JavaScript/TypeScript projects using knip. Detects unused files, exports, and npm dependencies. Activate when package.json exists and unused code or dependency cleanup is needed.
 origin: SCE
@@ -94,7 +94,7 @@ pnpm knip --no-exit-code
 
 ## Integration
 
-After running knip, use the `refactor-cleaner` agent to safely remove identified dead code.
+After running knip, use the `refactor-cleaner` agent to safely remove identified dead code. Immediately before the delegation, run `node .harness/scripts/lang.js resolve --kind=conversation`, `--kind=docs`, and `--kind=commit`; for each dimension, if the resolve exits non-zero or its stdout is not exactly `ko` or `en`, use `en`. Put `Language: conversation=<ko|en> docs=<ko|en> commit=<ko|en>` as the first line of the delegation prompt.
 For circular dependency and architecture violations, use `stack-dependency-cruiser`.
 The `adapter-dependency-analysis` skill orchestrates both tools for full project analysis.
 
