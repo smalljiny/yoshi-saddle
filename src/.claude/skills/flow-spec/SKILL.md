@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: flow-spec
 description: Write a spec for a new topic. Registers the topic in dev-context.json, writes a spec draft using the brainstorming skill, runs the Codex review loop, and confirms the spec before planning.
 origin: harness
@@ -21,6 +21,21 @@ Write a spec document for a work topic and confirm it through Codex review befor
 
 ### 1. Resolve topic
 
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/flow-spec/templates/messages.<lang>.md` for the chosen language and `.claude/skills/flow-spec/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
+**Answer-required check** (used by every question below that names it): run this check first and ask the question only if it passes. Before asking (for a mixed block, before its first line), run this Bash command with the IDs listed for that question (and the IDs of messages you will read to fill its placeholders):
+
+```bash
+grep -hxE '## (<ID1>|<ID2>|...)' .claude/skills/flow-spec/templates/messages.<lang>.md .claude/skills/flow-spec/templates/messages.en.md
+```
+
+When a catalog file is missing, `grep` reports it; an ID that appears in neither file's output cannot be obtained. Check only the IDs you will actually display in the current branch, after computing what to display. If any cannot be obtained, do not ask the question or print any part of its block: output `[missing catalog: <path>]` once when the `en` file is missing, otherwise `[missing message: <ID>]` for each missing ID, then stop without waiting for input. After that stop, do not perform the follow-up actions named for that question (no file writes, research, `dev-context.js` writes, sub-topic creation, or later steps after that point). Work already finished before the question stays as it is.
+
 If `$ARGUMENTS` is provided:
 - Use it as `<topic>`
 
@@ -36,20 +51,14 @@ If no argument:
 - If `phase` is `spec`: use it automatically
 - Otherwise scan `docs/_local/backlog/` for existing directories
 - If one topic found: use it automatically
-- If multiple topics found: show list and stop:
-  ```
-  백로그에 여러 주제가 있습니다. 주제를 지정하세요: /flow-spec <topic>
-  ```
-- If no topics found: show guidance and stop:
-  ```
-  주제를 지정하세요: /flow-spec <topic>
-  ```
+- If multiple topics found: show the list, output {{msg:BACKLOG_MULTIPLE}}, and stop.
+- If no topics found: output {{msg:TOPIC_REQUIRED}} and stop.
 
 **Detect current state and resume from the right step:**
 
 | `phase:status` | Action |
 |----------------|--------|
-| `spec:confirmed` | Show "스펙이 이미 확정되었습니다." and jump to Step 7 |
+| `spec:confirmed` | Output {{msg:SPEC_ALREADY_CONFIRMED}} and jump to Step 7 |
 | `spec:reviewing` + latest `spec-review-*.md` has NOT READY decision | Jump to Step 5 (reflect existing review) |
 | `spec:reviewing` + no review file yet | Jump to Step 4 (waiting for Codex) |
 | `spec:drafting` + spec file exists | Jump to Step 4 (request review) |
@@ -69,21 +78,21 @@ Before starting the brainstorming, optionally run a web research pass to gather 
 
 Load `.claude/skills/skill-registry/SKILL.md` and run the Discovery Procedure with capability query `[search-adapter]`.
 
-- If 0 adapters found: show `"search-adapter 스킬이 설치되지 않아 리서치를 건너뜁니다."` and proceed to Step 3 with `RESEARCH_CONTEXT` empty.
+- If 0 adapters found: output {{msg:RESEARCH_NO_ADAPTER}} and proceed to Step 3 with `RESEARCH_CONTEXT` empty.
 
 **2. Ask if research is needed**
 
-Use `AskUserQuestion` with:
-- Option 1 (Recommended): "예, 리서치 수행" — run web research before brainstorming
-- Option 2: "아니오, 바로 브레인스토밍" — skip; proceed to Step 3 with `RESEARCH_CONTEXT` empty
+Use `AskUserQuestion` with {{ask:RESEARCH_ASK|YES|NO}}. Answer-required IDs: `RESEARCH_ASK_Q`, `RESEARCH_ASK_HEADER`, `RESEARCH_ASK_YES_LABEL`, `RESEARCH_ASK_YES_DESC`, `RESEARCH_ASK_NO_LABEL`, `RESEARCH_ASK_NO_DESC`. Apply the answer-required check; if it stops, do not run research, do not write the spec draft, and do not register the topic.
+- `YES` (Recommended) — run web research before brainstorming
+- `NO` — skip; proceed to Step 3 with `RESEARCH_CONTEXT` empty
 
 **3. Propose and confirm the research query**
 
 Claude auto-generates a query from the topic name. Example: `"<topic> 관련 배경 기술 조사, 디자인 패턴, 선례"`.
 
-Use `AskUserQuestion` with:
-- Option 1 (Recommended): "제안된 쿼리 사용" — proceed with the generated query
-- Option 2: "리서치 취소" — set `RESEARCH_CONTEXT` empty and proceed to Step 3
+Use `AskUserQuestion` with {{ask:RESEARCH_QUERY|USE|CANCEL}}. `{query}` is the generated query. Answer-required IDs: `RESEARCH_QUERY_Q`, `RESEARCH_QUERY_HEADER`, `RESEARCH_QUERY_USE_LABEL`, `RESEARCH_QUERY_USE_DESC`, `RESEARCH_QUERY_CANCEL_LABEL`, `RESEARCH_QUERY_CANCEL_DESC`. Apply the answer-required check; if it stops, do not run research, do not write the spec draft, and do not register the topic.
+- `USE` (Recommended) — proceed with the generated query
+- `CANCEL` — set `RESEARCH_CONTEXT` empty and proceed to Step 3
 - (Other): user types a replacement query → use the text verbatim as the query (`AskUserQuestion` provides a built-in free-text "Other" option; no additional prompt turn needed)
 
 **4. Execute research**
@@ -105,10 +114,7 @@ On success (file written): set `RESEARCH_CONTEXT` to the absolute report path.
 
 **5. Failure fallback**
 
-If adapter-deep-research fails for any reason (execution error, no file produced, all adapters failed, short-report inline-only), show:
-```
-리서치 결과 파일이 없어 컨텍스트 없이 진행합니다.
-```
+If adapter-deep-research fails for any reason (execution error, no file produced, all adapters failed, short-report inline-only), output {{msg:RESEARCH_NO_FILE}}.
 Set `RESEARCH_CONTEXT` empty and proceed to Step 3. Do **not** abort the brainstorming flow.
 
 ### 3. Write spec draft
@@ -163,16 +169,7 @@ Read `config.spec.auto_review`:
 node .harness/scripts/dev-context.js read --field=config.spec.auto_review
 ```
 
-**If output is NOT `true`** (default / manual mode): show the user this message and stop:
-
-```
-스펙 초안이 작성되었습니다: docs/_local/backlog/<topic>/spec.md
-
-Codex 리뷰를 실행하세요:
-  codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
-
-리뷰 완료 후 spec-review-*.md 파일이 생성되면 다시 /flow-spec을 실행하세요.
-```
+**If output is NOT `true`** (default / manual mode): output {{msg:DRAFT_WRITTEN}} and stop. `{topic}` is the topic name.
 
 **If output is `true`** (auto mode): sync `current_topic` to `<topic>` so the review skill resolves the correct topic:
 
@@ -198,23 +195,10 @@ Then run the auto-review loop (`attempt=1`, `max_attempts=3`):
        node .harness/scripts/dev-context.js update-state \
          --topic=<topic> --phase=spec --status=drafting
        ```
-     - Increment `attempt`. If `attempt > max_attempts`:
-       ```
-       Auto-review Stopped at attempt 3. Maximum attempts reached.
-       수동으로 진행하세요:
-         codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
-       ```
-       Stop.
+     - Increment `attempt`. If `attempt > max_attempts`: output {{msg:AUTO_REVIEW_MAX}} (`{topic}` is the topic name) and stop.
      - Otherwise: transition back to `spec:reviewing` and repeat from step 1.
 
-**Manual fallback** (shown when auto mode cannot proceed — Availability Gate fails or skill produces no review file):
-
-```
-Codex를 사용할 수 없어 수동으로 진행하세요:
-  codex "spec-review 스킬로 docs/_local/backlog/<topic>/spec.md를 리뷰해줘"
-
-리뷰 완료 후 spec-review-*.md 파일이 생성되면 다시 /flow-spec을 실행하세요.
-```
+**Manual fallback** (shown when auto mode cannot proceed — Availability Gate fails or skill produces no review file): output {{msg:MANUAL_FALLBACK}} (`{topic}` is the topic name).
 
 ### 5. Reflect review
 
@@ -224,11 +208,13 @@ When the user returns after Codex review:
 - Read the review report
 - If decision is `NOT READY`:
   - Apply all Required Fixes to `spec.md`
-  - > **Pending PR dependency**: Gate 7 (Implementation Readiness)에서 "참조 파일이 존재하지 않는다"는 이유로 NOT READY가 반복된다면, 해당 파일이 미병합 PR에 있는지 확인한다. 그렇다면 스펙 최상단에 "구현 선행 조건" 표를 추가한다:
+  - > **Pending PR dependency**: Gate 7 (Implementation Readiness)에서 "참조 파일이 존재하지 않는다"는 이유로 NOT READY가 반복된다면, 해당 파일이 미병합 PR에 있는지 확인한다. 그렇다면 스펙 최상단에 아래 영어 템플릿의 Implementation Prerequisites 표를 추가한다. 제목과 열 이름(`Prerequisite`·`PR`·`Status`)은 템플릿 그대로 두고, 행의 선행 조건 설명과 상태 값(`unmerged`)은 `node .harness/scripts/lang.js resolve --kind=docs`로 정한 언어로 쓴다 (실패하면 `en`):
     > ```markdown
-    > | 선행 조건 | PR | 상태 |
+    > ## Implementation Prerequisites
+    >
+    > | Prerequisite | PR | Status |
     > |---------|-----|------|
-    > | <파일명> | #<pr-number> | 미병합 |
+    > | <file name> | #<pr-number> | unmerged |
     > ```
     > 이렇게 하면 리뷰어가 파일 부재를 Gate 7 실패가 아닌 선행 조건 미충족으로 처리한다.
   - Transition back to drafting:
@@ -254,13 +240,7 @@ node .harness/scripts/dev-context.js update-state \
   --status=confirmed
 ```
 
-Show confirmation:
-
-```
-스펙이 확정되었습니다.
-  스펙: docs/_local/backlog/<topic>/spec.md
-  리뷰: docs/_local/backlog/<topic>/spec-review-<timestamp>.md
-```
+Output {{msg:SPEC_CONFIRMED}}. `{topic}` is the topic name and `{timestamp}` is the timestamp in the latest review file name.
 
 ### 7. Recommend splitting
 
@@ -269,31 +249,20 @@ Analyze the confirmed spec and recommend whether it should be split, using the *
 **Split when**: the spec has 3 or more goals that each satisfy all of — (1) independently deployable, (2) independently revertable, (3) not dependent on another concurrent PR.
 **Keep single when**: goals are tightly coupled by a dependency chain (document as Coupling Rationale in §1.3), or there are fewer than 3 independently merge-able goals.
 
-Present the recommendation with reasoning:
+Present the recommendation with reasoning as one block, in this order:
 
-```
-# 분할 분석
-[단일 진행 또는 분할 추천] — [이유: 목표 수, 독립성, 결합도 등]
+1. {{msg:SPLIT_TITLE}} (decoration part).
+2. {{msg:SPLIT_RECOMMENDATION_LINE}} (target part). `{recommendation}` is {{msg:SPLIT_SINGLE}} or {{msg:SPLIT_RECOMMENDED}}; `{reason}` is the reason (goal count, independence, coupling, etc.) in the conversation language. Then a blank line.
+3. When a split is recommended: {{msg:SUBTOPICS_TITLE}} (decoration part), then {{msg:SUBTOPIC_ITEM}} once per proposed sub-topic (target part; `{number}` from 1, `{sub_topic}` is the sub-topic name, `{scope}` its scope). Then a blank line.
+4. {{msg:SPLIT_APPROVE_Q}} (question part).
 
-[분할 추천 시]
-제안하는 서브 토픽:
-  1. <sub-topic-a>: [범위]
-  2. <sub-topic-b>: [범위]
+Answer-required IDs: `SPLIT_RECOMMENDATION_LINE`, the `{recommendation}` value message shown (`SPLIT_SINGLE` or `SPLIT_RECOMMENDED`), `SUBTOPIC_ITEM` (when sub-topics are shown), and `SPLIT_APPROVE_Q`. Apply the answer-required check before printing the block: if any answer-required ID is absent from both catalog files, print only the diagnostics — none of the block, not even the title or a question of your own — and do not create sub-topics, run `/flow-spec <sub-topic>`, move the parent directory, or register topics. `SPLIT_TITLE` and `SUBTOPICS_TITLE` are decoration: if one alone is absent, print `[missing message: <ID>]` in its place and print the rest normally.
 
-승인하시겠습니까?
-```
-
-- If no split needed: show next step directly
-  ```
-  다음: /flow-plan 또는 /flow-plan <topic> 으로 구현 계획을 수립하세요.
-  ```
+- If no split needed: show next step directly — output {{msg:NEXT_PLAN}} (`{topic}` is the topic name).
 - If split recommended and user approves: run `/flow-spec <sub-topic>` for each sub-topic.
   Move the parent directory to `docs/_local/backlog-split/<topic>/` — this preserves it as a summary reference while excluding it from `/flow-plan` topic discovery (which scans `backlog/` only).
   Sub-topic specs are created fresh via `/flow-spec <sub-topic>` in `docs/_local/backlog/<sub-topic>/`.
-- If split recommended and user declines: show the same next step.
-  ```
-  다음: /flow-plan 또는 /flow-plan <topic> 으로 구현 계획을 수립하세요.
-  ```
+- If split recommended and user declines: show the same next step — output {{msg:NEXT_PLAN}}.
 
 ## Key Principles
 

@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 name: wf-brainstorming
 description: Format-agnostic conversational skill for refining ideas through collaborative dialogue. Use when writing a spec draft or exploring problems in depth. Loaded by /flow-spec during spec draft writing.
 origin: sample-claude-env
@@ -48,9 +48,16 @@ This applies to all question types: exploration, confirmation, and approval.
 ## Completion Signal
 
 Present the completed output inline in the conversation.
-After presenting, announce completion so the caller can save the file:
+After presenting, announce completion so the caller can save the file.
 
-> 스펙 초안이 완성되었습니다. /flow-spec이 파일로 저장합니다.
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/wf-brainstorming/templates/messages.<lang>.md` for the chosen language and `.claude/skills/wf-brainstorming/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
+Then output {{msg:BRAINSTORM_DONE}}.
 
 The specific document structure (sections, headings, format) is determined by the caller. If the caller has injected a format (e.g., via `.harness/contracts/spec.md`), follow that format. Otherwise, apply the format that best fits the context.
 
