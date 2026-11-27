@@ -15,5 +15,19 @@
   {"file": ".claude/skills/flow-impl/SKILL.md", "text": "X 중", "reason": "instructions-en: X4"},
   {"file": ".claude/skills/flow-impl/SKILL.md", "text": "실패 처리", "reason": "parsed data token"},
   {"file": ".claude/skills/flow-impl/SKILL.md", "text": "보고 누락", "reason": "parsed data token"},
-  {"file": ".claude/skills/flow-impl/SKILL.md", "text": "실제 미수행", "reason": "parsed data token"}
+  {"file": ".claude/skills/flow-impl/SKILL.md", "text": "실제 미수행", "reason": "parsed data token"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "쓰기 단계 (Step 3·4 공통)", "reason": "instructions-en: X2"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "/flow-init    CLAUDE.md와 AGENTS.md를 생성 또는 업데이트", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "<파일>", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "<임시 파일>", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "node -e 'const fs=require(\"fs\"),c=require(\"crypto\");let r;try{const b=fs.readFileSync(process.argv[1]);r={status:\"ok\",hash:c.createHash(\"sha256\").update(b).digest(\"hex\"),content:b.toString(\"utf8\")}}catch(e){r=e.code===\"ENOENT\"?{status:\"absent\"}:{status:\"error\",code:e.code||\"read failed\"}}process.stdout.write(JSON.stringify(r))' \"<파일>\"", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "<파일>.bak.<timestamp>", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "- <항목>", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "+ [빈 줄]", "reason": "consumer-parsed format token"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "node .harness/scripts/lang.js check --file=\"<임시 파일>\" --expect-begin=<begin> --expect-end=<end> --expect-docs=<docs> --expect-commit=<commit> --expect-comments=<comments>", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "rm -f -- \"<임시 파일>\"", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "test ! -e \"<파일>.bak.<timestamp>\" && test ! -L \"<파일>.bak.<timestamp>\" && cp -n -- \"<파일>\" \"<파일>.bak.<timestamp>\"", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "스냅숏 `version` 값 + 1", "reason": "instructions-en: X2"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "node .harness/scripts/dev-context.js set-field --field=config.graphify.targets --value='<JSON 배열>'", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-init/SKILL.md", "text": "언어 적용값 안내", "reason": "instructions-en: X2"}
 ]
