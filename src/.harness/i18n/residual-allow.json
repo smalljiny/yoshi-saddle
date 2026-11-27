@@ -1,1 +1,12 @@
-[]
+[
+  { "file": ".claude/agents/planner.md", "text": "\"P<n>: <단계 이름>\"", "reason": "instructions-en: X4" },
+  { "file": ".claude/agents/planner.md", "text": "subject=\"P1: Spec 문서 분석\"", "reason": "instructions-en: X4" },
+  { "file": ".claude/agents/planner.md", "text": "매핑되는 본문 단계", "reason": "consumer-parsed format token" },
+  { "file": ".claude/agents/planner.md", "text": "TaskUpdate(taskId=<정수>, status='in_progress', activeForm=<위 표 값>)", "reason": "instructions-en: X4" },
+  { "file": ".claude/agents/planner.md", "text": "TaskUpdate(taskId=<정수>, status='completed')", "reason": "instructions-en: X4" },
+  { "file": ".claude/agents/planner.md", "text": "- 영향 파일: .claude/agents/*.md (10개)", "reason": "instructions-en: X2" },
+  { "file": ".claude/agents/planner.md", "text": "- frontmatter 정수 +1", "reason": "instructions-en: X2" },
+  { "file": ".claude/agents/planner.md", "text": "Acceptance: N/M eval 통과", "reason": "consumer-parsed format token" },
+  { "file": ".claude/agents/planner.md", "text": "- [ ] Acceptance: 2/2 eval 통과", "reason": "consumer-parsed format token" },
+  { "file": ".claude/agents/planner.md", "text": "재배치", "reason": "parsed data token" }
+]
