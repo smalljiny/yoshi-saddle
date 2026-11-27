@@ -59,7 +59,7 @@ describe('console-log-audit hook', () => {
 
     const result = runHook(repo)
     assert.equal(result.status, 0)
-    assert.ok(result.stderr.includes('[console.log 감사]'), `경고 헤더 필요: ${result.stderr}`)
+    assert.ok(result.stderr.includes('[console.log audit]'), `경고 헤더 필요: ${result.stderr}`)
     assert.ok(result.stderr.includes('a.js'), `파일명 필요: ${result.stderr}`)
   })
 

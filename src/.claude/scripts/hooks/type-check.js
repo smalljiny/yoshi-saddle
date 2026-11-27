@@ -46,7 +46,7 @@ function main() {
 
     // 오류가 있으면 경고 출력 (exit 0으로 Claude Code 실행을 막지 않음)
     if (output.trim()) {
-      console.warn('[타입 체크] 오류 발견:')
+      console.warn('[Type check] Errors found:')
       console.warn(output.slice(0, 500))  // 너무 긴 출력 방지
     }
 

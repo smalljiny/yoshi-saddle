@@ -16,11 +16,11 @@ function main() {
   }
 
   // push 전 체크리스트 출력
-  console.log('[git push 전 확인 사항]')
-  console.log('  □ /dev:review 를 완료했는가?')
-  console.log('  □ /dev:verify 의 모든 게이트를 통과했는가?')
-  console.log('  □ console.log가 남아있지 않은가?')
-  console.log('  □ 시크릿이 커밋에 포함되지 않았는가?')
+  console.log('[Pre-push checklist]')
+  console.log('  □ Have you completed /flow-review?')
+  console.log('  □ Have all /flow-verify gates passed?')
+  console.log('  □ No console.log left behind?')
+  console.log('  □ No secrets included in the commit?')
   console.log('')
 
   // exit 0: push를 막지 않음 (정보 제공만)
