@@ -35,5 +35,13 @@
   {"file": ".claude/skills/flow-spec/SKILL.md", "text": "참조 파일이 존재하지 않는다", "reason": "parsed data token"},
   {"file": ".claude/skills/flow-plan/SKILL.md", "text": "성공 시 결과를 DEPENDENCY_ANALYSIS 변수로 보관한다.", "reason": "instructions-en: X2"},
   {"file": ".claude/skills/flow-plan/SKILL.md", "text": "실패(도구 미설치, 스크립트 없음 등) 시 DEPENDENCY_ANALYSIS = \"dependency analysis skipped: <reason>\"으로 설정하고 계속 진행한다.", "reason": "instructions-en: X2"},
-  {"file": ".claude/skills/flow-plan/SKILL.md", "text": "codex exec -s workspace-write \"plan-review 스킬을 실행해줘\"", "reason": "instructions-en: X1"}
+  {"file": ".claude/skills/flow-plan/SKILL.md", "text": "codex exec -s workspace-write \"plan-review 스킬을 실행해줘\"", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-worktree/SKILL.md", "text": "/flow-worktree <topic>                        (start) 프로비저닝 + 오른쪽 새 pane 에 세션 기동", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-worktree/SKILL.md", "text": "/flow-worktree <topic> --surface <ref>        start — 기존 surface(예: surface:71)에 기동", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-worktree/SKILL.md", "text": "/flow-worktree <topic> --base <branch>        start — worktree base 브랜치(기본 develop)", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-worktree/SKILL.md", "text": "/flow-worktree teardown <topic>               문서 sync-back + worktree 제거 + main dev-context 정합화", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-worktree/SKILL.md", "text": "/flow-worktree teardown <topic> --delete-branch   + 머지된 feature/<topic> 브랜치 삭제", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-worktree/SKILL.md", "text": "/flow-worktree teardown <topic> --surface <ref>   + worktree 세션 pane 닫기", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-worktree/SKILL.md", "text": "/flow-worktree teardown <topic> --force           done 아카이브 없거나 미커밋 변경 있어도 제거", "reason": "instructions-en: X1"},
+  {"file": ".claude/skills/flow-worktree/SKILL.md", "text": "bash .claude/skills/wf-worktree-context/scripts/teardown.sh <topic>   # 또는 + --force", "reason": "instructions-en: X1"}
 ]

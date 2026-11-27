@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: flow-worktree
 description: Manage a topic's isolated worktree lifecycle — provision + launch a worktree-rooted Claude session (start), or sync-back documents and remove the worktree (teardown). Delegates provisioning/teardown to wf-worktree-context; owns cmux launch, completion gate, and main dev-context reconciliation.
 origin: harness
@@ -27,6 +27,15 @@ user-invocable: true
 
 첫 인자가 `teardown` 이면 Teardown 을, 아니면 Start 를 실행한다. `<topic>` 을 생략하면 `current_topic` 을 쓴다.
 
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/flow-worktree/templates/messages.<lang>.md` for the chosen language and `.claude/skills/flow-worktree/templates/messages.en.md` and `.harness/i18n/<lang>/common.md` for the chosen language and `.harness/i18n/en/common.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
 ## Start (기본)
 
 ### S1. 토픽 해석
@@ -37,10 +46,7 @@ user-invocable: true
 node .harness/scripts/dev-context.js read --field=current_topic
 ```
 
-토픽 이름이 `^[a-zA-Z0-9_-]+$` 에 맞지 않으면 중단한다:
-```
-유효하지 않은 토픽 이름입니다. 영문자, 숫자, 하이픈, 언더스코어만 허용됩니다.
-```
+토픽 이름이 `^[a-zA-Z0-9_-]+$` 에 맞지 않으면 {{msg:common:INVALID_TOPIC_NAME}}을 출력하고 중단한다.
 
 ### S2. Gate — 확정 단계 확인
 
@@ -51,12 +57,7 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
 node .harness/scripts/dev-context.js read --topic=<topic> --field=status
 ```
 
-`spec:confirmed` 이상(spec:confirmed·plan:* ·impl:* ·review:* 등)이면 진행한다. `spec:drafting`·`spec:reviewing` 이면 중단한다:
-```
-worktree 작업은 스펙 확정 이후에 시작합니다.
-현재 상태: <phase>:<status>
-먼저 /flow-spec 으로 스펙을 확정하세요.
-```
+`spec:confirmed` 이상(spec:confirmed·plan:* ·impl:* ·review:* 등)이면 진행한다. `spec:drafting`·`spec:reviewing` 이면 {{msg:SPEC_NOT_CONFIRMED}}을 출력하고 중단한다 (`{phase}`·`{status}`는 읽은 값).
 
 ### S3. 프로비저닝 — wf-worktree-context 위임
 
@@ -83,10 +84,7 @@ cmux ping
 
 대상 surface 를 정한다:
 
-- `--surface <ref>` 가 주어졌으면 그 ref 를 쓴다. 단 그 surface 가 caller surface(`CMUX_SURFACE_ID`)와 같으면 중단한다(현재 에이전트 세션에 `claude` 를 보내면 세션이 중첩된다):
-  ```
-  대상 surface 가 현재 세션과 같습니다. 다른 surface 를 지정하거나 --surface 를 생략하세요.
-  ```
+- `--surface <ref>` 가 주어졌으면 그 ref 를 쓴다. 단 그 surface 가 caller surface(`CMUX_SURFACE_ID`)와 같으면 {{msg:SAME_SURFACE}}를 출력하고 중단한다(현재 에이전트 세션에 `claude` 를 보내면 세션이 중첩된다).
 - `--surface` 가 없으면 caller workspace 오른쪽에 새 terminal pane 을 additive 로 만들고(focus 이동 없음) 그 surface ref 를 잡는다:
   ```bash
   cmux --id-format both new-pane --workspace "$CMUX_WORKSPACE_ID" --type terminal --direction right --focus false --json
@@ -104,23 +102,9 @@ cmux send --surface <TARGET> "cd $WT && claude
 
 ### S6. 보고
 
-```
-worktree 준비 완료: <WT>
-  브랜치: feature/<topic> (base <branch>)
-  세션 기동: <TARGET>
+{{msg:READY}}를 출력한다. `{wt}`는 worktree 경로(`WT`), `{topic}`은 토픽, `{branch}`는 base 브랜치, `{target}`은 세션을 띄운 surface ref(`TARGET`)다.
 
-이 토픽의 /flow-impl·/flow-review 등은 그 worktree 세션에서만 실행하세요.
-main hub 에서 실행하면 dev-context 격리가 깨집니다.
-
-완료 후: /flow-worktree teardown <topic>
-```
-
-**수동 폴백**(cmux 불가 시 — provision 은 이미 성공):
-```
-worktree 준비 완료: <WT>
-cmux 를 쓸 수 없어 세션은 수동으로 여세요. 대상 터미널에서:
-  cd <WT> && claude
-```
+**수동 폴백**(cmux 불가 시 — provision 은 이미 성공): {{msg:READY_MANUAL}}을 출력한다 (`{wt}`는 worktree 경로).
 
 ## Teardown 서브커맨드
 
@@ -136,28 +120,19 @@ worktree 안에서 실행하면 자기가 앉은 디렉토리를 제거하려다
 ```bash
 TOP=$(git rev-parse --show-toplevel)
 case "$TOP" in
-  *.worktrees/*) echo "worktree 안에서 실행 중입니다. main hub 로 이동 후 teardown 하세요: cd \$(git rev-parse --git-common-dir)/.. "; exit 1 ;;
+  *.worktrees/*) echo "Running inside a worktree. Move to the main hub, then run teardown: cd \$(git rev-parse --git-common-dir)/.. "; exit 1 ;;
 esac
 MAIN="$TOP"
 WT="$(dirname "$MAIN")/$(basename "$MAIN").worktrees/<topic>"
 ```
 
-worktree 디렉토리(`$WT`)가 없으면 중단한다:
-```
-worktree 가 없습니다: <WT> (이미 제거됐거나 토픽 이름이 틀림)
-```
+worktree 디렉토리(`$WT`)가 없으면 {{msg:WT_MISSING}}을 출력하고 중단한다 (`{wt}`는 `$WT`). 위 실행 코드의 영어 출력은 대화 언어로 옮겨 전달한다.
 
 ### T2. 완료 게이트 — done 아카이브 확인
 
 `<WT>/docs/_local/done/<topic>/` 존재를 확인한다. 있으면 `/flow-done` 이 실행돼 아카이브가 만들어진 것 → 진행한다.
 
-없으면 worktree 의 `docs/_local/active/<topic>/`(미아카이브 산출물)가 제거로 유실된다. `--force` 없이 실행됐으면 중단한다:
-```
-아직 /flow-done 전입니다 (done 아카이브 없음).
-worktree 의 active 산출물이 제거로 유실됩니다.
-worktree 세션에서 /flow-pr → /flow-done 을 먼저 완료하거나,
-버리려면 --force 를 붙이세요.
-```
+없으면 worktree 의 `docs/_local/active/<topic>/`(미아카이브 산출물)가 제거로 유실된다. `--force` 없이 실행됐으면 {{msg:NOT_DONE_YET}}을 출력하고 중단한다.
 
 ### T3. 브랜치 머지 확인
 
@@ -173,12 +148,7 @@ else
 fi
 ```
 
-미머지(`MERGED` 비어 있음)면 경고한다 — worktree 제거는 진행(브랜치가 커밋을 보존)하되 브랜치는 삭제하지 않는다:
-```
-경고: feature/<topic> 가 develop 에 아직 머지되지 않았습니다.
-worktree 는 제거하지만 브랜치는 보존합니다(docs/specs·코드가 브랜치에만 있음).
-PR 머지 후 git branch -d feature/<topic> 로 별도 삭제하세요.
-```
+미머지(`MERGED` 비어 있음)면 {{msg:NOT_MERGED_WARN}}으로 경고한다 (`{topic}`은 토픽) — worktree 제거는 진행(브랜치가 커밋을 보존)하되 브랜치는 삭제하지 않는다.
 
 ### T4. sync-back + 제거 — wf-worktree-context 위임
 
@@ -221,15 +191,7 @@ cmux close-surface --workspace "${CMUX_WORKSPACE_ID}" --surface <ref>
 
 ### T8. 보고
 
-```
-teardown 완료: <topic>
-  문서 sync-back: docs/_local/done/<topic>/ → main
-  원본 폐기: docs/_local/{backlog,active}/<topic> <폐기됨 / 보존됨(--keep-original)>
-  docs/specs·코드: PR 머지 경로로 이관 (브랜치 머지 상태: <머지됨/미머지>)
-  worktree 제거: <WT>
-  브랜치 feature/<topic>: <삭제됨 / 보존됨>
-  main dev-context: 토픽 제거 <됨/해당 없음>
-```
+{{msg:TEARDOWN_DONE}}을 출력한다. `{topic}`은 토픽, `{wt}`는 제거한 worktree 경로다. `{originals}`는 {{msg:ORIGINALS_PURGED}} 또는 `--keep-original`이면 {{msg:ORIGINALS_KEPT}}, `{merge_state}`는 T3 결과에 따라 {{msg:MERGE_MERGED}} 또는 {{msg:MERGE_NOT_MERGED}}, `{branch_state}`는 T5 결과에 따라 {{msg:BRANCH_DELETED}} 또는 {{msg:BRANCH_KEPT}}, `{context_state}`는 T6 결과에 따라 {{msg:CONTEXT_REMOVED}} 또는 {{msg:CONTEXT_NOT_APPLICABLE}}이다.
 
 ## Operating Rule
 
