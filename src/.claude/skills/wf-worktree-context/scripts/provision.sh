@@ -67,7 +67,7 @@ if [ -d "$WT" ]; then
   echo "[1] worktree exists — skip create"
 else
   if ! git -C "$MAIN" rev-parse --verify --quiet "$BASE" >/dev/null; then
-    echo "base 브랜치 '$BASE' 가 없습니다. --base <branch> 로 지정하세요." >&2
+    echo "base branch '$BASE' does not exist. Specify it with --base <branch>." >&2
     exit 2
   fi
   git -C "$MAIN" worktree add "$WT" -b "$BRANCH" "$BASE"
@@ -134,7 +134,7 @@ if [ ! -f "$WT/docs/_local/dev-context.json" ] && [ -f "$MAIN/docs/_local/dev-co
   cp "$MAIN/docs/_local/dev-context.json" "$WT/docs/_local/dev-context.json"
   echo "[5] dev-context.json provisioned (per-worktree)"
 elif [ ! -f "$MAIN/docs/_local/dev-context.json" ]; then
-  echo "[5] WARN: main docs/_local/dev-context.json 없음 — /flow-spec 후 재프로비저닝 필요" >&2
+  echo "[5] WARN: main docs/_local/dev-context.json not found — re-provision after /flow-spec" >&2
 fi
 
 # --- 6. git status 누출 처리: 공용 $MAIN/.git/info/exclude 에 실제 주입분만 등록.
@@ -173,4 +173,4 @@ git -C "$WT" status --short || true
 
 echo ""
 echo "[wf-worktree-context] provisioned: $WT"
-echo "다음: 그 디렉토리에서 연 worktree-rooted Claude 세션에서 /flow-* 를 실행한다."
+echo "Next: run /flow-* in a worktree-rooted Claude session opened in that directory."
