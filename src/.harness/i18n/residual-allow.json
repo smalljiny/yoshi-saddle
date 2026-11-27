@@ -32,5 +32,8 @@
   {"file": ".claude/skills/flow-init/SKILL.md", "text": "언어 적용값 안내", "reason": "instructions-en: X2"},
   {"file": ".claude/skills/flow-spec/SKILL.md", "text": "\"<topic> 관련 배경 기술 조사, 디자인 패턴, 선례\"", "reason": "instructions-en: X2"},
   {"file": ".claude/skills/flow-spec/SKILL.md", "text": "codex exec -s workspace-write \"spec-review 스킬로 <canon-path>를 리뷰해줘\"", "reason": "instructions-en: X1"},
-  {"file": ".claude/skills/flow-spec/SKILL.md", "text": "참조 파일이 존재하지 않는다", "reason": "parsed data token"}
+  {"file": ".claude/skills/flow-spec/SKILL.md", "text": "참조 파일이 존재하지 않는다", "reason": "parsed data token"},
+  {"file": ".claude/skills/flow-plan/SKILL.md", "text": "성공 시 결과를 DEPENDENCY_ANALYSIS 변수로 보관한다.", "reason": "instructions-en: X2"},
+  {"file": ".claude/skills/flow-plan/SKILL.md", "text": "실패(도구 미설치, 스크립트 없음 등) 시 DEPENDENCY_ANALYSIS = \"dependency analysis skipped: <reason>\"으로 설정하고 계속 진행한다.", "reason": "instructions-en: X2"},
+  {"file": ".claude/skills/flow-plan/SKILL.md", "text": "codex exec -s workspace-write \"plan-review 스킬을 실행해줘\"", "reason": "instructions-en: X1"}
 ]

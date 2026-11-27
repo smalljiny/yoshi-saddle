@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 name: flow-review
 description: Perform a final full code review. Runs code-reviewer and security-reviewer in parallel, then adversarial-review sequentially (opt-in).
 origin: harness
@@ -22,13 +22,14 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
 node .harness/scripts/dev-context.js read --topic=<topic> --field=status
 ```
 
-If `phase:status` is not `impl:in-progress`, stop immediately:
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/flow-review/templates/messages.<lang>.md` for the chosen language and `.claude/skills/flow-review/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
 
-```
-/flow-review를 실행할 수 없습니다.
-현재 상태: <phase>:<status>
-impl:in-progress 상태여야 합니다.
-```
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
+If `phase:status` is not `impl:in-progress`, output {{msg:GATE_FAILED}} (`{phase}`, `{status}`: the values read above) and stop immediately.
 
 Do not warn and continue — stop entirely.
 
@@ -51,14 +52,7 @@ Block if any condition is true:
 grep -nE "^### \[ \]|^- \[ \] T" docs/_local/active/<topic>/implementation-plan.md
 ```
 
-위 grep이 1건 이상 hit하면 차단:
-
-```
-/flow-review를 실행할 수 없습니다.
-구현이 완료되지 않았습니다.
-미완료 항목이 남아 있습니다: <unchecked Story·Task ID 목록>
-먼저 /flow-impl로 모든 Story와 nested Task를 완료하세요.
-```
+위 grep이 1건 이상 hit하면 {{msg:IMPL_UNFINISHED}}를 출력하고 차단한다. `{unchecked_ids}`는 미완료 Story·Task ID 목록(`, `로 연결)이다.
 
 ### 3. Transition to `review:in-progress`
 
@@ -88,7 +82,15 @@ git log <pullRemote>/<baseBranch>...HEAD --oneline
 
 ### 5. **Run code-reviewer + security-reviewer in parallel**
 
-Invoke both agents simultaneously:
+Invoke both agents simultaneously, each with the Language line first. Both delegations share one set of resolves. Immediately before the delegation, run
+
+```bash
+node .harness/scripts/lang.js resolve --kind=conversation
+node .harness/scripts/lang.js resolve --kind=docs
+node .harness/scripts/lang.js resolve --kind=commit
+```
+
+Judge each dimension separately: if a resolve exits non-zero or its stdout is not exactly `ko` or `en`, use `en` for that dimension only. Put `Language: conversation=<ko|en> docs=<ko|en> commit=<ko|en>` as the first line of the delegation prompt.
 
 **code-reviewer** examines:
 - Code quality across the entire change scope
@@ -116,7 +118,7 @@ Invoke both agents simultaneously:
 **Commit 규칙** — 모든 수정은 별도 commit으로 분리한다. plan의 `**Commit**` 필드를 amend하거나 덮어쓰지 않는다.
 
 - **amend 금지**: 기존 Story commit을 수정하지 않는다.
-- **권장 commit 메시지 패턴** (강제 아님):
+- **권장 commit 메시지 패턴** (강제 아님, 영어 템플릿): `node .harness/scripts/lang.js resolve --kind=commit`으로 정한 언어로 `fix:`·`refactor:` 접두사 뒤 설명을 쓴다 (실패하면 `en`).
   ```
   fix: review feedback
   refactor: address review comments
@@ -217,6 +219,7 @@ docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
 ```
 
 Read `.harness/contracts/review-report.md` and follow its format exactly.
+Write the free-text parts the main agent composes (the `## Resolution` issue summaries) in the docs language: run `node .harness/scripts/lang.js resolve --kind=docs` (if it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`). Section titles, field keys, and table columns stay as the contract defines them; reviewer outputs are copied as they are.
 
 보고서의 각 섹션은 다음 값으로 채운다:
 - 헤더 필드: `topic`은 현재 토픽, `timestamp`는 파일명의 `<YYMMDDHHmmss>`와 같은 값, `baseBranch`는 Step 4에서 읽은 `config.git.baseBranch`
@@ -227,19 +230,7 @@ Read `.harness/contracts/review-report.md` and follow its format exactly.
 
 ### 10. Completion Report
 
-```
-Review complete
-
-CRITICAL: 0
-HIGH: 0
-MEDIUM: [N]
-LOW: [N]
-
-adversarial-review: [run | skipped (<skipReason>)]
-보고서: docs/_local/active/<topic>/review-report-<YYMMDDHHmmss>.md
-
-Next: pass the verification gate with /flow-verify
-```
+Output {{msg:REVIEW_COMPLETE}}. `{critical}`, `{high}`, `{medium}`, `{low}` are the remaining issue counts by severity; `{adversarial}` is {{msg:ADVERSARIAL_RUN}} or {{msg:ADVERSARIAL_SKIPPED}} (`{skip_reason}`: the skipReason); `{topic}` is the topic and `{timestamp}` the report file's `<YYMMDDHHmmss>`.
 
 ## Next Steps
 
