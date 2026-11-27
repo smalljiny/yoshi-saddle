@@ -95,7 +95,7 @@ Replies to the user follow the Claude Code `language` setting.
 <!-- harness-guide:end -->
 ```
 
-`## Language` 섹션의 `harness-language` 마커 블록은 `lang.js`가 docs·commit 언어를 읽는 원본이다(블록 문법은 [language-resolution.md](../language-resolution.md)). 하네스 저장소의 `src/CLAUDE.md`·`src/AGENTS.md`는 이 형식이다. `/flow-init`은 아직 자유 텍스트 `## 언어 규칙` 섹션을 생성하며, 블록 생성으로의 전환은 후속 토픽이 맡는다.
+`## Language` 섹션의 `harness-language` 마커 블록은 `lang.js`가 docs·commit 언어를 읽는 원본이다(블록 문법은 [language-resolution.md](../language-resolution.md)). 하네스 저장소의 `src/CLAUDE.md`·`src/AGENTS.md`는 이 형식이다. `/flow-init`은 두 파일 프로젝트 섹션에 같은 값의 이 블록을 생성하며, 쓰기 전에 `lang.js check`로 최종 조립본을 검사한다([flow-init-language-block.md](../flow-init-language-block.md)).
 
 경계: `<!-- harness-guide:begin -->` 라인 이전이 프로젝트 섹션이다. begin/end 마커 사이는 현재 `.harness/harness-guide.md` 본문을 직접 포함하며, end 마커 이후 내용은 업데이트 시 보존된다. AGENTS.md에는 YAML frontmatter를 포함하지 않는다.
 
@@ -176,7 +176,7 @@ AGENTS.md:
 1. 프로젝트명 — 권장: 현재 디렉토리명
 2. 한 줄 설명 — 권장: `[프로젝트명] 백엔드 서비스` 형태 예시
 3. 기술 스택 — 권장: `TypeScript, Node.js, PostgreSQL` 형태 예시
-4. 언어 규칙 — 권장: 문서·주석·커밋 메시지 한국어 / 코드 식별자 영어 / 컴포넌트 파일 영어
+4. 언어 — docs·commit·comments를 키마다 `ko`·`en`으로 질문. 권장값은 `lang.js recommend` 결과(기본 `ko`). 코드 식별자·컴포넌트 파일은 `en` 고정
 
 **Step 4 — CLAUDE.md 작성 (marker-bounded)**
 
