@@ -1,5 +1,5 @@
 ---
-version: 7
+version: 8
 name: adapter-exa
 description: Search-adapter skill that calls Exa REST API via Bash curl. Loaded by skill-registry with [search-adapter, exa] tags. Requires $EXA_API_KEY. Provides /search, /contents, /answer, and /findSimilar operations.
 origin: harness
@@ -9,6 +9,15 @@ capabilities: [search-adapter, exa]
 # adapter-exa
 
 Targets Exa REST API at `https://api.exa.ai`.
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/adapter-exa/templates/messages.<lang>.md` for the chosen language and `.claude/skills/adapter-exa/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
 
 ## When to Activate
 
@@ -273,21 +282,11 @@ Example: `https://docs.example.com/guide` → `docs.example.com`
 
 ### Missing $EXA_API_KEY
 
-Abort immediately and return an error message to the caller:
-
-```
-Error: $EXA_API_KEY environment variable is not set.
-Run: export EXA_API_KEY="your-api-key"  or add it to your .env file.
-```
+Abort immediately and return {{msg:KEY_MISSING}} to the caller.
 
 ### HTTP 401 / 403 (Authentication error)
 
-The API key is invalid or lacks permission. Do not retry — abort immediately:
-
-```
-Error: Exa API authentication failed (HTTP <401|403>).
-Check $EXA_API_KEY and replace with a valid key.
-```
+The API key is invalid or lacks permission. Do not retry — abort immediately and return {{msg:AUTH_FAILED}} (`{http_status}`: `401` or `403`).
 
 ### HTTP 429 (Rate limit exceeded)
 
