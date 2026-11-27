@@ -65,21 +65,32 @@ export function closesFence(line, open) {
   return fence[0] === open.char && fence.length >= open.length
 }
 
-// 각 줄이 코드 펜스 밖인지 나타내는 boolean 배열을 만든다. 펜스 줄 자체도 펜스 안으로 본다.
-// 닫히지 않은 펜스는 파일 끝까지 이어진다.
-export function outsideFenceFlags(lines) {
-  const flags = []
+// 펜스를 한 번 훑어 줄별 펜스 밖 여부와 펜스 범위(1부터 센 open·close 줄, 닫히지 않으면 close: null)를 만든다.
+// 펜스 줄 자체도 펜스 안으로 본다. 닫히지 않은 펜스는 파일 끝까지 이어진다.
+function scanFences(lines) {
+  const outside = []
+  const fences = []
   let open = null
-  for (const line of lines) {
+  lines.forEach((line, index) => {
     if (open) {
-      if (closesFence(line, open)) open = null
-      flags.push(false)
-      continue
+      if (closesFence(line, open.fence)) {
+        fences.push({ open: open.line, close: index + 1 })
+        open = null
+      }
+      outside.push(false)
+      return
     }
-    open = openingFence(line)
-    flags.push(open === null)
-  }
-  return flags
+    const fence = openingFence(line)
+    if (fence) open = { fence, line: index + 1 }
+    outside.push(fence === null)
+  })
+  if (open) fences.push({ open: open.line, close: null })
+  return { outside, fences }
+}
+
+// 각 줄이 코드 펜스 밖인지 나타내는 boolean 배열을 만든다.
+export function outsideFenceFlags(lines) {
+  return scanFences(lines).outside
 }
 
 // 줄 전체가 마커 문자열(뒤쪽 공백·탭 허용)이고 열 0에서 시작하는지 판정한다.
@@ -116,6 +127,24 @@ export function findMarkers(lines, outside) {
   return { begins, ends }
 }
 
+/**
+ * 파일 내용의 펜스 범위와 펜스 밖 마커 위치를 분석한다. 줄 번호는 1부터 센다.
+ * @param {string} content
+ * @returns {{lines: string[], outside: boolean[], fences: {open: number, close: number | null}[],
+ *   markers: {line: number, kind: 'begin' | 'end'}[]}} lines·outside는 0부터 세는 배열이다.
+ */
+export function analyzeMarkdown(content) {
+  const lines = splitLines(content)
+  const { outside, fences } = scanFences(lines)
+  const markers = []
+  lines.forEach((line, index) => {
+    if (!outside[index]) return
+    if (isMarker(line, BEGIN_MARKER)) markers.push({ line: index + 1, kind: 'begin' })
+    else if (isMarker(line, END_MARKER)) markers.push({ line: index + 1, kind: 'end' })
+  })
+  return { lines, outside, fences, markers }
+}
+
 // 블록 안 펜스 밖 줄에서 해석 대상 키를 모은다. 해석 대상 키가 반복되면 null.
 function collectValues(lines, outside, begin, end) {
   const entries = []
@@ -138,9 +167,10 @@ function collectValues(lines, outside, begin, end) {
  *   values에는 블록에 나온 해석 대상 키만 담는다. 키가 있고 값이 빈 줄이면 ''(누락 처리)다.
  */
 export function parseLanguageBlock(content) {
-  const lines = splitLines(content)
-  const outside = outsideFenceFlags(lines)
-  const { begins, ends } = findMarkers(lines, outside)
+  const { lines, outside, markers } = analyzeMarkdown(content)
+  const indexesOf = (kind) => markers.filter((marker) => marker.kind === kind).map((marker) => marker.line - 1)
+  const begins = indexesOf('begin')
+  const ends = indexesOf('end')
   if (begins.length === 0 && ends.length === 0) return { status: 'none' }
   if (begins.length !== 1 || ends.length !== 1 || begins[0] > ends[0]) return { status: 'malformed' }
   const values = collectValues(lines, outside, begins[0], ends[0])

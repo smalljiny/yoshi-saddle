@@ -3,6 +3,7 @@
 // 사용법: node .harness/scripts/lang.js resolve --kind=conversation|docs|commit
 //         node .harness/scripts/lang.js explain --kind=conversation|docs|commit
 //         node .harness/scripts/lang.js recommend
+//         node .harness/scripts/lang.js check --file=<path> --expect-begin=<n> --expect-end=<n> --expect-docs=<ko|en> ...
 // 판정 순수 함수는 lang-core.js에 있다. 기존 import 호환을 위해 normalizeLanguage·parseLanguageBlock을 re-export한다.
 
 import fs from 'node:fs'
@@ -11,6 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalizeLanguage, parseLanguageBlock, readText } from './lang-core.js'
 import { recommend } from './lang-recommend.js'
+import { parseCheckArgs, checkAssembly, linesInRange } from './lang-check.js'
 
 export { normalizeLanguage, parseLanguageBlock } from './lang-core.js'
 
@@ -19,6 +21,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const USAGE = 'usage: node .harness/scripts/lang.js resolve --kind=conversation|docs|commit'
 const EXPLAIN_USAGE = 'usage: node .harness/scripts/lang.js explain --kind=conversation|docs|commit'
 const RECOMMEND_USAGE = 'usage: node .harness/scripts/lang.js recommend'
+const CHECK_USAGE =
+  'usage: node .harness/scripts/lang.js check --file=<path> --expect-begin=<n> --expect-end=<n> --expect-docs=<ko|en> --expect-commit=<ko|en> --expect-comments=<ko|en>'
 const DEFAULT_SOURCE = 'default'
 const FALLBACK_LANGUAGE = 'en'
 
@@ -181,9 +185,23 @@ function runRecommend(args) {
   process.stdout.write(`${JSON.stringify(result)}\n`)
 }
 
+// --file은 현재 작업 디렉토리 기준으로 읽는다. 판정 순서: 형식 오류 → 파일 읽기 실패 → 줄 범위 위반.
+function runCheck(args) {
+  const options = parseCheckArgs(args.slice(1))
+  if (options === null) return failUsage(CHECK_USAGE)
+  const read = readText(path.resolve(options.file), options.file)
+  if (read.status !== 'ok') {
+    process.stderr.write(`cannot read ${options.file}: ${read.status === 'missing' ? 'ENOENT' : read.code}\n`)
+    process.exitCode = 1
+    return
+  }
+  if (!linesInRange(read.content, options.begin, options.end)) return failUsage(CHECK_USAGE)
+  process.stdout.write(`${JSON.stringify(checkAssembly(read.content, options))}\n`)
+}
+
 // 첫 인자가 새 서브커맨드 이름일 때만 그 경로로 분기한다. 그 밖(인자 없음·resolve·알 수 없음)은
 // 현행 resolve 경로와 resolve 사용법을 그대로 쓴다.
-const SUBCOMMANDS = Object.freeze({ explain: runExplain, recommend: runRecommend })
+const SUBCOMMANDS = Object.freeze({ explain: runExplain, recommend: runRecommend, check: runCheck })
 
 function main() {
   const args = process.argv.slice(2)
