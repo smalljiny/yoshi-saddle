@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Run a deterministic harness health audit and return a prioritized scorecard.
 category: harness-management
 ---
@@ -48,7 +48,7 @@ Return:
 ## After the audit
 
 If the score is below 80%:
-- Invoke **harness-optimizer** agent to propose and apply the top fix
+- Invoke **harness-optimizer** agent to propose and apply the top fix. Immediately before the delegation, run `node .harness/scripts/lang.js resolve --kind=conversation`, `--kind=docs`, and `--kind=commit`; for each dimension, if the resolve exits non-zero or its stdout is not exactly `ko` or `en`, use `en`. Put `Language: conversation=<ko|en> docs=<ko|en> commit=<ko|en>` as the first line of the delegation prompt.
 - Re-run after each change to measure progress
 
 ## Example

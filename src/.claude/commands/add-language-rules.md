@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 description: Scaffold language-specific rule files (coding-style/security/testing) under .harness/rules/<language>/. Generative, not template copy.
 category: harness-management
 ---
@@ -9,6 +9,23 @@ category: harness-management
 Add new language or framework rules to the harness by generating three rule files under `.harness/rules/<language>/`. Claude writes the files based on the language's idioms, security conventions, and testing practices — not from a fixed template.
 
 > **Note**: Generated files go to `.harness/rules/<language>/` (shared Claude + Codex), not `.claude/rules/`.
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.harness/i18n/<lang>/commands/add-language-rules.md` for the chosen language and `.harness/i18n/en/commands/add-language-rules.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
+**Answer-required check** (used by every question below that names it): run this check first and call the question only if it passes. Before calling it, run this Bash command with the IDs listed for that question:
+
+```bash
+grep -hxE '## (<ID1>|<ID2>|...)' .harness/i18n/<lang>/commands/add-language-rules.md .harness/i18n/en/commands/add-language-rules.md
+```
+
+An ID that appears in neither file's output cannot be obtained. If any cannot be obtained, do not call the question: output `[missing catalog: <path>]` once when the `en` file is missing, otherwise `[missing message: <ID>]` for each missing ID, then stop without waiting for input. After that stop, do not perform the follow-up actions named for that question (no rule directory or file creation).
 
 ## Usage
 
@@ -24,11 +41,7 @@ Add new language or framework rules to the harness by generating three rule file
 /add-language-rules python
 ```
 
-If `$ARGUMENTS` is empty, use `AskUserQuestion` to ask "어떤 언어 또는 프레임워크의 규칙을 추가할까요?" with options such as:
-- rust (Recommended) — Rust 규칙
-- go — Go 규칙
-- python — Python 규칙 (`stack-python` 스킬이 이미 있음)
-- 직접 입력 — 다른 언어 이름 입력
+If `$ARGUMENTS` is empty, call `AskUserQuestion` with {{ask:LANGUAGE|RUST|GO|PYTHON|CUSTOM}} (rust is the recommended first option). Answer-required IDs: `LANGUAGE_Q`, `LANGUAGE_HEADER`, and the `_LABEL`·`_DESC` of `RUST`, `GO`, `PYTHON`, `CUSTOM`. Apply the answer-required check (see "Language and messages"); if it stops, do not create or write any rule file. A language outside these options comes from `CUSTOM` or the tool's "Other" answer, used as `$ARGUMENTS`.
 
 ## Execution Flow
 
@@ -40,20 +53,15 @@ Read `$ARGUMENTS` and normalize to lowercase with hyphens:
 - `C++` → `cpp`
 
 After normalization, verify the result contains only `[a-z0-9-]` characters.
-If the result contains `.`, `/`, `\`, `..`, or any character outside `[a-z0-9-]`, stop immediately and report:
-```
-유효하지 않은 언어 이름입니다. 영문 소문자, 숫자, 하이픈만 허용됩니다.
-```
+If the result contains `.`, `/`, `\`, `..`, or any character outside `[a-z0-9-]`, stop immediately and output {{msg:INVALID_LANGUAGE}}.
 
 ### 2. Check for Existing Rules
 
 Check if `.harness/rules/<language>/` already exists (substitute actual language name — e.g. `ls .harness/rules/rust/ 2>/dev/null`).
 
-If the directory exists, use `AskUserQuestion` to ask:
-- (Recommended) 건너뛰기 — 기존 규칙이 이미 있음
-- 덮어쓰기 — 기존 파일을 새 초안으로 교체
+If the directory exists, call `AskUserQuestion` with {{ask:EXISTING_RULES|SKIP|OVERWRITE}} (`{language}`: the normalized language name). Answer-required IDs: `EXISTING_RULES_Q`, `EXISTING_RULES_HEADER`, and the `_LABEL`·`_DESC` of `SKIP` and `OVERWRITE`. Apply the answer-required check; if it stops, do not create or overwrite any rule file.
 
-If user selects 건너뛰기, stop. Otherwise proceed.
+If user selects `SKIP`, stop. Otherwise proceed.
 
 ### 3. Load Reference Structure
 
@@ -97,19 +105,11 @@ After generating the files, check if a relevant stack skill exists and suggest i
 | Docker | `stack-docker` |
 | LangChain | `stack-langchain` |
 
-If a matching skill exists, output:
-```
-관련 스킬이 있습니다: <skill-name>
-SKILL.md를 참조하면 더 상세한 패턴을 확인할 수 있습니다.
-```
+If a matching skill exists, output {{msg:RELATED_SKILL}} (`{skill_name}`: the matching skill names).
 
 ### 6. Output Reload Guidance
 
-After Step 5 (regardless of whether a related skill was found), print the following final line as the last output of this command:
-
-```
-CLAUDE.md에 자동 로드 적용은 /flow-init 재실행
-```
+After Step 5 (regardless of whether a related skill was found), print {{msg:RELOAD_HINT}} as the last output of this command.
 
 This line is informational. Do not invoke `/flow-init` automatically, do not call the Bash or Task tools to run it, and do not load the flow-init skill — the user controls when to rerun `/flow-init` to refresh the CLAUDE.md `@import` block.
 

@@ -76,5 +76,6 @@
   {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": "엣지 케이스 검증 중", "reason": "instructions-en: X2"},
   {"file": ".claude/skills/wf-task-tracking/SKILL.md", "text": " 중", "reason": "parsed data token"},
   {"file": ".claude/skills/wf-worktree-context/SKILL.md", "text": "# 옵션: --base <branch>(기본 develop) --main <path>", "reason": "instructions-en: X1"},
-  {"file": ".claude/skills/wf-worktree-context/SKILL.md", "text": "# 옵션: --force(미커밋 변경 있어도 제거) --keep-worktree(sync-back 만) --keep-original(원본 폐기 안 함)", "reason": "instructions-en: X1"}
+  {"file": ".claude/skills/wf-worktree-context/SKILL.md", "text": "# 옵션: --force(미커밋 변경 있어도 제거) --keep-worktree(sync-back 만) --keep-original(원본 폐기 안 함)", "reason": "instructions-en: X1"},
+  {"file": ".claude/commands/harness/learn.md", "text": ".claude/skills/learned/ 의 기존 스킬을 정리해줘", "reason": "instructions-en: X2"}
 ]

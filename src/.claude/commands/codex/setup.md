@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 description: Check whether the local Codex CLI is ready and update the codex status cache in dev-context.json. Wraps the plugin /codex:setup and adds harness cache refresh.
 category: codex-workflow
 ---
@@ -7,6 +7,15 @@ category: codex-workflow
 # /codex:setup
 
 Check codex CLI availability, authentication status, and optionally toggle the stop-time review gate. After completing the standard setup check, updates `config.codex.*` in `dev-context.json` so harness commands (e.g., `/dev:review` adversarial-review) can read codex availability without re-running setup.
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.harness/i18n/<lang>/commands/codex/setup.md` for the chosen language and `.harness/i18n/en/commands/codex/setup.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
 
 ## Notes: Command Precedence
 
@@ -41,11 +50,7 @@ process.stdout.write(p);
 ")" setup --json "$ARGUMENTS"
 ```
 
-If the companion is not found, print a warning:
-```
-⚠ codex companion을 찾을 수 없습니다.
-codex가 설치되어 있는지 확인하세요: npm install -g @openai/codex
-```
+If the companion is not found, print the warning {{msg:COMPANION_NOT_FOUND}}.
 
 Display the companion output to the user (same as original plugin command behavior).
 
@@ -59,10 +64,7 @@ node .claude/scripts/codex/detect-and-cache.js --force
 
 This script handles all field mapping, containment validation, and silent failure — no duplication needed here.
 
-Show completion:
-```
-codex 상태가 dev-context.json에 갱신되었습니다.
-```
+Show completion: {{msg:CACHE_UPDATED}}
 
 Read and display the updated values:
 ```bash
