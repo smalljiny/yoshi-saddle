@@ -1,5 +1,5 @@
 ---
-version: 8
+version: 9
 name: flow-init
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 origin: harness
@@ -26,12 +26,14 @@ user-invocable: true
 
 **CLAUDE.md 모드** (4 states with one-time migration):
 
-| 상태 | 모드 |
-|------|------|
-| `CLAUDE.md` 파일 없음 | **신규 생성** (`<!-- harness-rules:begin/end -->` 마커 포함 작성) |
-| `<!-- harness-rules:begin -->` 마커 존재 | **업데이트** (begin/end 마커 사이만 재생성, 마커 외부는 일체 손대지 않음) |
-| `<!-- harness-rules:begin -->` 마커 없음 + `@.harness/harness-guide.md` 라인 있음 | **일회 마이그레이션** (harness-guide 직후 연속된 `@.harness/rules/<rel-path>` 라인만 marker 블록으로 감싸 in-place 변환. 비-인접 위치의 rules-prefix 라인은 사용자 콘텐츠로 간주해 손대지 않음) |
-| `@.harness/harness-guide.md` 라인 없음 | **경계 탐지 불가** → 경고 출력 + `AskUserQuestion`: `(Recommended) CLAUDE.md.bak.<timestamp> 백업 후 재생성 모드로 진행` / `중단` |
+아래 표를 위에서부터 순서대로 검사하고, 위에서부터 첫 일치 행이 모드다. 첫 일치 행을 찾으면 나머지 행은 검사하지 않는다.
+
+| 우선순위 | 상태 | 모드 |
+|---------|------|------|
+| 1 | `CLAUDE.md` 파일 없음 | **신규 생성** (`<!-- harness-rules:begin/end -->` 마커 포함 작성) |
+| 2 | `@.harness/harness-guide.md` 라인 없음 (`<!-- harness-rules:begin -->` 마커가 있어도 이 행이 우선) | **경계 탐지 불가** → 경고 출력 + `AskUserQuestion`: `(Recommended) CLAUDE.md.bak.<timestamp> 백업 후 재생성 모드로 진행` / `중단` |
+| 3 | `<!-- harness-rules:begin -->` 마커 존재 | **업데이트** (begin/end 마커 사이만 재생성, 마커 외부는 일체 손대지 않음) |
+| 4 | 그 밖 (`@.harness/harness-guide.md` 라인 있음 + `<!-- harness-rules:begin -->` 마커 없음) | **일회 마이그레이션** (harness-guide 직후 연속된 `@.harness/rules/<rel-path>` 라인만 marker 블록으로 감싸 in-place 변환. 비-인접 위치의 rules-prefix 라인은 사용자 콘텐츠로 간주해 손대지 않음) |
 
 Step 1은 흐름 분기(신규 / 업데이트 / 마이그레이션 / 경계 탐지 불가)만 결정한다. 터미널 "변경 없음" 판정은 Step 3 step 6의 SHA-256 hash 비교가 단일 권위자다 — 업데이트·마이그레이션 모드는 항상 Step 2(프로젝트 정보 수집)·Step 3 작성 흐름(파싱→조립)·Step 3 step 6 hash 비교를 그대로 진행한다.
 
@@ -262,16 +264,21 @@ node .harness/scripts/dev-context.js set-field --field=config.graphify.targets -
 
 ```
 완료:
-  [신규/업데이트/변경 없음] CLAUDE.md
-  [신규/업데이트/변경 없음] AGENTS.md
+  [신규/업데이트/변경 없음/중단] CLAUDE.md
+  [신규/업데이트/변경 없음/중단] AGENTS.md
   [감지] config.docs.sourceFilter = [".claude/",".codex/",".harness/","CLAUDE.md","AGENTS.md"]
   [감지] config.graphify.targets = ["./src","./docs/specs","scripts"]
+언어 적용값:
+  docs: ko (source=CLAUDE.md, reason=set)
+  commit: ko (source=CLAUDE.md, reason=set)
+  대화 언어: Claude Code `language` 설정을 따릅니다. 하네스는 managed settings와 `--settings` 인자로 지정한 설정을 읽지 않습니다.
 ```
 (일반 프로젝트의 경우: `[감지] config.docs.sourceFilter = [] (필터 없음)`)
 
 - `[신규]`: 파일이 새로 생성됨
 - `[업데이트]`: 내용이 달라져 파일을 다시 씀
 - `[변경 없음]`: 내용이 동일하여 파일을 건드리지 않음
+- `[중단]`: Step 1 경계 탐지 불가 질문에서 사용자가 `중단`을 선택해 해당 파일을 읽기만 하고 쓰지 않음 (파일 내용·해시가 실행 전과 같음)
 - `[감지]`: 기존 sourceFilter가 부재해 자동 감지값을 set한 경우
 - `[보존] config.docs.sourceFilter 기존 값 유지`: 기존 sourceFilter가 존재(빈 배열·null·미설정 아님)해 감지값을 적용하지 않고 보존한 경우. `[감지]`와 상호 배타.
 - `[정보] .harness/rules/ 부재로 마커 사이 비움`: `.harness/rules/` 디렉토리가 없거나 glob 결과가 0건이어서 begin/end 마커 사이에 import 라인을 생성하지 않은 경우 추가 출력한다 (마커 자체는 유지). 그 외 경우 본 라인을 출력하지 않는다 (위 예시는 `.harness/rules/` 존재 시나리오이므로 본 라인을 포함하지 않는다).
@@ -280,12 +287,29 @@ node .harness/scripts/dev-context.js set-field --field=config.graphify.targets -
 - `[정보] config.graphify.targets 미설정 유지`: 사용자가 추천 단계에서 옵션 2 "건너뛰기"를 선택한 경우. 추후 `/graphify` 호출 시 hard error로 안내된다.
 - `[감지 실패] config.graphify.targets`: `dev-context.js read` 호출 실패, scalar 값이 배열 키에 저장된 잘못된 상태, `set-field` 실패 중 하나가 발생한 경우. 기존 값은 변경되지 않고 사용자에게 재설정 여부를 묻는다.
 
+**언어 적용값 안내** — 파일 처리 결과 줄과 config 줄을 출력한 뒤 이어서 출력한다.
+
+1. **호출 시점**: Step 3·4의 파일 쓰기(또는 `[변경 없음]`·`[중단]` 판정)와 Step 5·6의 config 기록이 모두 끝난 뒤에 실행한다 (Step 5·6을 건너뛴 실행과 두 파일 모두 `[중단]`인 실행에서도 실행한다). 이번 실행이 쓴 파일 내용을 반영하도록 쓰기 전에는 실행하지 않는다.
+2. **호출**: 다음 두 명령을 각각 1회씩, docs → commit 순서로 실행한다. 각 명령의 stdout·stderr·exit code를 따로 수집한다.
+
+   ```bash
+   node .harness/scripts/lang.js explain --kind=docs
+   node .harness/scripts/lang.js explain --kind=commit
+   ```
+
+3. **stderr 전달**: 각 명령의 stderr가 비어 있지 않으면, 비어 있지 않은 줄마다 `lang.js 경고: <줄>` 형식으로 줄 내용을 바꾸지 않고 출력한다. exit code와 무관하게 전달한다.
+4. **성공 판정**: 각 키마다 다음 두 조건을 모두 만족하면 성공이다.
+   - exit code가 0이다.
+   - stdout이 정확히 세 줄이며 순서대로 `value=<value>`, `source=<source>`, `reason=<reason>` 형식이다 (각 줄의 `=` 뒤 값이 비어 있지 않음).
+5. **출력**: 성공한 키는 `docs: <value> (source=<source>, reason=<reason>)` / `commit: <value> (source=<source>, reason=<reason>)` 형식으로 출력한다. 성공 판정을 만족하지 않은 키는 그 키만 `docs: 적용값 확인 실패` / `commit: 적용값 확인 실패`로 출력한다. 한 키가 실패해도 다른 키의 출력, 파일 처리 결과 줄, 나머지 안내는 그대로 출력한다.
+6. **대화 언어 안내**: 마지막 줄에 다음 안내를 출력한다 — "대화 언어: Claude Code `language` 설정을 따릅니다. 하네스는 managed settings와 `--settings` 인자로 지정한 설정을 읽지 않습니다."
+
 ## 오류 처리
 
 | 상황 | 처리 |
 |------|------|
-| `@.harness/harness-guide.md` 없는 기존 CLAUDE.md / `<!-- harness-guide:begin -->` 없는 기존 AGENTS.md | Step 1에서 경고 + AskUserQuestion → 백업 후 재생성 or 중단 |
-| CLAUDE.md에 `<!-- harness-rules:begin -->` 없음 + `@.harness/harness-guide.md` 라인 있음 | Step 1에서 마이그레이션 모드로 진입 (harness-guide 직후 연속된 rules-prefix 라인만 marker로 in-place 변환) |
+| `@.harness/harness-guide.md` 라인 없는 기존 CLAUDE.md (`<!-- harness-rules:begin -->` 마커 유무와 무관 — Step 1 우선순위 2가 우선순위 3보다 먼저 일치) / `<!-- harness-guide:begin -->` 없는 기존 AGENTS.md | Step 1에서 경고 + AskUserQuestion → 백업 후 재생성 or 중단. 중단을 고르면 해당 파일을 건드리지 않고 Step 7에 `[중단]` 표기 |
+| CLAUDE.md에 `@.harness/harness-guide.md` 라인 있음 + `<!-- harness-rules:begin -->` 없음 (Step 1 우선순위 4) | Step 1에서 마이그레이션 모드로 진입 (harness-guide 직후 연속된 rules-prefix 라인만 marker로 in-place 변환) |
 | `.harness/harness-guide.md` 없음 | AGENTS.md begin/end 블록을 빈 상태로 생성, 경고 출력 |
 | 쓰기 권한 없음 | 오류 메시지 출력 후 종료 |
 | Step 5: `dev-context.js` 미존재 또는 `set-field` 실패 | 경고 출력 + Step 5 스킵, Step 7에서 `[감지 실패] config.docs.sourceFilter` 표기 |
