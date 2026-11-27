@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-done
 description: Archive planning artifacts and remove the topic from dev-context.json. Run after /flow-pr (pr:created state). Reference document generation is handled by /flow-docs.
 origin: harness
@@ -22,20 +22,20 @@ Always operates on `current_topic`. To complete a different topic, run `/flow-to
 
 ### 1. Read current topic
 
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/flow-done/templates/messages.<lang>.md` for the chosen language and `.claude/skills/flow-done/templates/messages.en.md` and `.harness/i18n/<lang>/common.md` for the chosen language and `.harness/i18n/en/common.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
 ```bash
 node .harness/scripts/dev-context.js read --field=current_topic
 ```
 
-- If `current_topic` is empty or missing, stop:
-  ```
-  완료할 토픽이 없습니다.
-  현재 작업 중인 토픽이 없습니다.
-  ```
+- If `current_topic` is empty or missing, output {{msg:NO_TOPIC}} and stop.
 - Resolve `<topic>` from `current_topic`
-- Validate topic name matches `^[a-zA-Z0-9_-]+$` — if not, stop:
-  ```
-  유효하지 않은 토픽 이름입니다. 영문자, 숫자, 하이픈, 언더스코어만 허용됩니다.
-  ```
+- Validate topic name matches `^[a-zA-Z0-9_-]+$` — if not, output {{msg:common:INVALID_TOPIC_NAME}} and stop.
 
 ### 2. Gate: verify pr:created
 
@@ -44,16 +44,7 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
 node .harness/scripts/dev-context.js read --topic=<topic> --field=status
 ```
 
-If `phase:status` is not `pr:created`, stop immediately:
-
-```
-완료 처리를 실행할 수 없습니다.
-현재 상태: <phase>:<status>
-pr:created 상태여야 합니다.
-
-워크플로우 순서:
-  /flow-review → /flow-verify → /flow-docs → /flow-pr → /flow-done
-```
+If `phase:status` is not `pr:created`, output {{msg:GATE_FAILED}} (`{phase}`, `{status}`: the values read above) and stop immediately.
 
 Do not warn and continue — stop entirely.
 
@@ -74,10 +65,7 @@ Move all planning artifacts to `done/` — **no files are deleted**:
    - `active/<topic>/review-report-*.md` → `done/<topic>/` (all matching files)
    - `active/<topic>/implementation-plan.md` → `done/<topic>/implementation-plan.md`
 6. Remove `active/<topic>/` directory if empty; if unexpected files remain, warn the user and ask for confirmation before removing
-7. Show:
-   ```
-   아카이브: docs/_local/done/<topic>/
-   ```
+7. Output {{msg:ARCHIVED}} (`{topic}`: the archive directory name under `docs/_local/done/`).
 
 ### 4. Remove topic from dev-context.json
 
@@ -89,25 +77,11 @@ node .harness/scripts/dev-context.js remove-topic --topic=<topic>
 
 ### 5. Output completion report
 
-```
-완료되었습니다: <topic>
+Output {{msg:DONE_TITLE}} (`{topic}`: the completed topic), a blank line, {{msg:DONE_ARCHIVE}} (`{topic}`: the archive directory name), a blank line, and {{msg:DONE_CURRENT}} (`{next_topic}`: the new `current_topic`, or {{msg:NONE_VALUE}} when none remains).
 
-  아카이브:  docs/_local/done/<topic>/
+If there are remaining active topics, output {{msg:NEXT_TOPIC_SWITCHED}} (`{next_topic}`: the new `current_topic`).
 
-  현재 주제: <next-active-topic or "없음">
-```
-
-If there are remaining active topics:
-```
-  다음 토픽으로 전환되었습니다: <next-active-topic>
-  계속하려면: /flow-impl
-```
-
-If no active topics remain:
-```
-  모든 토픽이 완료되었습니다.
-  새 작업을 시작하려면: /flow-spec <topic>
-```
+If no active topics remain, output {{msg:ALL_DONE}}.
 
 ## Key Principles
 
