@@ -1,5 +1,5 @@
 ---
-version: 3
+version: 4
 ---
 # Agent Coordination Rules
 
@@ -49,6 +49,33 @@ Use role-separated sub-agents for complex problems:
 - Senior Engineer
 - Security Expert
 - Consistency Reviewer
+
+## Language Line on Delegation
+
+Every caller that delegates to an agent in `.claude/agents/` — a skill, a command, a Codex skill, or the main session acting on a user request — passes the language decision in the delegation prompt. Agents never run `lang.js` themselves.
+
+**Caller (immediately before each delegation)**:
+
+1. Run all three resolves:
+   ```bash
+   node .harness/scripts/lang.js resolve --kind=conversation
+   node .harness/scripts/lang.js resolve --kind=docs
+   node .harness/scripts/lang.js resolve --kind=commit
+   ```
+   Delegations issued in the same step (for example, parallel reviewers) share one set of resolves.
+2. Judge each dimension separately: if a resolve exits non-zero or its stdout is not exactly `ko` or `en`, use `en` for that dimension only.
+3. Put this as the first line of the delegation prompt:
+   ```text
+   Language: conversation=<ko|en> docs=<ko|en> commit=<ko|en>
+   ```
+   Content that another skill adds to the prompt (for example, dependency-analysis findings for the planner) goes after this line.
+
+**Agent (at the start of its task)**:
+
+- `conversation` → language of the agent's catalog messages (`.harness/i18n/<lang>/agents/<agent>.md`; see `component-boundaries.md` > Message Catalogs).
+- `docs` → language of document bodies the agent writes (structure follows the contract).
+- `commit` → language of commit messages the agent proposes.
+- If the prompt has no `Language:` line, use `en` for all three dimensions. If a dimension's value is not exactly `ko` or `en`, use `en` for that dimension. Do not infer the language from CLAUDE.md, AGENTS.md, or settings files.
 
 ## Tool Usage Discipline
 

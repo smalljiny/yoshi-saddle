@@ -1,5 +1,5 @@
 ---
-version: 4
+version: 5
 name: flow-plan
 description: Create an implementation plan from a confirmed spec. Moves topic from backlog to active, updates paths in dev-context.json, and generates implementation-plan.md.
 origin: harness
@@ -21,32 +21,31 @@ Create an implementation plan from a confirmed spec document and save it to `doc
 
 ### 1. Resolve topic
 
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/flow-plan/templates/messages.<lang>.md` for the chosen language and `.claude/skills/flow-plan/templates/messages.en.md` and `.harness/i18n/<lang>/common.md` for the chosen language and `.harness/i18n/en/common.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
+**Answer-required check** (used by every question below that names it): run this check first and ask the question only if it passes. Before asking (for a mixed block, before its first line), run this Bash command with the IDs listed for that question (and the IDs of messages you will read to fill its placeholders):
+
+```bash
+grep -hxE '## (<ID1>|<ID2>|...)' .claude/skills/flow-plan/templates/messages.<lang>.md .claude/skills/flow-plan/templates/messages.en.md
+```
+
+An ID that appears in neither file's output cannot be obtained. Check only the IDs you will actually display in the current branch, after computing what to display. If any cannot be obtained, do not ask the question or print any part of its block: output `[missing catalog: <path>]` once when the `en` file is missing, otherwise `[missing message: <ID>]` for each missing ID, then stop without waiting for input. After that stop, do not perform the follow-up actions named for that question (no directory moves, `dev-context.js` writes, planner delegation, or plan file writes after that point). Work already finished before the question stays as it is.
+
 If `$ARGUMENTS` is provided:
 - Use it as `<topic>`
-- Validate topic name matches `^[a-zA-Z0-9_-]+$` — if not, stop:
-  ```
-  유효하지 않은 토픽 이름입니다. 영문자, 숫자, 하이픈, 언더스코어만 허용됩니다.
-  ```
-- Verify `docs/_local/backlog/<topic>/` exists — if not, stop:
-  ```
-  '<topic>'이 backlog에 없습니다.
-  먼저 /flow-spec <topic>으로 스펙을 작성하세요.
-  ```
+- Validate topic name matches `^[a-zA-Z0-9_-]+$` — if not, output {{msg:common:INVALID_TOPIC_NAME}} and stop.
+- Verify `docs/_local/backlog/<topic>/` exists — if not, output {{msg:TOPIC_NOT_IN_BACKLOG}} (`{topic}` is the given topic) and stop.
 
 If no argument:
 - Scan `docs/_local/backlog/` for topics
-- If empty, stop:
-  ```
-  플랜할 토픽이 없습니다. 먼저 /flow-spec <topic>을 실행하세요.
-  ```
+- If empty, output {{msg:NO_BACKLOG_TOPIC}} and stop.
 - If one topic found: use it automatically
-- If multiple topics found: show list and ask user to select:
-  ```
-  백로그 토픽 목록:
-    1. <topic-a>
-    2. <topic-b>
-  플랜할 토픽 번호를 선택하세요:
-  ```
+- If multiple topics found: show list and ask user to select, as one block: {{msg:BACKLOG_LIST_TITLE}} (decoration part), then {{msg:BACKLOG_LIST_ITEM}} once per backlog topic (target part; `{number}` from 1, `{topic}` the directory name), then {{msg:TOPIC_SELECT_Q}} (question part). Answer-required IDs: `BACKLOG_LIST_ITEM`, `TOPIC_SELECT_Q`. Apply the answer-required check before printing the block: if either is absent from both catalog files, print only the diagnostics — none of the block, not even the title or a question of your own — and do not move any directory, update `dev-context.json`, or delegate to the planner. `BACKLOG_LIST_TITLE` is decoration: if it alone is absent, print `[missing message: BACKLOG_LIST_TITLE]` as the first line and print the rest normally. The user's reply is the number of the topic to plan.
 
 ### 2. Gate: verify spec is confirmed
 
@@ -57,14 +56,7 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=phase
 node .harness/scripts/dev-context.js read --topic=<topic> --field=status
 ```
 
-If `phase:status` is not `spec:confirmed`, stop:
-
-```
-플랜을 수립할 수 없습니다.
-현재 상태: <phase>:<status>
-spec:confirmed 상태여야 합니다.
-먼저 /flow-spec <topic>을 실행하여 Codex 리뷰를 통과하세요.
-```
+If `phase:status` is not `spec:confirmed`, output {{msg:GATE_FAILED}} and stop. `{phase}`, `{status}` are the values read above; `{topic}` is the topic.
 
 ### 2.5. Load dependency analysis (JS/TS projects only, best-effort)
 
@@ -103,23 +95,22 @@ node .harness/scripts/dev-context.js set-field \
 
 ### 4. Invoke the planner agent
 
-If `current_topic` is already set to a different active topic, prompt:
-
-```
-현재 작업 중인 토픽: <current_topic>
-<topic>으로 전환하시겠습니까? (y/n)
-```
+If `current_topic` is already set to a different active topic, ask {{msg:SWITCH_CONFIRM}} as a plain-text question (`{current_topic}` is the current topic, `{topic}` the topic being planned). Answer-required ID: `SWITCH_CONFIRM`. Apply the answer-required check; if it stops, do not change `current_topic`, do not delegate to the planner, and do not write or modify `implementation-plan.md`.
 
 - `y`: proceed (current_topic will be updated in Step 6)
-- `n`: stop with guidance:
-  ```
-  plan-review는 current_topic 기준으로 spec을 해석합니다.
-  <topic>을 plan-review하려면 먼저 current_topic을 전환해야 합니다:
-    /flow-topic switch <topic>
-  전환 후 다시 /flow-plan을 실행하세요.
-  ```
+- `n`: stop with guidance — output {{msg:SWITCH_DECLINED}} (`{topic}` is the topic being planned).
 
-Pass the following to the planner agent:
+Delegate to the planner agent with the Language line first. Immediately before the delegation, run
+
+```bash
+node .harness/scripts/lang.js resolve --kind=conversation
+node .harness/scripts/lang.js resolve --kind=docs
+node .harness/scripts/lang.js resolve --kind=commit
+```
+
+Judge each dimension separately: if a resolve exits non-zero or its stdout is not exactly `ko` or `en`, use `en` for that dimension only. Put `Language: conversation=<ko|en> docs=<ko|en> commit=<ko|en>` as the first line of the delegation prompt.
+
+Pass the following to the planner agent, after the Language line:
 - Current topic name
 - Confirmed spec path: `docs/_local/active/<topic>/spec.md`
 - Dependency analysis result (JS/TS projects only): `<DEPENDENCY_ANALYSIS>` — empty string if skipped
@@ -172,16 +163,7 @@ Read `config.plan.auto_review`:
 node .harness/scripts/dev-context.js read --field=config.plan.auto_review
 ```
 
-**If output is NOT `true`** (default / manual mode): show the user this message and stop:
-
-```
-구현 계획이 작성되었습니다: docs/_local/active/<topic>/implementation-plan.md
-
-Codex plan-review를 실행하세요:
-  codex "plan-review 스킬을 실행해줘"
-
-리뷰 완료 후 plan-review-*.md 파일이 생성되면 다시 /flow-plan을 실행하세요.
-```
+**If output is NOT `true`** (default / manual mode): output {{msg:PLAN_WRITTEN}} (`{topic}` is the topic) and stop.
 
 **If output is `true`** (auto mode): sync `current_topic` to `<topic>` and validate the plan path before invoking the review skill:
 
@@ -211,23 +193,10 @@ Then run the auto-review loop (`attempt=1`, `max_attempts=3`):
        node .harness/scripts/dev-context.js update-state \
          --topic=<topic> --phase=plan --status=ready
        ```
-     - Increment `attempt`. If `attempt > max_attempts`:
-       ```
-       Auto-review Stopped at attempt 3. Maximum attempts reached.
-       수동으로 진행하세요:
-         codex "plan-review 스킬을 실행해줘"
-       ```
-       Stop.
+     - Increment `attempt`. If `attempt > max_attempts`: output {{msg:AUTO_REVIEW_MAX}} and stop.
      - Otherwise: transition back to `plan:reviewing` and repeat from step 1.
 
-**Manual fallback** (shown when auto mode cannot proceed — Availability Gate fails or skill produces no review file):
-
-```
-Codex를 사용할 수 없어 수동으로 진행하세요:
-  codex "plan-review 스킬을 실행해줘"
-
-리뷰 완료 후 plan-review-*.md 파일이 생성되면 다시 /flow-plan을 실행하세요.
-```
+**Manual fallback** (shown when auto mode cannot proceed — Availability Gate fails or skill produces no review file): output {{msg:MANUAL_FALLBACK}}.
 
 ### 8. Reflect plan-review result (re-entry)
 
@@ -248,7 +217,7 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=planReview
 
 | `phase:status` | `planReview` Decision | Action |
 |----------------|-----------------------|--------|
-| `plan:confirmed` | READY / READY WITH NOTE | `/flow-impl`을 시작할 수 있습니다. |
+| `plan:confirmed` | READY / READY WITH NOTE | Output {{msg:PLAN_CONFIRMED_READY}} |
 | `plan:ready` | NOT READY (파일 존재, Decision 확인) | 재계획 안내: 플래너 재호출 (Step 4로 돌아가기) |
 | `plan:ready` | 없음 (파일 미존재) | plan-review 실행 안내 (Step 7 메시지 반복) |
 | `plan:reviewing` | 없음 | plan-review 실행 안내 (Step 7 메시지 반복) |

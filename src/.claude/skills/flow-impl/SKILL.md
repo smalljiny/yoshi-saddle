@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: flow-impl
 description: Execute Stories from the implementation plan. Supports `--all` for sequential batch execution of all remaining Stories. Automatically invokes tdd-specialist and code-reviewer per Story. Stops after one Story by default; `--all` or `config.dev_impl.batch_mode=true` runs all remaining Stories sequentially.
 origin: harness
@@ -22,6 +22,21 @@ Execute Stories from the implementation plan one at a time, or all at once in ba
 ## Execution Flow
 
 ### 1. Read Context, Parse Flags, and Gate Check
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/flow-impl/templates/messages.<lang>.md` for the chosen language and `.claude/skills/flow-impl/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
+**Answer-required check** (used by every question below that names it): run this check first and print the question only if it passes. Before printing the question (for a mixed block, before its first line), run this Bash command with the IDs listed for that question (and the IDs of messages you will read to fill its placeholders):
+
+```bash
+grep -hxE '## (<ID1>|<ID2>|...)' .claude/skills/flow-impl/templates/messages.<lang>.md .claude/skills/flow-impl/templates/messages.en.md
+```
+
+An ID that appears in neither file's output cannot be obtained. Check only the IDs you will actually display in the current branch, after computing the items to display. If any cannot be obtained, do not print the question or any part of its block: output `[missing catalog: <path>]` once when the `en` file is missing, otherwise `[missing message: <ID>]` for each missing ID, then stop without waiting for input. After that stop, do not perform the follow-up actions named for that question (no commits, plan or state updates, or later Stories after that point). Work already finished before the question stays as it is.
 
 1. Parse invocation flags — determine batch mode once before any Story runs:
    - Check if `--all` is present in `$ARGUMENTS`
@@ -54,9 +69,9 @@ Execute Stories from the implementation plan one at a time, or all at once in ba
          node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchRunning --value=false
          node .harness/scripts/dev-context.js set-field --field=config.dev_impl.currentBatchTopic --value=false
          ```
-       - If topic matches (or `currentBatchTopic` is empty) → use `AskUserQuestion` (include topic name in message):
-         - **재개 (Recommended)**: 이전 배치(`<topic>`)를 이어 실행 — override `batch = true`, then execute (a) above
-         - **초기화**: persisted batch 상태를 지우고 이 호출은 단일 Story만 실행 — run both reset commands above; continue as single-Story
+       - If topic matches (or `currentBatchTopic` is empty) → call `AskUserQuestion` with {{ask:BATCH_RESUME|RESUME|RESET}} (`{topic}` is `currentBatchTopic`, or `current_topic` when it is empty). Answer-required IDs: `BATCH_RESUME_Q`, `BATCH_RESUME_HEADER`, `BATCH_RESUME_RESUME_LABEL`, `BATCH_RESUME_RESUME_DESC`, `BATCH_RESUME_RESET_LABEL`, `BATCH_RESUME_RESET_DESC`. Apply the answer-required check; if it stops, do not reset or persist batch state and do not run any Story.
+         - `RESUME` (Recommended): override `batch = true`, then execute (a) above
+         - `RESET`: run both reset commands above; continue as single-Story
      - 그 외 모든 값(empty string, `"false"`, 기타) → not stale; continue as single-Story
 
 2. Get the current topic from dev-context.json:
@@ -78,21 +93,9 @@ Execute Stories from the implementation plan one at a time, or all at once in ba
    | `impl:in-progress` | 그대로 다음 단계로 진행 (no-op) |
    | (그 외) | 아래 메시지를 출력하고 정지 |
 
-   `(그 외)` 행의 게이트 실패 메시지:
+   `(그 외)` 행의 게이트 실패 메시지: output {{msg:GATE_FAILED}}. `{phase}` and `{status}` are the values read above.
 
-   ```
-   구현을 시작할 수 없습니다.
-   현재 상태: <phase>:<status>
-   plan:confirmed 또는 impl:in-progress 상태여야 합니다.
-   codex "plan-review 스킬을 실행해줘"
-   ```
-
-   **update-state 실패 처리**: `plan:confirmed` 행에서 `update-state` 호출이 비-zero exit이면 즉시 정지하고 다음 메시지를 출력한다. `currentBatchRunning`·`currentBatchTopic`은 정리하지 않는다 — Step 11 미도달로 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그가 자연스럽게 발동한다.
-
-   ```
-   phase 전환에 실패했습니다 (update-state 비-zero exit).
-   dev-context.json 권한 또는 디스크 상태를 확인하고 다시 시도하세요.
-   ```
+   **update-state 실패 처리**: `plan:confirmed` 행에서 `update-state` 호출이 비-zero exit이면 즉시 정지하고 {{msg:STATE_TRANSITION_FAILED}}를 출력한다. `currentBatchRunning`·`currentBatchTopic`은 정리하지 않는다 — Step 11 미도달로 stale 상태가 유지되어 다음 호출에서 재개 다이얼로그가 자연스럽게 발동한다.
 
 5. Get the plan path and determine which Story to run:
    ```bash
@@ -113,34 +116,20 @@ Extract from the plan document:
 
 ### 3. **Pre-work briefing and approval**
 
-**Batch mode (Story 2 onward)**: If `batch == true` AND this is not the first Story in the current invocation, skip the full briefing. Print a single line instead:
-```
---- Starting Story <ID>: <Name> ---
-```
+**Batch mode (Story 2 onward)**: If `batch == true` AND this is not the first Story in the current invocation, skip the full briefing. Print a single line instead: {{msg:STORY_START}} (`{story_id}` is the Story ID, `{story_name}` is the Story name).
 Then proceed to Step 4 immediately without waiting for approval.
 
-**All other cases (first Story, or non-batch)**: Present the full briefing:
+**All other cases (first Story, or non-batch)**: Present the full briefing, in this order:
 
-```
----
-## Pre-work Briefing: [Story ID] [Story Name]
+1. A `---` line.
+2. {{msg:BRIEFING_TITLE}} (`{story_id}`, `{story_name}`: the Story ID and name), then a blank line.
+3. {{msg:BRIEFING_OVERVIEW}} (`{type}`: the Story Type; `{goal}`: what the Story achieves), then a blank line.
+4. {{msg:BRIEFING_PLAN_TITLE}}, then the work steps in order as a numbered list (`1. …`), then a blank line.
+5. {{msg:BRIEFING_FILES_TITLE}}, then one line per affected file: ``- `<path>` — <change description>``; for a new file put {{msg:BRIEFING_NEW_MARK}} before its purpose. Then a blank line.
+6. {{msg:BRIEFING_CAVEATS_TITLE}}, then one `- ` line per potential issue.
+7. A closing `---` line.
 
-### Story Overview
-- Type: [tdd / config / infra / refactor / prompt]
-- Goal: [What to achieve]
-
-### Work Plan
-1. [Step 1 in order]
-2. [Step 2 in order]
-
-### Affected Files
-- `path/to/file.ts` — [Change description]
-- `path/to/new-file.ts` — [NEW] [Purpose]
-
-### Caveats
-- [Potential issues]
----
-```
+Write the step, change, and caveat texts in the conversation language.
 
 After the briefing block is printed (closing `---`), **advisor 조건부 호출**을 먼저 수행한다:
 
@@ -161,11 +150,8 @@ node .harness/scripts/dev-context.js read --field=config.dev_impl.auto_start
 ```
 
 Branch on the result:
-- If the output equals the string `"true"`: print the following line **verbatim** immediately after the briefing block (not merged into it), then proceed to Step 4 without waiting for approval.
-  ```
-  auto_start 모드: 승인 없이 바로 구현을 시작합니다. (config.dev_impl.auto_start=true)
-  ```
-- Otherwise (empty string, `"false"`, or any other value): preserve current behavior — do not start implementation without approval.
+- If the output equals the string `"true"`: print {{msg:AUTO_START_NOTICE}} immediately after the briefing block (not merged into it), then proceed to Step 4 without waiting for approval.
+- Otherwise (empty string, `"false"`, or any other value): preserve current behavior — do not start implementation without approval. Approval comes from the user's free reply in the conversation; do not ask it through `AskUserQuestion` or a catalog message.
 
 ### 4. Create Task entries for the Story
 
@@ -185,7 +171,17 @@ Step 3 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도구 entr
 
 ### 5. **Automatically invoke agent by Story Type**
 
-**Type: `tdd`** → Invoke **tdd-specialist** agent:
+**Language line for delegations** (applies to every agent delegation in Steps 5 and 6 — tdd-specialist, prompt-engineer, refactor-cleaner, code-reviewer): immediately before the delegation, run
+
+```bash
+node .harness/scripts/lang.js resolve --kind=conversation
+node .harness/scripts/lang.js resolve --kind=docs
+node .harness/scripts/lang.js resolve --kind=commit
+```
+
+Judge each dimension separately: if a resolve exits non-zero or its stdout is not exactly `ko` or `en`, use `en` for that dimension. Put `Language: conversation=<ko|en> docs=<ko|en> commit=<ko|en>` as the first line of the delegation prompt.
+
+**Type: `tdd`** → Invoke **tdd-specialist** agent (Language line first, as above):
 - Write failing tests (RED)
 - Confirm tests fail
 - Minimal implementation (GREEN)
@@ -193,12 +189,12 @@ Step 3 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도구 entr
 - Refactoring (REFACTOR)
 - Check coverage
 
-**Type: `prompt`** → Invoke **prompt-engineer** agent:
+**Type: `prompt`** → Invoke **prompt-engineer** agent (Language line first, as above):
 - Pass: Goal, Eval Cases (from Completion Criteria), Acceptance threshold, target file path
 - Agent runs PROPOSE→EVAL→REFINE cycle via `stack-prompt` skill (max 5 iterations)
 - Agent reports outcome (success / stagnation / max iterations)
 
-**Type: `refactor`** → Invoke **refactor-cleaner** agent:
+**Type: `refactor`** → Invoke **refactor-cleaner** agent (Language line first, as above):
 - Ensure test coverage exists before refactoring
 - Apply incremental structural improvements
 
@@ -209,12 +205,12 @@ Step 3 직후, 현재 Story의 `**Tasks**:` 목록을 파싱해 Task 도구 entr
 - Change infrastructure and document
 
 **Batch failure condition**: If the invoked agent (tdd-specialist, prompt-engineer, or refactor-cleaner) reports an unresolvable failure:
-- `batch == true`: set `batch_failed = true` with reason "test failure" and proceed to Step 11 (terminal)
+- `batch == true`: set `batch_failed = true` with reason {{msg:BATCH_REASON_TEST_FAILURE}} and proceed to Step 11 (terminal)
 - `batch == false`: surface the failure and stop
 
 ### 6. **Automatically invoke code-reviewer agent** (immediately after implementation)
 
-Immediately review the Story code:
+Immediately review the Story code (Language line first, as in Step 5):
 - Quality review
 - Immediate feedback + fixes
 
@@ -227,7 +223,7 @@ Immediately review the Story code:
 **`prompt` 타입 — code-reviewer는 comment-only**: `prompt-engineer`가 Eval Acceptance를 달성한 후 code-reviewer가 실행된다. code-reviewer는 **평가 대상 프롬프트 파일을 수정하지 않는다** — 관찰 사항만 보고한다. 프롬프트 파일 수정이 필요하면 `prompt-engineer`를 재호출해 eval 게이트를 다시 통과해야 한다.
 
 **Batch failure condition**: If code-reviewer reports a blocking issue that cannot be resolved automatically:
-- `batch == true`: set `batch_failed = true` with reason "blocking review issue" and proceed to Step 11 (terminal)
+- `batch == true`: set `batch_failed = true` with reason {{msg:BATCH_REASON_REVIEW_ISSUE}} and proceed to Step 11 (terminal)
 - `batch == false`: surface the issue and stop
 
 ### 7. Verify Completion Criteria
@@ -267,18 +263,10 @@ Immediately review the Story code:
 
 **6단계 — PASS/FAIL 출력 형식** (마크다운 표 아닌 단순 리스트로 출력 — batch 모드 출력량 우려 해소):
 
-각 Criterion 한 줄로 `[PASS] <Criterion 텍스트 요약> — <근거 한 줄>` 또는 `[FAIL] <Criterion 텍스트 요약> — <실패 근거>` 형태로 출력한다.
-
-예시:
-```
-## Completion Criteria 점검 결과
-[PASS] frontmatter version: 21 — grep 결과 일치
-[PASS] Step 9.5에 AskUserQuestion 키워드 존재 — 라인 312 매칭
-[FAIL] Key Principles에 신규 항목 추가 — 매칭 라인 없음
-```
+Output {{msg:CRITERIA_TITLE}}, then one line per Criterion: {{msg:CRITERION_PASS}} for a passed Criterion or {{msg:CRITERION_FAIL}} for a failed one. `{criterion}` is a short summary of the Criterion text and `{evidence}` is the one-line evidence (for a failure, the failure reason), both in the conversation language.
 
 **Batch failure condition**: 1개 이상 Criterion이 FAIL이면:
-- `batch == true`: set `batch_failed = true` with reason "completion criteria not met" and proceed to Step 11 (terminal)
+- `batch == true`: set `batch_failed = true` with reason {{msg:BATCH_REASON_CRITERIA}} and proceed to Step 11 (terminal)
 - `batch == false`: surface the failure and stop
 
 ### 8. Execute Commit
@@ -294,13 +282,10 @@ node .harness/scripts/dev-context.js read --field=config.dev_impl.auto_commit
 - Extract the subject line (first backtick-quoted value after `**Commit**:`)
 - Optionally include the body lines (indented under the subject)
 
-**If no `**Commit**` field exists** in this Story (pre-contract plan or omitted):
-```
-이 Story에 **Commit** 필드가 없습니다. commit을 건너뛰시겠습니까? (y/skip)
-```
+**If no `**Commit**` field exists** in this Story (pre-contract plan or omitted): ask {{msg:NO_COMMIT_FIELD}} as a plain-text question. Answer-required ID: `NO_COMMIT_FIELD`. Apply the answer-required check; if it stops, do not commit, do not decide to skip, and do not run Step 9 or any later step.
 - `y` or `skip`: skip commit for this Story and continue to Step 9
 - Any other response:
-  - `batch == true`: set `batch_failed = true` with reason "user declined to skip commit (no **Commit** field)" and proceed to Step 11 (terminal)
+  - `batch == true`: set `batch_failed = true` with reason {{msg:BATCH_REASON_NO_COMMIT_FIELD}} and proceed to Step 11 (terminal)
   - `batch == false`: stop
 
 **Stage files**: stage only files changed by this Story. Do **NOT** use `git add -A` or `git add .`.
@@ -319,21 +304,20 @@ git commit -m "$(cat <<'COMMIT_MSG'
 COMMIT_MSG
 )"
 ```
-Print: `auto_commit: <commit-message>`
+Print {{msg:AUTO_COMMIT_DONE}} (`{commit_message}` is the commit subject).
 
-**If `auto_commit` is false/empty (default)**: show the planned message and prompt:
-```
-이 Story의 commit 메시지:
-  <commit-subject>
-  [<body>]
+**If `auto_commit` is false/empty (default)**: show the planned message and prompt as one block, in this order:
 
-스테이징 대상 파일: <file list>
+1. {{msg:COMMIT_CONFIRM_TITLE}} (decoration part).
+2. {{msg:COMMIT_CONFIRM_SUBJECT}} (`{commit_subject}`: the commit subject), then {{msg:COMMIT_CONFIRM_BODY}} once per body line when the **Commit** field has a body (`{commit_body}`: that body line). Then a blank line.
+3. {{msg:COMMIT_CONFIRM_FILES}} (`{files}`: the staging target files separated by spaces), then a blank line.
+4. {{msg:COMMIT_CONFIRM_Q}} (question part).
 
-지금 commit하시겠습니까? (y/n/skip)
-```
+Answer-required IDs: `COMMIT_CONFIRM_SUBJECT`, `COMMIT_CONFIRM_BODY` (only when a body line is shown), `COMMIT_CONFIRM_FILES`, `COMMIT_CONFIRM_Q`. Apply the answer-required check before printing the block: if any answer-required ID is absent from both catalog files, print only the diagnostics — none of the block, not even the title line or a question of your own — and do not commit, do not mark the Story complete (Step 9), and do not start the next Story. `COMMIT_CONFIRM_TITLE` is decoration: if it alone is absent, print `[missing message: COMMIT_CONFIRM_TITLE]` as the first line and print the rest normally.
+
 - `y`: stage and commit using HEREDOC pattern (never interpolate commit message directly into shell argument)
 - `n`:
-  - `batch == true`: set `batch_failed = true` with reason "commit refused by user" and proceed to Step 11 (terminal)
+  - `batch == true`: set `batch_failed = true` with reason {{msg:BATCH_REASON_COMMIT_REFUSED}} and proceed to Step 11 (terminal)
   - `batch == false`: stop
 - `skip`: skip commit and continue to Step 9 (commit omitted for this Story; not a failure)
 
@@ -345,7 +329,7 @@ Print: `auto_commit: <commit-message>`
 3. Completion Criteria: one or more criteria fail verification (Step 7)
 4. Commit: user responds `n` (commit refused) (Step 8)
 5. No `**Commit**` field: user declines to skip (Step 8)
-6. Unchecked tasks gate: user selects '실제 미수행' (Step 9.5 게이트)
+6. Unchecked tasks gate: user selects `NOT_DONE` (Step 9.5 게이트)
 
 ### 9. Update Plan Document (Story checkbox)
 
@@ -374,36 +358,19 @@ Step 9 완료 직후, Task 도구 entries 상태를 단일 진실 원천으로 �
 
 **호출 트리거** (prompt-authoring 규칙 7): Step 9.5 분기 처리 후 미체크 `[ ]` Task가 1건 이상 남아 있으면 `AskUserQuestion`을 호출한다. 미체크 Task가 0건이면 본 게이트를 건너뛰고 Step 10으로 진행한다. 본 게이트는 단일 모드·batch 모드 모두 일시 중단한다 (Key Principles "fully unattended" 예외 — 데이터 정합성 결정이 자동화 불가).
 
-호출 형태:
-```
-AskUserQuestion({
-  questions: [{
-    question: "미체크 Task <N>건이 남아 있습니다. 의도를 알려주세요.",
-    header: "Task 게이트",
-    multiSelect: false,
-    options: [
-      { label: "보고 누락 (Recommended)", description: "수행은 됐지만 TaskUpdate(completed) 호출이 누락된 경우" },
-      { label: "실제 미수행", description: "Task가 정말 수행되지 않은 경우 또는 Story 정의 결함" }
-    ]
-  }]
-})
-```
+호출 형태: `AskUserQuestion` with {{ask:UNCHECKED_TASKS|REPORT_MISSING|NOT_DONE}} (`multiSelect: false`). `{count}` is the number of unchecked Task lines. Answer-required IDs: `UNCHECKED_TASKS_Q`, `UNCHECKED_TASKS_HEADER`, `UNCHECKED_TASKS_REPORT_MISSING_LABEL`, `UNCHECKED_TASKS_REPORT_MISSING_DESC`, `UNCHECKED_TASKS_NOT_DONE_LABEL`, `UNCHECKED_TASKS_NOT_DONE_DESC`. Apply the answer-required check; if it stops, do not change checkboxes or Task entries, do not update dev-context, and do not start the next Story.
 
-**옵션 1 (보고 누락) 처리 분기** (순서대로 실행):
+**옵션 1 (`REPORT_MISSING`) 처리 분기** (순서대로 실행):
 - **스코프**: 현재 Story 헤더(`### [ ] Story N` 또는 `### [x] Story N`) 다음 라인부터 다음 Story 헤더 직전까지의 라인만 대상으로 한다. 다른 Story의 체크박스는 변경하지 않는다.
 - **1단계 (markdown Edit)**: 위 스코프 내 모든 미체크 Task 라인을 markdown `- [ ]` → `- [x]`로 Edit한다.
 - **2단계 (TaskUpdate)**: 미체크였던 모든 `T<storyN>.<taskM>`에 대해 `TaskUpdate(taskId=T<storyN>.<taskM>, status='completed')`를 호출한다.
 - **entry 없는 Task** (TaskCreate 실패로 누락된 케이스): markdown `[x]`만 처리하고 entry 생성은 생략한다 — wf-task-tracking fallback 규약을 따른다.
 - 처리 후 Step 10으로 진행.
 
-**옵션 2 (실제 미수행) 처리 분기**:
+**옵션 2 (`NOT_DONE`) 처리 분기**:
 - markdown 체크박스와 Task 도구 entries 모두 변경하지 않는다.
-- `batch == false` (단일 모드): 작업 중단. 안내 메시지를 출력한다:
-  ```
-  미체크 Task가 남아 있습니다. Story를 재실행하거나 plan을 수정한 뒤 다시 시도하세요.
-    /flow-impl <story-id>
-  ```
-- `batch == true` (batch 모드): `batch_failed = true` 설정 (reason: `"user-declared unchecked tasks (real non-execution)"`) → Step 11 terminal로 진행.
+- `batch == false` (단일 모드): 작업 중단. {{msg:UNCHECKED_STOP}}를 출력한다 (`{story_id}`는 현재 Story ID).
+- `batch == true` (batch 모드): `batch_failed = true` 설정 (reason: {{msg:BATCH_REASON_UNCHECKED_TASKS}}) → Step 11 terminal로 진행.
 
 ### 10. Update dev-context.json
 
@@ -454,54 +421,25 @@ node .harness/scripts/dev-context.js set-field \
   --field=config.dev_impl.currentBatchTopic --value=false
 ```
 
+Each terminal briefing starts and ends with a `---` line. Write free-text items in the conversation language.
+
 *Single-Story mode (non-batch)*:
-```
----
-## Story Complete: [Story ID] [Story Name]
-
-### Work Summary
-- [Implementation/change details]
-- [List of created/modified files]
-
-### Test Results
-- Tests: PASS ([X] passed)
-- Coverage: [X]%
-
-### Next Story
-- [Next incomplete Story ID and name]
-- Continue with /flow-impl.
----
-```
+1. {{msg:STORY_COMPLETE_TITLE}} (`{story_id}`, `{story_name}`: the completed Story), then a blank line.
+2. {{msg:WORK_SUMMARY_TITLE}}, then one `- ` line per implementation/change detail and one listing the created/modified files, then a blank line.
+3. {{msg:TEST_RESULTS}} (`{passed}`: the number of passed tests; `{coverage}`: the coverage percentage), then a blank line.
+4. {{msg:NEXT_STORY}} (`{next_story}`: the next incomplete Story ID and name).
 
 *Batch complete (all Stories finished)*:
-```
----
-## Batch Complete
-
-Completed [N] Stories:
-  [x] Story 1: <name>
-  [x] Story 2: <name>
-  ...
-
-Next: /flow-review
----
-```
+1. {{msg:BATCH_COMPLETE_TITLE}}, then a blank line.
+2. {{msg:BATCH_COMPLETE_COUNT}} (`{count}`: the number of Stories completed in this invocation).
+3. {{msg:BATCH_STORY_LINE}} once per completed Story, in order (`{story_number}`, `{story_name}`), then a blank line.
+4. {{msg:BATCH_COMPLETE_NEXT}}.
 
 *Batch stopped (failure)*:
-```
----
-## Batch Stopped at Story [ID]: [Name]
-
-Reason: <batch_failed reason>
-
-Completed before stopping:
-  [x] Story <n>: <name>  (if any)
-
-Resume after fixing the issue:
-  /flow-impl          Resume from the failed Story
-  /flow-impl --all    Re-run batch from the failed Story
----
-```
+1. {{msg:BATCH_STOPPED_TITLE}} (`{story_id}`, `{story_name}`: the Story where the batch stopped), then a blank line.
+2. {{msg:BATCH_STOPPED_REASON}} (`{reason}`: the `batch_failed` reason message set in the step that failed), then a blank line.
+3. If Stories completed before stopping: {{msg:BATCH_STOPPED_DONE}}, then {{msg:BATCH_STORY_LINE}} once per completed Story, then a blank line.
+4. {{msg:BATCH_STOPPED_RESUME}}.
 
 **Stop immediately after outputting the terminal briefing. Do not automatically start the next Story.**
 

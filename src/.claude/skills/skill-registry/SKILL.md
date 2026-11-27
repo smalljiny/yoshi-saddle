@@ -1,5 +1,5 @@
 ---
-version: 5
+version: 6
 name: skill-registry
 description: >
   Use this skill whenever a command or skill needs to dynamically discover which
@@ -17,6 +17,15 @@ origin: harness
 A standard procedure for capability-based skill discovery. Commands and skills call
 this registry when they need to find the right skill dynamically rather than hardcoding
 a skill name.
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/skill-registry/templates/messages.<lang>.md` for the chosen language and `.claude/skills/skill-registry/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
 
 ## When to Activate
 
@@ -90,11 +99,7 @@ For each matching skill, return:
 }
 ```
 
-If zero matches are found, surface a clear message:
-```
-No skill found matching capabilities: [<tag>, <tag>].
-Available tags: run Glob + Read pass to enumerate.
-```
+If zero matches are found, surface {{msg:NO_MATCH}} (`{tags}`: the queried tags joined with `, `).
 
 If multiple matches are found, return all and let the caller decide (priority policy is
 out of scope for this registry — see Out of Scope).

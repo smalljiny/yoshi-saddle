@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: adapter-deep-research
 description: >
   Multi-source deep research workflow using skill-registry search adapters.
@@ -14,6 +14,23 @@ origin: harness
 
 Produce thorough, cited research reports from multiple web sources using skill-registry
 search-adapter skills. No MCP configuration required.
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/adapter-deep-research/templates/messages.<lang>.md` for the chosen language and `.claude/skills/adapter-deep-research/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
+**Answer-required check** (used by every question below that names it): run this check first and ask the question only if it passes. Before asking, run this Bash command with the IDs listed for that question:
+
+```bash
+grep -hxE '## (<ID1>|<ID2>|...)' .claude/skills/adapter-deep-research/templates/messages.<lang>.md .claude/skills/adapter-deep-research/templates/messages.en.md
+```
+
+An ID that appears in neither file's output cannot be obtained. If any cannot be obtained, do not ask the question: output `[missing catalog: <path>]` once when the `en` file is missing, otherwise `[missing message: <ID>]` for each missing ID, then stop without waiting for input. After that stop, do not perform the follow-up actions named for that question (no search-adapter calls and no report writing).
 
 ## When to Activate
 
@@ -47,7 +64,7 @@ Read each matched skill's `SKILL.md` to load its Search Procedure before Step 3.
 
 | Adapters Found | Action |
 |----------------|--------|
-| 0 | Stop immediately: `search-adapter 스킬이 없습니다. adapter-firecrawl 또는 adapter-exa를 설치하세요.` |
+| 0 | Stop immediately: output {{msg:NO_ADAPTER}} |
 | 1 | Use that adapter only |
 | 2 or more | Use all adapters sequentially per sub-question; merge results and deduplicate |
 
@@ -77,15 +94,13 @@ re-query skill-registry.
 | Network timeout | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: request timed out` |
 | HTTP 5xx / server error | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: server error (HTTP 5xx)` |
 | Malformed / unparseable response | Skip adapter, continue with others. Mark in report: `⚠️ <adapter>: unexpected response format` |
-| All adapters failed | Stop: `모든 search-adapter 호출이 실패했습니다. API 키와 네트워크를 확인하세요.` |
+| All adapters failed | Stop: output {{msg:ALL_FAILED}} |
 
-Failed adapter warnings appear in both the Methodology section and the report meta line.
+Failed adapter warnings appear in both the Methodology section and the report meta line. The `⚠️ <adapter>: <reason>` marks above are English templates: keep `⚠️ <adapter>:` and write the reason in the docs language.
 
 ### Step 1: Understand the Goal
 
-Ask 1-2 quick clarifying questions:
-- "What's your goal — learning, making a decision, or writing something?"
-- "Any specific angle or depth you want?"
+Ask the quick clarifying questions {{msg:CLARIFY_Q}} as a plain-text question (one or both lines). Answer-required ID: `CLARIFY_Q`. Apply the answer-required check; if it stops, do not plan the research, call any search adapter, or write the report.
 
 If the user says "just research it" — skip ahead with reasonable defaults.
 
@@ -175,6 +190,8 @@ in both the report meta line and the Methodology section.
 
 ### Report Template
 
+Write the report in the docs language: run `node .harness/scripts/lang.js resolve --kind=docs` (if it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`). Section titles (`Research Report`, `Executive Summary`, `Key Takeaways`, `Sources`, `Methodology`) and the meta line keys (`Generated`, `Sources`, `Adapters`, `Failed`) stay in English as in the template.
+
 ```markdown
 # [Topic]: Research Report
 *Generated: YYYY-MM-DD | Sources: N | Adapters: [adapter1, adapter2] | Failed: [⚠️ adapter: reason]*
@@ -232,7 +249,7 @@ Example: `"AI/healthcare"` → `research-AI_healthcare-20260424.md`
 2. **Cross-reference.** If only one source says it, flag it as unverified.
 3. **Recency matters.** Prefer sources from the last 12 months.
 4. **Acknowledge gaps.** If you couldn't find good info on a sub-question, say so.
-5. **No hallucination.** If you don't know, say "insufficient data found."
+5. **No hallucination.** If you don't know, say "insufficient data found." (written in the docs language).
 6. **Separate fact from inference.** Label estimates, projections, and opinions clearly.
 
 ## Examples

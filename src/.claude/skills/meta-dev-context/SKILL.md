@@ -1,11 +1,20 @@
 ---
-version: 5
+version: 6
 name: meta-dev-context
 description: Shared contract for reading and writing dev-context.json via the dev-context.js CLI. Load this skill whenever a command needs to inspect or mutate topic lifecycle state.
 origin: harness
 ---
 
 # dev-context Skill
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/meta-dev-context/templates/messages.<lang>.md` for the chosen language and `.claude/skills/meta-dev-context/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
 
 ## Overview
 
@@ -98,13 +107,7 @@ PHASE=$(node .harness/scripts/dev-context.js read --topic=<name> --field=phase)
 STATUS=$(node .harness/scripts/dev-context.js read --topic=<name> --field=status)
 ```
 
-Then check `$PHASE:$STATUS` against the required state. If it does not match, halt and show:
-
-```
-<command>를 실행할 수 없습니다.
-현재 상태: <phase>:<status>
-<required-state> 상태여야 합니다.
-```
+Then check `$PHASE:$STATUS` against the required state. If it does not match, halt and output {{msg:GATE_TEMPLATE}} (`{command}`: the invoking command, `{phase}`·`{status}`: the values read, `{required_state}`: the required `phase:status`).
 
 ---
 

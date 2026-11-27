@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: wf-agent-debug
 description: Structured self-debugging workflow for AI agent failures using capture, diagnosis, contained recovery, and introspection reports.
 origin: ECC
@@ -10,6 +10,15 @@ origin: ECC
 Use this skill when an agent run is failing repeatedly, consuming tokens without progress, looping on the same tools, or drifting away from the intended task.
 
 This is a workflow skill, not a hidden runtime. It teaches the agent to debug itself systematically before escalating to a human.
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/wf-agent-debug/templates/messages.<lang>.md` for the chosen language and `.claude/skills/wf-agent-debug/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, print exactly `[missing message: <ID>]` in its place (or `[missing catalog: <path>]` when the `en` file is missing) instead of composing replacement wording, and continue.
 
 ## When to Activate
 
@@ -45,18 +54,7 @@ Capture:
 - current context pressure: repeated prompts, oversized pasted logs, duplicated plans, or runaway notes
 - current environment assumptions: cwd, branch, relevant service state, expected files
 
-Minimum capture template:
-
-```markdown
-## Failure Capture
-- Session / task:
-- Goal in progress:
-- Error:
-- Last successful step:
-- Last failed tool / command:
-- Repeated pattern seen:
-- Environment assumptions to verify:
-```
+Minimum capture template: {{msg:FAILURE_CAPTURE}} — fill each field with values in the conversation language.
 
 ### Phase 2: Root-Cause Diagnosis
 
@@ -91,31 +89,11 @@ Safe recovery actions:
 
 Do not claim unsupported auto-healing actions like “reset agent state” or “update harness config” unless you are actually doing them through real tools in the current environment.
 
-Contained recovery checklist:
-
-```markdown
-## Recovery Action
-- Diagnosis chosen:
-- Smallest action taken:
-- Why this is safe:
-- What evidence would prove the fix worked:
-```
+Contained recovery checklist: {{msg:RECOVERY_ACTION}} — fill each field in the conversation language.
 
 ### Phase 4: Introspection Report
 
-End with a report that makes the recovery legible to the next agent or human.
-
-```markdown
-## Agent Self-Debug Report
-- Session / task:
-- Failure:
-- Root cause:
-- Recovery action:
-- Result: success | partial | blocked
-- Token / time burn risk:
-- Follow-up needed:
-- Preventive change to encode later:
-```
+End with a report that makes the recovery legible to the next agent or human: {{msg:SELF_DEBUG_REPORT}}. Fill each field in the conversation language; the Result value is one of `success`, `partial`, `blocked` as written.
 
 ## Recovery Heuristics
 

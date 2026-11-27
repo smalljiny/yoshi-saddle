@@ -532,4 +532,16 @@ else
   info "wrote manifest: $TARGET_DIR/.harness/.deploy-manifest.json"
 fi
 
+# 언어 블록 부재 업그레이드 안내: 대상 배포를 실제로 쓴 경우에만, 대상에 복사된 lang.js 로 판정한다.
+# explain 실패·예상 밖 출력은 무출력으로 넘기고 배포 종료 코드를 바꾸지 않는다.
+if [ "$MODE" = "external" ] && [ "$DRY_RUN" -eq 0 ]; then
+  # LANG_JS_ROOT 는 lang.js 테스트 전용 루트 지정이라, 셸에 남아 있으면 대상이 아닌 경로로 판정하므로 지운다.
+  lang_explain="$(env -u LANG_JS_ROOT node "$TARGET_DIR/.harness/scripts/lang.js" explain --kind=docs 2>/dev/null)" || lang_explain=""
+  case $'\n'"$lang_explain"$'\n' in
+    *$'\nreason=no-source\n'*)
+      info "no harness language block in CLAUDE.md or AGENTS.md; run /flow-init to set docs/commit language (current: en)"
+      ;;
+  esac
+fi
+
 info "done"

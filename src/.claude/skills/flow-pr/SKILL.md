@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 name: flow-pr
 description: Push the current branch and create a GitHub Pull Request. Publish-only — run after /flow-docs so the reference document is included.
 origin: harness
@@ -22,14 +22,26 @@ Always operates on `current_topic`.
 
 ### 1. Read current topic and gate check
 
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/flow-pr/templates/messages.<lang>.md` for the chosen language and `.claude/skills/flow-pr/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
+
+**Answer-required check** (used by every question below that names it): run this check first and ask the question only if it passes. Before asking, run this Bash command with the IDs listed for that question (and the IDs of messages you will read to fill its placeholders):
+
+```bash
+grep -hxE '## (<ID1>|<ID2>|...)' .claude/skills/flow-pr/templates/messages.<lang>.md .claude/skills/flow-pr/templates/messages.en.md
+```
+
+An ID that appears in neither file's output cannot be obtained. If any cannot be obtained, do not ask the question: output `[missing catalog: <path>]` once when the `en` file is missing, otherwise `[missing message: <ID>]` for each missing ID, then stop without waiting for input. After that stop, do not perform the follow-up actions named for that question (no push, `gh pr create`/`gh pr edit`, or state transition after that point). Work already finished before the question stays as it is.
+
 ```bash
 node .harness/scripts/dev-context.js read --field=current_topic
 ```
 
-If `current_topic` is empty, stop:
-```
-PR을 생성할 토픽이 없습니다.
-```
+If `current_topic` is empty, output {{msg:NO_TOPIC}} and stop.
 
 Read `phase` and `status`:
 ```bash
@@ -45,21 +57,11 @@ Determine the entry mode based on `phase:status`:
 | `pr:created` | Re-entry (update PR via `gh pr edit`) |
 | anything else | Stop |
 
-**Re-entry** (pr:created): before proceeding, confirm:
-```
-이미 PR이 생성되어 있습니다 (pr:created).
-PR 제목과 body를 업데이트하시겠습니까? (y/n)
-```
+**Re-entry** (pr:created): before proceeding, ask {{msg:REENTRY_CONFIRM}} as a plain-text question. Answer-required ID: `REENTRY_CONFIRM`. Apply the answer-required check; if it stops, do not continue to Step 2 or any later step.
 - `n`: stop
 - `y`: proceed to Step 3 in update mode
 
-**Stop** (any other state):
-```
-/flow-pr를 실행할 수 없습니다.
-현재 상태: <phase>:<status>
-docs:generated 상태여야 합니다.
-먼저 /flow-docs를 실행하세요.
-```
+**Stop** (any other state): output {{msg:GATE_FAILED}} (`{phase}`, `{status}`: the values read above).
 
 ### 2. Gate: working tree clean and branch check
 
@@ -67,19 +69,7 @@ Check working tree:
 ```bash
 git status --porcelain
 ```
-If output is non-empty, stop:
-```
-⚠ 커밋되지 않은 변경사항이 있습니다.
-git status를 확인하고 모든 변경사항을 commit한 후 다시 실행하세요.
-
-삭제된 파일이 unstaged 상태인 경우:
-  1. git status 로 삭제된 파일 목록 확인
-  2. git rm <path>  또는  git add -u  로 삭제를 stage
-  3. git commit -m "chore: remove <파일명>"
-  4. /flow-pr 재실행
-
-(세션 시작 전부터 존재하던 미커밋 파일 삭제도 동일한 방법으로 처리합니다.)
-```
+If output is non-empty, output {{msg:DIRTY_TREE}} and stop. `{file_name}` is the name of a deleted file shown by `git status` when there is one; otherwise `<file>`.
 
 Read branch name:
 ```bash
@@ -91,11 +81,7 @@ Read `config.git.branchPattern` (default: `^(feature|fix|chore)/`):
 node .harness/scripts/dev-context.js read --field=config.git.branchPattern
 ```
 
-If the current branch does not match the pattern, warn:
-```
-⚠ 현재 브랜치 '<branch>'가 허용 패턴 '<pattern>'에 맞지 않습니다.
-계속하시겠습니까? (y/n)
-```
+If the current branch does not match the pattern, ask {{msg:BRANCH_PATTERN_CONFIRM}} as a plain-text question (`{branch}`: the current branch; `{pattern}`: the pattern). Answer-required ID: `BRANCH_PATTERN_CONFIRM`. Apply the answer-required check; if it stops, do not continue to Step 3 or any later step.
 - `n`: stop
 - `y`: continue
 
@@ -127,7 +113,7 @@ node .harness/scripts/dev-context.js read --topic=<topic> --field=plan
 
 From the plan's Story blocks, extract all `**Commit**:` values. Parse `type` and `scope` from each. Find the most frequent `type` and `scope`.
 
-Draft the PR title as:
+Draft the PR title from the English template below. Keep the `<type>(<scope>):` prefix and write the description in the commit language: run `node .harness/scripts/lang.js resolve --kind=commit` (if it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`).
 ```
 <most-frequent-type>(<most-frequent-scope>): <topic-name-as-description>
 ```
@@ -137,23 +123,17 @@ If no Commit fields are found in the plan (pre-contract plans), use:
 feat(<topic>): <topic-name-as-description>
 ```
 
-Present the draft and ask for confirmation:
-```
-PR 제목 초안:
-  <draft-title>
-
-이 제목으로 진행하시겠습니까? (y/수정할 제목 입력)
-```
+Present the draft and ask for confirmation with {{msg:TITLE_CONFIRM}} as a plain-text question (`{draft_title}`: the drafted title). Answer-required ID: `TITLE_CONFIRM`. Apply the answer-required check; if it stops, do not draft the body, push the branch, run `gh pr create`/`gh pr edit`, or change state.
 - `y`: use draft
 - Other input: use the entered title
 
 Validate the confirmed title against Conventional Commits format:
 `^(feat|fix|docs|refactor|test|chore|perf|ci)(\([a-z0-9_,.-]+\))?: .{1,72}$`
-If invalid, warn and re-prompt.
+If invalid, warn and ask the same question again.
 
 ### 5. Draft PR body
 
-Load `.harness/templates/pr-body.md` and substitute placeholders:
+Load `.harness/templates/pr-body.md` and substitute placeholders. Section titles stay as the template defines them; write any free text you add to the body in the docs language (`node .harness/scripts/lang.js resolve --kind=docs`; if it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`):
 
 | Placeholder | Value |
 |---|---|
@@ -163,15 +143,7 @@ Load `.harness/templates/pr-body.md` and substitute placeholders:
 | `{{branch}}` | current branch |
 | `{{base_branch}}` | resolved `baseBranch` |
 
-Present the body and ask for confirmation:
-```
-PR body 초안 (아래에 표시):
----
-<body content>
----
-
-이 body로 진행하시겠습니까? (y/수정 사항 입력 또는 'edit'으로 직접 수정)
-```
+Present the body and ask for confirmation with {{msg:BODY_CONFIRM}} as a plain-text question (`{body}`: the drafted body). Answer-required ID: `BODY_CONFIRM`. Apply the answer-required check; if it stops, do not push the branch, run `gh pr create`/`gh pr edit`, or change state.
 - `y`: use draft
 - `edit`: open the draft in the user's editor or present a structured edit prompt
 - Other input: append the input as additional context to the body
@@ -229,10 +201,7 @@ PR_BODY
   - Suggest: `gh auth login` if not authenticated.
 - If PR already exists (conflict on create): detect and switch to `gh pr edit` automatically.
 
-**Success**: Show the PR URL:
-```
-PR이 생성되었습니다: <pr-url>
-```
+**Success**: output {{msg:PR_CREATED}} (`{pr_url}`: the PR URL).
 
 ### 8. Update state
 
@@ -241,15 +210,7 @@ node .harness/scripts/dev-context.js update-state \
   --topic=<topic> --phase=pr --status=created
 ```
 
-Show completion:
-```
-완료되었습니다.
-  PR:    <pr-url>
-  상태:  pr:created
-
-다음: PR이 병합되면 /flow-done 으로 아카이브하세요.
-PR 수정이 필요하면 /flow-pr 을 다시 실행하세요 (docs:generated로 복귀 후 재push).
-```
+Output {{msg:PR_DONE}} (`{pr_url}`: the PR URL).
 
 ## Key Principles
 

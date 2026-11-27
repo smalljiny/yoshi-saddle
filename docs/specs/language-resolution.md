@@ -19,7 +19,7 @@
 | `recommend` | docs·commit·comments 권장값과 사유 JSON | `/flow-init` Step 2 |
 | `check --file=... --expect-*` | 조립본의 언어 블록 검사 JSON | `/flow-init` 쓰기 단계 |
 
-`/flow-init`이 블록을 생성·검사하는 흐름은 [flow-init-language-block.md](flow-init-language-block.md)에 있다. 메시지 카탈로그 연동은 후속 토픽(`message-catalogs`)이 맡는다.
+`/flow-init`이 블록을 생성·검사하는 흐름은 [flow-init-language-block.md](flow-init-language-block.md)에 있다. 컴포넌트가 `resolve` 결과로 메시지 언어를 고르는 방식은 [message-catalogs.md](message-catalogs.md)에 있다.
 
 ## 구조 / 스키마
 

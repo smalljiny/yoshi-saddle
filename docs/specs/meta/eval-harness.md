@@ -52,24 +52,24 @@ v1에서는 trial을 3회 실행하므로 pass@1 지표는 사용하지 않는�
 
 ### 로그 출력 형식
 
-실행마다 `.claude/evals/<skill-name>.log` 끝에 아래 구조로 append한다. 기존 이력은 삭제하지 않는다.
+실행마다 `.claude/evals/<skill-name>.log` 끝에 아래 구조로 append한다. 기존 이력은 삭제하지 않는다. 구조 토큰(`## Run:`, `### Case:`, `Trial n:`, `pass@3`, `pass^3`, `Verdict:`, `### Skill Summary`, `Decision:`)은 영어로 고정하고, 자유 문구는 docs 언어로 쓴다. 이전 형식(`판정:`·`### Skill 집계`)으로 쓴 기존 로그 기록은 그대로 둔다.
 
 ```
-## Run: <ISO 8601 타임스탬프> | Skill: <name> | Version: <n> | git: <short SHA>
+## Run: <ISO 8601 timestamp> | Skill: <name> | Version: <n> | git: <short SHA>
 
 ### Case: <eval case id> [CAPABILITY]
 - Trial 1: PASS/FAIL
 - Trial 2: PASS/FAIL
 - Trial 3: PASS/FAIL
-- pass@3: 1.00 | pass^3: YES | 판정: PASS (기준: pass@3 ≥ 0.9)
+- pass@3: 1.00 | pass^3: YES | Verdict: PASS (criterion: pass@3 ≥ 0.9)
 
 ### Case: <eval case id> [REGRESSION]
 - Trial 1: PASS/FAIL
 - Trial 2: PASS/FAIL
 - Trial 3: PASS/FAIL
-- pass@3: 1.00 | pass^3: YES | 판정: PASS (기준: pass^3 = YES)
+- pass@3: 1.00 | pass^3: YES | Verdict: PASS (criterion: pass^3 = YES)
 
-### Skill 집계
+### Skill Summary
 - Decision: PASS
 ```
 

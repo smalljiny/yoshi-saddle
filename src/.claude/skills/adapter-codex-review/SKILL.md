@@ -1,11 +1,20 @@
 ---
-version: 16
+version: 17
 name: adapter-codex-review
 description: Run a single Codex spec-review or plan-review via `codex exec` and return the parsed Decision. Phase auto-detected from `dev-context.json`. Loop control is owned by the calling command, not this skill.
 origin: harness
 ---
 
 # adapter-codex-review
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.claude/skills/adapter-codex-review/templates/messages.<lang>.md` for the chosen language and `.claude/skills/adapter-codex-review/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. For an answer-required ID, follow the answer-required check below.
 
 ## Non-Goals
 
@@ -38,12 +47,7 @@ STATUS=$(node .harness/scripts/dev-context.js read --topic="$TOPIC" --field=stat
 | `plan:reviewing` | plan-review | `plan` |
 | 기타 | 실행 불가 — 아래 메시지 출력 후 종료 |  |
 
-해당하지 않는 상태일 경우:
-```
-현재 상태 (<phase>:<status>)에서 adapter-codex-review를 실행할 수 없습니다.
-spec-review: /flow-spec에서 spec:reviewing 상태로 전환 후 실행하세요.
-plan-review: /flow-plan에서 plan:reviewing 상태로 전환 후 실행하세요.
-```
+해당하지 않는 상태일 경우: output {{msg:STATE_NOT_SUPPORTED}} (`{phase}`·`{status}`: the values read).
 
 ### 3. 경로 읽기·검증·정규화
 
@@ -77,7 +81,7 @@ node .harness/scripts/dev-context.js read --field=config.codex.authenticated
 ```
 
 If either returns a value other than `"true"`:
-1. Print a warning: `Codex not available or not authenticated — adapter-codex-review cannot proceed.`
+1. Print a warning: {{msg:CODEX_UNAVAILABLE}}
 2. Show the manual fallback command (see "Fallback" section below)
 3. Exit the skill without invoking `codex exec`
 
@@ -233,14 +237,7 @@ Decision line format (from existing review files): `- Decision: READY` / `- Deci
 | `codex exec` exits 0 but no review file generated | Record observation (sandbox policy may block write), show manual fallback |
 | Timeout (120s elapsed) | Record timeout, consider increasing threshold or checking sandbox settings |
 
-**Manual fallback** (interactive session — shown when bridge cannot proceed):
-
-```bash
-# Interactive Codex session (manual review, not automated)
-codex "spec-review 스킬로 <spec-path>를 리뷰해줘"
-# or
-codex "plan-review 스킬을 실행해줘"
-```
+**Manual fallback** (interactive session — shown when bridge cannot proceed): output {{msg:MANUAL_FALLBACK}} (`{spec_path}`: the spec path).
 
 **⚠ `-a always` 사용 주의**: `codex exec -a always ...`는 모든 작업 승인을 자동화하며
 sandbox 보호를 사실상 무력화합니다. 실험 목적 외 프로덕션 코드에 사용 금지.

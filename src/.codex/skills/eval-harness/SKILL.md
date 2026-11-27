@@ -1,5 +1,5 @@
 ---
-version: 2
+version: 3
 name: eval-harness
 description: >-
   Eval-Driven Development framework for Claude Code harness skills. Invoked as:
@@ -13,6 +13,15 @@ description: >-
 
 Eval-Driven Development(EDD) framework for Claude Code harness components.
 v1: skill evaluation via code-based (Bash exit code) graders only.
+
+## Language and messages
+
+Before the first user-facing message, run `node .harness/scripts/lang.js resolve --kind=conversation` once.
+If it exits non-zero or its stdout is not exactly `ko` or `en`, use `en`.
+In the same step, Read the catalogs this file references: `.codex/skills/eval-harness/templates/messages.<lang>.md` for the chosen language and `.codex/skills/eval-harness/templates/messages.en.md`.
+Resolve each reference token with the chosen language. If any catalog file or ID is missing, Read `.claude/rules/common/component-boundaries.md` (Message Catalogs > Failure Policy) and follow it.
+
+Before printing each message, look its ID up in the catalog text you read. When the ID is absent from both the chosen-language file and the `en` file, the output for that token is exactly `[missing message: <ID>]` (or `[missing catalog: <path>]` when the `en` file is missing): do not compose replacement wording, do not paraphrase the step's intent, and do not ask a question of your own in its place. For a message that does not take an answer, print that diagnostic in the message's position and continue. Print every catalog message exactly as the catalog writes it, with only placeholders filled in: keep its lines, numbering, and order, and do not add `(Recommended)` or other labels. A general question-format rule (for example "lead with a recommended option") does not apply to these plain-text questions. For an answer-required ID, follow the answer-required check below.
 
 ## Overview
 
@@ -50,27 +59,19 @@ SKILL_NAME="<user가 지정한 스킬 이름>"
 
 # 입력 검증: 영문자·숫자·하이픈·언더스코어만 허용 (경로 트라버설 차단)
 if ! echo "$SKILL_NAME" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9_-]*$'; then
-  echo "오류: 유효하지 않은 스킬 이름입니다: $SKILL_NAME"
-  echo "스킬 이름은 영문자·숫자·하이픈·언더스코어만 사용할 수 있습니다."
+  echo "Error: invalid skill name: $SKILL_NAME"
+  echo "Skill names may contain only letters, digits, hyphens, and underscores."
   exit 1
 fi
 
 EVAL_CASE_FILE=".claude/evals/${SKILL_NAME}.md"
 ```
 
-**에러 분기 — eval 케이스 파일 미존재:**
-```
-eval 케이스 파일을 찾을 수 없습니다: .claude/evals/<skill-name>.md
-먼저 해당 스킬의 eval 케이스 파일을 작성하세요.
-형식: .claude/evals/SKILL.md 파일의 ## EVAL: <skill-name> 섹션 참조
-```
+The `echo` output above is in English; relay it to the user in the conversation language.
 
-**에러 분기 — skill-name 인자 없음:**
-```
-스킬 이름을 지정하세요.
-사용법: codex "eval-harness 스킬로 <skill-name>을 eval해줘"
-예시: codex "eval-harness 스킬로 stack-exa를 eval해줘"
-```
+**에러 분기 — eval 케이스 파일 미존재:** output {{msg:CASE_FILE_MISSING}} (`{skill_name}`: the skill name).
+
+**에러 분기 — skill-name 인자 없음:** output {{msg:SKILL_NAME_REQUIRED}}.
 
 ### Version 출처 (우선순위)
 
@@ -194,33 +195,29 @@ done
 
 ### `.claude/evals/<skill-name>.log` 레코드 형식
 
-실행마다 파일 끝에 **append** (기존 레코드 비파괴).
+실행마다 파일 끝에 **append** (기존 레코드 비파괴). 아래 영어 템플릿의 구조 토큰(`## Run:`, `### Case:`, `Trial n:`, `pass@3`, `pass^3`, `Verdict:`, `### Skill Summary`, `Decision:`)은 그대로 두고, 자유 문구가 있으면 `node .harness/scripts/lang.js resolve --kind=docs`로 정한 언어로 쓴다 (실패하면 `en`).
 경로는 repo root 기준. Codex sandbox는 `workspace-write` 모드 필요.
 
 ```
-## Run: <ISO 8601 타임스탬프> | Skill: <name> | Version: <n> | git: <short SHA>
+## Run: <ISO 8601 timestamp> | Skill: <name> | Version: <n> | git: <short SHA>
 
 ### Case: <eval case id 1> [CAPABILITY]
 - Trial 1: PASS/FAIL
 - Trial 2: PASS/FAIL
 - Trial 3: PASS/FAIL
-- pass@3: 1.00 | pass^3: YES | 판정: PASS (기준: pass@3 ≥ 0.9)
+- pass@3: 1.00 | pass^3: YES | Verdict: PASS (criterion: pass@3 ≥ 0.9)
 
 ### Case: <eval case id 2> [REGRESSION]
 - Trial 1: PASS/FAIL
 - Trial 2: PASS/FAIL
 - Trial 3: PASS/FAIL
-- pass@3: 1.00 | pass^3: YES | 판정: PASS (기준: pass^3 = YES)
+- pass@3: 1.00 | pass^3: YES | Verdict: PASS (criterion: pass^3 = YES)
 
-### Skill 집계
+### Skill Summary
 - Decision: PASS
 ```
 
-**파일 쓰기 실패 시 fallback:**
-```
-경고: .claude/evals/<skill-name>.log에 쓸 수 없습니다.
-로그 내용을 표준 출력으로 출력합니다. 수동으로 파일에 저장하세요.
-```
+**파일 쓰기 실패 시 fallback:** output {{msg:LOG_WRITE_FAILED}} (`{skill_name}`: the skill name).
 
 ### `.claude/evals/baseline.json` 갱신 규칙
 
@@ -252,12 +249,7 @@ jq --arg skill "$SKILL_NAME" --arg ts "$NOW" --arg sha "$GIT_SHA" \
   && mv "${BASELINE}.tmp" "$BASELINE"
 ```
 
-**baseline.json 쓰기 실패 시:**
-```
-경고: .claude/evals/baseline.json을 갱신할 수 없습니다.
-수동으로 아래 내용을 추가하세요:
-  "<skill-name>": {"lastPass": "<ISO timestamp>", "gitSHA": "<short SHA>"}
-```
+**baseline.json 쓰기 실패 시:** output {{msg:BASELINE_WRITE_FAILED}} (`{skill_name}`: the skill name, `{iso_timestamp}`: `NOW`, `{short_sha}`: `GIT_SHA`).
 
 ## Resources
 
