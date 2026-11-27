@@ -2,8 +2,8 @@
 // 각 테스트는 임시 루트에 fixture 트리를 만들고 CLI를 --root로 실행해 exit 코드와 stderr 진단을 단언한다.
 import { test, describe, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync, readFileSync, readdirSync, existsSync } from 'node:fs'
+import { join, dirname, relative, basename } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -602,5 +602,72 @@ describe('진단 형식과 실행 오류', () => {
     const r = run(['--bogus'])
     assert.equal(r.status, 2)
     assert.match(r.stderr, /Usage/)
+  })
+})
+
+// 이전을 마친 실제 하네스 트리에서 검사기가 위반 없이 끝나는지 고정한다.
+// 하네스 원본 저장소(상위에 scripts/deploy-harness.sh가 있는 src/)에서만 실행한다 — 배포 대상 프로젝트와 루트 동기화본에서는 건너뛴다.
+const TREE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const IS_HARNESS_SOURCE = existsSync(join(TREE_ROOT, '..', 'scripts', 'deploy-harness.sh')) && basename(TREE_ROOT) === 'src'
+
+describe('실제 하네스 트리', { skip: !IS_HARNESS_SOURCE }, () => {
+  const ALLOWED_REASONS = new Set([
+    'instructions-en: X1',
+    'instructions-en: X2',
+    'instructions-en: X4',
+    'consumer-parsed format token',
+    'script-messages-en',
+    'parsed data token',
+  ])
+  const COMPONENT_BASES = ['.claude/skills', '.claude/agents', '.claude/commands', '.codex/skills']
+  const CATALOG_FILE = /[\\/]templates[\\/]messages\.(en|ko)\.md$/
+
+  // 스킬은 디렉토리 단위(.claude/skills/<name>), 에이전트·커맨드는 파일 경로 단위로 센다.
+  function componentOf(file) {
+    const parts = relative(TREE_ROOT, file).split(/[\\/]/)
+    return parts[1] === 'skills' ? parts.slice(0, 3).join('/') : parts.join('/')
+  }
+
+  function collectBodies() {
+    const files = []
+    const walk = (dir) => {
+      if (!existsSync(dir)) return
+      for (const ent of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, ent.name)
+        if (ent.isDirectory()) walk(p)
+        else if (p.endsWith('.md') && !CATALOG_FILE.test(p)) files.push(p)
+      }
+    }
+    for (const base of COMPONENT_BASES) walk(join(TREE_ROOT, base))
+    return files.map((p) => ({ component: componentOf(p), text: readFileSync(p, 'utf8') }))
+  }
+
+  test('기본 루트에서 exit 0이고 stderr가 비어 있다', () => {
+    const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8' })
+    assert.equal(r.stderr, '')
+    assert.equal(r.status, 0)
+  })
+
+  test('허용 목록의 모든 항목 reason이 정해진 사유 중 하나다', () => {
+    const list = JSON.parse(readFileSync(join(TREE_ROOT, '.harness/i18n/residual-allow.json'), 'utf8'))
+    assert.ok(Array.isArray(list) && list.length > 0)
+    assert.deepEqual(list.filter((e) => !ALLOWED_REASONS.has(e.reason)), [])
+  })
+
+  test('공통 카탈로그 ID마다 참조 컴포넌트가 2개 이상이다', () => {
+    const commonText = readFileSync(join(TREE_ROOT, '.harness/i18n/en/common.md'), 'utf8')
+    const ids = [...commonText.matchAll(/^## ([A-Z][A-Z0-9_]*)$/gm)].map((m) => m[1])
+    assert.ok(ids.length > 0)
+    const bodies = collectBodies()
+    for (const id of ids) {
+      // 질문 필드 ID(<BASE>_Q 등)는 {{ask:common:<BASE>|…}}로 참조된다.
+      const base = id.replace(/_(Q|HEADER|[A-Z0-9]+_LABEL|[A-Z0-9]+_DESC)$/, '')
+      const users = new Set(
+        bodies
+          .filter(({ text }) => text.includes(`{{msg:common:${id}}}`) || text.includes(`{{ask:common:${base}|`))
+          .map(({ component }) => component),
+      )
+      assert.ok(users.size >= 2, `${id} referenced by [${[...users].join(', ')}]`)
+    }
   })
 })
