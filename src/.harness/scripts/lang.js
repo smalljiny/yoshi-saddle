@@ -2,6 +2,7 @@
 // lang.js — 대화·문서·커밋 언어를 ko/en 중 하나로 결정한다.
 // 사용법: node .harness/scripts/lang.js resolve --kind=conversation|docs|commit
 //         node .harness/scripts/lang.js explain --kind=conversation|docs|commit
+//         node .harness/scripts/lang.js recommend
 // 판정 순수 함수는 lang-core.js에 있다. 기존 import 호환을 위해 normalizeLanguage·parseLanguageBlock을 re-export한다.
 
 import fs from 'node:fs'
@@ -9,6 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalizeLanguage, parseLanguageBlock, readText } from './lang-core.js'
+import { recommend } from './lang-recommend.js'
 
 export { normalizeLanguage, parseLanguageBlock } from './lang-core.js'
 
@@ -16,6 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const USAGE = 'usage: node .harness/scripts/lang.js resolve --kind=conversation|docs|commit'
 const EXPLAIN_USAGE = 'usage: node .harness/scripts/lang.js explain --kind=conversation|docs|commit'
+const RECOMMEND_USAGE = 'usage: node .harness/scripts/lang.js recommend'
 const DEFAULT_SOURCE = 'default'
 const FALLBACK_LANGUAGE = 'en'
 
@@ -171,9 +174,16 @@ function runExplain(args) {
   process.stdout.write(`value=${language}\nsource=${source}\nreason=${reason}\n`)
 }
 
+function runRecommend(args) {
+  if (args.length !== 1) return failUsage(RECOMMEND_USAGE)
+  const { result, warnings } = recommend(projectRoot())
+  writeWarnings(warnings)
+  process.stdout.write(`${JSON.stringify(result)}\n`)
+}
+
 // 첫 인자가 새 서브커맨드 이름일 때만 그 경로로 분기한다. 그 밖(인자 없음·resolve·알 수 없음)은
 // 현행 resolve 경로와 resolve 사용법을 그대로 쓴다.
-const SUBCOMMANDS = Object.freeze({ explain: runExplain })
+const SUBCOMMANDS = Object.freeze({ explain: runExplain, recommend: runRecommend })
 
 function main() {
   const args = process.argv.slice(2)
