@@ -1,5 +1,5 @@
 ---
-version: 10
+version: 11
 name: flow-init
 description: Initialize or update project section of CLAUDE.md and AGENTS.md.
 origin: harness
@@ -26,10 +26,12 @@ user-invocable: true
 
 루트 `CLAUDE.md`와 `AGENTS.md` 각각 독립적으로 판정한다:
 
+**셸 경로 인자**: 이 스킬이 지시하는 모든 Bash 명령에서 파일 경로 인자(`<파일>`, `<임시 파일>`, 백업 경로)는 큰따옴표로 감싸 쓴다. `rm`·`cp`처럼 옵션을 받는 명령은 경로 앞에 `--`를 둔다.
+
 **스냅숏 읽기 (Step 1 시작 직후, 판정·질문보다 먼저)**: 모드 판정과 경계 탐지 불가 질문보다 먼저, `CLAUDE.md`와 `AGENTS.md` 각각에 다음 스냅숏 명령을 Bash로 한 번씩 실행한다 (`<파일>` 자리에 `CLAUDE.md` 또는 `AGENTS.md`).
 
 ```bash
-node -e 'const fs=require("fs"),c=require("crypto");let r;try{const b=fs.readFileSync(process.argv[1]);r={status:"ok",hash:c.createHash("sha256").update(b).digest("hex"),content:b.toString("utf8")}}catch(e){r=e.code==="ENOENT"?{status:"absent"}:{status:"error",code:e.code||"read failed"}}process.stdout.write(JSON.stringify(r))' <파일>
+node -e 'const fs=require("fs"),c=require("crypto");let r;try{const b=fs.readFileSync(process.argv[1]);r={status:"ok",hash:c.createHash("sha256").update(b).digest("hex"),content:b.toString("utf8")}}catch(e){r=e.code==="ENOENT"?{status:"absent"}:{status:"error",code:e.code||"read failed"}}process.stdout.write(JSON.stringify(r))' "<파일>"
 ```
 
 - 스냅숏의 `content`는 그 파일의 모드 판정, Step 2 항목 1–3의 기존 값 추출, Step 3·4 파싱의 유일한 입력이다. `hash`는 쓰기 단계 재확인의 기준이다. Read 도구나 다른 명령으로 같은 파일을 판정용·해시용으로 다시 읽지 않는다. 예외는 쓰기 단계 E 직전에 Write 도구의 사전 Read 요건을 채우려고 대상 파일을 Read하는 호출 하나이며, 그 내용은 판정·조립·비교에 쓰지 않는다.
@@ -255,8 +257,8 @@ Step 3·4의 최종 조립본을 `CLAUDE.md`, `AGENTS.md` 순서로 파일마다
 3. **실행** (Bash·Write 도구, 이 순서로):
    1. Bash `mktemp`로 시스템 임시 디렉토리에 임시 파일을 만들고 경로를 기록한다.
    2. Write 도구로 최종 조립본을 그 임시 파일에 쓴다. Write 도구가 기존 파일 읽기를 요구하면 Write 전에 Read 도구로 그 임시 파일을 읽는다.
-   3. Bash로 실행한다: `node .harness/scripts/lang.js check --file=<임시 파일> --expect-begin=<begin> --expect-end=<end> --expect-docs=<docs> --expect-commit=<commit> --expect-comments=<comments>`. stdout·stderr·exit code를 기록한다.
-   4. Bash `rm -f <임시 파일>`로 지운다. `check` 결과·exit code와 무관하게, 그리고 2·3이 실패한 경우에도 실행한다.
+   3. Bash로 실행한다: `node .harness/scripts/lang.js check --file="<임시 파일>" --expect-begin=<begin> --expect-end=<end> --expect-docs=<docs> --expect-commit=<commit> --expect-comments=<comments>`. stdout·stderr·exit code를 기록한다.
+   4. Bash `rm -f -- "<임시 파일>"`로 지운다. `check` 결과·exit code와 무관하게, 그리고 2·3이 실패한 경우에도 실행한다.
    - `mktemp` 또는 Write가 실패하면 `[쓰기 중단: 검사 실패]` (원인: 임시 파일 준비 실패)로 처리한다.
 4. **결과 분기**:
 
@@ -294,7 +296,14 @@ Step 3·4의 최종 조립본을 `CLAUDE.md`, `AGENTS.md` 순서로 파일마다
 
 **D. 백업** (Step 1에서 "백업 후 재생성"을 고른 파일만. 그 밖의 파일은 E로 진행):
 
-- Bash `cp <파일> <파일>.bak.<timestamp>`로 Step 1 질문에 표시한 경로에 백업을 만든다 (`<timestamp>`는 Step 1에서 정한 값). 다른 경로나 새 timestamp로 다시 시도하지 않는다.
+- Bash로 다음 한 줄을 실행해 Step 1 질문에 표시한 경로에 백업을 만든다 (`<timestamp>`는 Step 1에서 정한 값). 다른 경로나 새 timestamp로 다시 시도하지 않는다.
+
+  ```bash
+  test ! -e "<파일>.bak.<timestamp>" && test ! -L "<파일>.bak.<timestamp>" && cp -n -- "<파일>" "<파일>.bak.<timestamp>"
+  ```
+
+  - 앞의 두 `test`는 백업 경로에 파일·디렉토리·심볼릭 링크(깨진 링크 포함)가 이미 있으면 exit ≠ 0으로 멈춘다. 기존 백업을 덮어쓰지 않고, 링크를 따라 다른 위치에 쓰지 않는다.
+  - `cp -n`은 대상이 이미 있을 때 플랫폼에 따라 exit 0으로 복사를 건너뛸 수 있으므로, 대상이 없음을 앞의 `test`로 먼저 확인한다.
 - exit = 0이면 E로 진행한다.
 - exit ≠ 0이면 그 파일은 E로 넘어가지 않는다. 대상 파일에 대한 Write·Edit·셸 쓰기(리다이렉트·`mv`·`cp`·원자적 교체 포함)를 하지 않고 `[쓰기 중단: 백업 실패]`와 stderr 오류를 기록한 뒤 다음 파일로 진행한다.
 
