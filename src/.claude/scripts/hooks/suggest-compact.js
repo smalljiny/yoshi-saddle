@@ -40,11 +40,11 @@ function main() {
 
   if (count === THRESHOLD) {
     process.stderr.write(
-      `[StrategicCompact] 도구 호출 ${count}회 — 다음 Task 시작 전 /compact 고려\n`
+      `[StrategicCompact] ${count} tool calls — consider /compact before starting the next Task\n`
     );
   } else if (count > THRESHOLD && (count - THRESHOLD) % REMIND_EVERY === 0) {
     process.stderr.write(
-      `[StrategicCompact] 도구 호출 ${count}회 — 컨텍스트가 오래됐다면 /compact 좋은 시점\n`
+      `[StrategicCompact] ${count} tool calls — good checkpoint for /compact if context feels stale\n`
     );
   }
 

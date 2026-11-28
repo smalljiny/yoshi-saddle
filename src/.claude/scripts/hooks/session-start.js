@@ -22,15 +22,15 @@ function main() {
         const topicData = context.topics?.[topic]
         if (topicData) {
           // 이전 컨텍스트 출력 (Claude Code가 시스템 메시지로 인식)
-          console.log(`[컨텍스트 복원] 주제: ${topic} | phase: ${topicData.phase}`)
+          console.log(`[Context restore] Topic: ${topic} | phase: ${topicData.phase}`)
 
           if (topicData.currentStory) {
-            console.log(`[컨텍스트 복원] 다음 Story: ${topicData.currentStory}`)
-            console.log(`  → /dev:impl 로 계속하세요.`)
+            console.log(`[Context restore] Next Story: ${topicData.currentStory}`)
+            console.log(`  → Continue with /flow-impl.`)
           }
 
           if (topicData.plan) {
-            console.log(`[컨텍스트 복원] 계획 파일: ${topicData.plan}`)
+            console.log(`[Context restore] Plan file: ${topicData.plan}`)
           }
         }
       }

@@ -50,14 +50,14 @@ function main() {
   const violations = checkConsoleLog(modifiedFiles)
 
   if (violations.length > 0) {
-    console.warn('[console.log 감사] 다음 파일에 console.log가 남아있습니다:')
+    console.warn('[console.log audit] console.log remains in the following files:')
     for (const { file, lines } of violations) {
       console.warn(`\n  📁 ${file}`)
       for (const line of lines.split('\n')) {
         console.warn(`    ${line}`)
       }
     }
-    console.warn('\n  커밋 전에 제거하거나 적절한 logger로 교체하세요.')
+    console.warn('\n  Remove them or replace them with a proper logger before committing.')
   }
 
   process.exit(0)  // 경고만 출력, 세션 종료를 막지 않음

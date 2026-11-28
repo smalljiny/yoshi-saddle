@@ -110,7 +110,7 @@ describe('dev-context.js', () => {
       run('register-topic', '--topic=dup-topic', '--spec=some/spec.md')
       const err = await runExpectFail('register-topic', '--topic=dup-topic', '--spec=other/spec.md')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('이미 존재합니다'))
+      assert.ok(err.stderr.includes('already exists'))
     })
 
     test('부모 디렉토리 없는 중첩 경로에서도 파일 생성', () => {
@@ -158,7 +158,7 @@ describe('dev-context.js', () => {
     test('무효 전환: spec:drafting → plan:ready는 non-zero exit', async () => {
       const err = await runExpectFail('update-state', '--topic=t1', '--phase=plan', '--status=ready')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('유효하지 않은 전환'))
+      assert.ok(err.stderr.includes('invalid transition'))
     })
 
     test('무효 전환: spec:drafting → review:in-progress는 non-zero exit', async () => {
@@ -227,13 +227,13 @@ describe('dev-context.js', () => {
     test('phase 변경 시도 → 에러 (PROTECTED)', async () => {
       const err = await runExpectFail('set-field', '--topic=sf-test', '--field=phase', '--value=plan')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('update-state 전용'))
+      assert.ok(err.stderr.includes('reserved for update-state'))
     })
 
     test('status 변경 시도 → 에러 (PROTECTED)', async () => {
       const err = await runExpectFail('set-field', '--topic=sf-test', '--field=status', '--value=confirmed')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('update-state 전용'))
+      assert.ok(err.stderr.includes('reserved for update-state'))
     })
 
     test('current_topic 글로벌 필드 업데이트 (--topic 없이)', () => {
@@ -252,7 +252,7 @@ describe('dev-context.js', () => {
     test('set-field --topic=X --field=current_topic → 에러', async () => {
       const err = await runExpectFail('set-field', '--topic=sf-test', '--field=current_topic', '--value=sf-test')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('--topic과 함께 사용할 수 없습니다'))
+      assert.ok(err.stderr.includes('cannot be used with --topic'))
     })
   })
 
@@ -353,14 +353,14 @@ describe('dev-context.js', () => {
     test('read --topic=X --field=current_topic → --topic과 함께 사용 불가 에러', async () => {
       const err = await runExpectFail('read', '--topic=read-test', '--field=current_topic')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('--topic과 함께 사용할 수 없습니다'))
+      assert.ok(err.stderr.includes('cannot be used with --topic'))
     })
 
     test('read --field 미지정 → 사용법 안내를 stderr에 출력하고 non-zero exit', async () => {
       const err = await runExpectFail('read')
       assert.notEqual(err.code, 0)
       assert.ok(err.stderr.includes('--field'), 'stderr는 --field 키워드를 포함해야 한다')
-      assert.ok(err.stderr.includes('사용 가능한 호출 형태'), 'stderr는 사용법 안내 헤더를 포함해야 한다')
+      assert.ok(err.stderr.includes('Available invocation forms'), 'stderr는 사용법 안내 헤더를 포함해야 한다')
     })
   })
 
@@ -532,7 +532,7 @@ describe('dev-context.js', () => {
     test('set-field config.__proto__.polluted → non-zero exit (프로토타입 오염 방어)', async () => {
       const err = await runExpectFail('set-field', '--field=config.__proto__.polluted', '--value=yes')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('예약된 키'))
+      assert.ok(err.stderr.includes('reserved key'))
       // Object.prototype이 오염되지 않았는지 간접 확인: 새 객체에 polluted 속성 부재
       assert.equal(({}).polluted, undefined)
     })
@@ -608,13 +608,13 @@ describe('dev-context.js', () => {
     test('set-field config: 비문자열 원소(숫자) → non-zero exit', async () => {
       const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=[1,2]')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('문자열 원소만 허용'))
+      assert.ok(err.stderr.includes('only string elements'))
     })
 
     test('set-field config: 비문자열 원소(null 포함) → non-zero exit', async () => {
       const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=[null]')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('문자열 원소만 허용'))
+      assert.ok(err.stderr.includes('only string elements'))
     })
 
     test('set-field config: [invalid (닫는 ] 없음) → 스칼라 문자열로 저장 (정규식 패턴 보호)', () => {
@@ -636,7 +636,7 @@ describe('dev-context.js', () => {
     test('set-field config: 줄바꿈 포함 배열 원소 → non-zero exit', async () => {
       const err = await runExpectFail('set-field', '--field=config.docs.sourceFilter', '--value=["src/\\nlib/"]')
       assert.notEqual(err.code, 0)
-      assert.ok(err.stderr.includes('줄바꿈'))
+      assert.ok(err.stderr.includes('newline'))
     })
 
     test('round-trip: 빈 배열은 split-and-filter 시 0 prefix로 해석', () => {
@@ -705,15 +705,15 @@ describe('dev-context.js', () => {
         encoding: 'utf8',
         env: { ...process.env, DEV_CONTEXT_PATH: CTX_PATH },
       })
-      assert.match(result.stderr, /VALID_TRANSITIONS를 우회해/)
-      assert.match(result.stderr, /관리자 용도/)
+      assert.match(result.stderr, /bypassed VALID_TRANSITIONS/)
+      assert.match(result.stderr, /admin use/)
     })
 
     test('순방향 점프는 --allow-unsafe-force 없으면 non-zero exit', async () => {
       run('register-topic', '--topic=ft2b', '--spec=spec.md')
       const err = await runExpectFail('force-state', '--topic=ft2b', '--phase=plan', '--status=ready')
       assert.notEqual(err.code, 0)
-      assert.match(err.stderr, /순방향 점프/)
+      assert.match(err.stderr, /forward jump/)
       assert.match(err.stderr, /allow-unsafe-force/)
     })
 
@@ -765,7 +765,7 @@ describe('dev-context.js', () => {
       run('register-topic', '--topic=ft6', '--spec=spec.md')
       const err = await runExpectFail('force-state', '--topic=ft6', '--phase=garbage', '--status=junk')
       assert.notEqual(err.code, 0)
-      assert.match(err.stderr, /알 수 없는 상태/)
+      assert.match(err.stderr, /unknown state/)
     })
 
     test('--status 누락 → non-zero exit', async () => {
@@ -793,7 +793,7 @@ describe('dev-context.js', () => {
       run('register-topic', '--topic=ft7', '--spec=spec.md')
       const err = await runExpectFail('update-state', '--topic=ft7', '--phase=plan', '--status=ready')
       assert.notEqual(err.code, 0)
-      assert.match(err.stderr, /유효하지 않은 전환/)
+      assert.match(err.stderr, /invalid transition/)
     })
   })
 })

@@ -35,10 +35,10 @@ const FORBIDDEN_CONFIG_SEGMENTS = new Set(['__proto__', 'constructor', 'prototyp
 function parseConfigPath(field) {
   const segments = field.split('.')
   if (segments.length !== 3 || segments[0] !== 'config' || !segments[1] || !segments[2]) {
-    return { ok: false, reason: `config 경로는 정확히 'config.<namespace>.<key>' 형태여야 합니다 (입력: ${field})` }
+    return { ok: false, reason: `config path must be exactly in the form 'config.<namespace>.<key>' (input: ${field})` }
   }
   if (FORBIDDEN_CONFIG_SEGMENTS.has(segments[1]) || FORBIDDEN_CONFIG_SEGMENTS.has(segments[2])) {
-    return { ok: false, reason: `config 경로에 예약된 키를 사용할 수 없습니다 (입력: ${field})` }
+    return { ok: false, reason: `config path cannot use a reserved key (input: ${field})` }
   }
   return { ok: true, ns: segments[1], key: segments[2] }
 }
@@ -54,10 +54,10 @@ function coerceConfigValue(value) {
     try {
       parsed = JSON.parse(value)
     } catch (e) {
-      die(`config 값 파싱 오류: JSON 배열 파싱 실패 — ${e.message} (입력: ${value})`)
+      die(`config value parse error: failed to parse JSON array — ${e.message} (input: ${value})`)
     }
     if (!Array.isArray(parsed) || !parsed.every(el => typeof el === 'string' && !/[\r\n]/.test(el))) {
-      die('config 배열 값은 문자열 원소만 허용합니다 — 줄바꿈 포함 및 비문자열 불가 (예: [".claude/", ".harness/"])')
+      die('config array values allow only string elements — no newlines or non-string elements (e.g. [".claude/", ".harness/"])')
     }
     return parsed
   }
@@ -128,13 +128,13 @@ const args = parseArgs(rest)
 switch (subcommand) {
   case 'register-topic': {
     const { topic, spec } = args
-    if (!topic) die('register-topic: --topic 필요')
-    if (!spec) die('register-topic: --spec 필요')
+    if (!topic) die('register-topic: --topic required')
+    if (!spec) die('register-topic: --spec required')
 
     const ctx = readContext()
 
     if (ctx.topics[topic]) {
-      die(`register-topic: 토픽 '${topic}'이 이미 존재합니다 (현재 ${ctx.topics[topic].phase}:${ctx.topics[topic].status})`)
+      die(`register-topic: topic '${topic}' already exists (current ${ctx.topics[topic].phase}:${ctx.topics[topic].status})`)
     }
 
     // 기존 레거시 필드 정리
@@ -160,13 +160,13 @@ switch (subcommand) {
 
   case 'update-state': {
     const { topic, phase, status } = args
-    if (!topic) die('update-state: --topic 필요')
-    if (!phase) die('update-state: --phase 필요')
-    if (!status) die('update-state: --status 필요')
+    if (!topic) die('update-state: --topic required')
+    if (!phase) die('update-state: --phase required')
+    if (!status) die('update-state: --status required')
 
     const ctx = readContext()
     const t = ctx.topics[topic]
-    if (!t) die(`update-state: 토픽 '${topic}' 미존재`)
+    if (!t) die(`update-state: topic '${topic}' not found`)
 
     const from = `${t.phase}:${t.status}`
     const to = `${phase}:${status}`
@@ -178,7 +178,7 @@ switch (subcommand) {
 
     const allowed = VALID_TRANSITIONS[from]
     if (!allowed || !allowed.includes(to)) {
-      die(`update-state: 유효하지 않은 전환 '${from}' → '${to}'\n허용: ${allowed ? allowed.join(', ') : '없음'}`)
+      die(`update-state: invalid transition '${from}' → '${to}'\nAllowed: ${allowed ? allowed.join(', ') : 'none'}`)
     }
 
     t.phase = phase
@@ -190,12 +190,12 @@ switch (subcommand) {
 
   case 'set-field': {
     const { topic, field, value } = args
-    if (!field) die('set-field: --field 필요')
-    if (value === undefined) die('set-field: --value 필요')
+    if (!field) die('set-field: --field required')
+    if (value === undefined) die('set-field: --value required')
 
     // 글로벌 필드: current_topic (--topic 없이 사용, read와 대칭)
     if (field === 'current_topic') {
-      if (topic) die('set-field: current_topic은 글로벌 필드이므로 --topic과 함께 사용할 수 없습니다')
+      if (topic) die('set-field: current_topic is a global field and cannot be used with --topic')
       const ctx = readContext()
       ctx.current_topic = value === 'null' ? null : value
       writeContext(ctx)
@@ -204,7 +204,7 @@ switch (subcommand) {
 
     // 글로벌 config 점 경로 (config.<ns>.<key>)
     if (field === 'config' || field.startsWith('config.')) {
-      if (topic) die('set-field: config.* 는 글로벌 필드이므로 --topic과 함께 사용할 수 없습니다')
+      if (topic) die('set-field: config.* is a global field and cannot be used with --topic')
       const parsed = parseConfigPath(field)
       if (!parsed.ok) die(`set-field: ${parsed.reason}`)
       const ctx = readContext()
@@ -216,20 +216,20 @@ switch (subcommand) {
       break
     }
 
-    if (!topic) die('set-field: --topic 필요 (current_topic 제외)')
+    if (!topic) die('set-field: --topic required (except current_topic)')
 
     if (PROTECTED_FIELDS.has(field)) {
-      die(`set-field: '${field}' 필드는 update-state 전용입니다`)
+      die(`set-field: field '${field}' is reserved for update-state`)
     }
 
     // 프로토타입 오염 방지: topic 필드 예약 키 금지
     if (field === '__proto__' || field === 'constructor' || field === 'prototype') {
-      die(`set-field: '${field}' 필드는 사용할 수 없습니다`)
+      die(`set-field: field '${field}' is not allowed`)
     }
 
     const ctx = readContext()
     const t = ctx.topics[topic]
-    if (!t) die(`set-field: 토픽 '${topic}' 미존재`)
+    if (!t) die(`set-field: topic '${topic}' not found`)
 
     // null 문자열 처리
     t[field] = value === 'null' ? null : value
@@ -240,10 +240,10 @@ switch (subcommand) {
 
   case 'remove-topic': {
     const { topic } = args
-    if (!topic) die('remove-topic: --topic 필요')
+    if (!topic) die('remove-topic: --topic required')
 
     const ctx = readContext()
-    if (!ctx.topics[topic]) die(`remove-topic: 토픽 '${topic}' 미존재`)
+    if (!ctx.topics[topic]) die(`remove-topic: topic '${topic}' not found`)
 
     delete ctx.topics[topic]
 
@@ -260,9 +260,9 @@ switch (subcommand) {
   case 'read': {
     const { topic, field } = args
     if (!field) die([
-      'read: --field 필요',
+      'read: --field required',
       '',
-      '사용 가능한 호출 형태:',
+      'Available invocation forms:',
       '  read --field=current_topic',
       '  read --field=config.<namespace>.<key>',
       '  read --topic=<topic> --field=<phase|status|spec|specReview|plan|planReview|currentStory>',
@@ -271,7 +271,7 @@ switch (subcommand) {
     const ctx = readContext()
 
     if (field === 'current_topic') {
-      if (topic) die('read: current_topic은 글로벌 필드이므로 --topic과 함께 사용할 수 없습니다')
+      if (topic) die('read: current_topic is a global field and cannot be used with --topic')
       const val = ctx.current_topic
       process.stdout.write((val === null || val === undefined ? '' : String(val)) + '\n')
       break
@@ -279,7 +279,7 @@ switch (subcommand) {
 
     // 글로벌 config 점 경로 (config.<ns>.<key>)
     if (field === 'config' || field.startsWith('config.')) {
-      if (topic) die('read: config.* 는 글로벌 필드이므로 --topic과 함께 사용할 수 없습니다')
+      if (topic) die('read: config.* is a global field and cannot be used with --topic')
       const parsed = parseConfigPath(field)
       if (!parsed.ok) die(`read: ${parsed.reason}`)
       // Object.prototype 상속 속성이 own property로 읽히지 않도록 hasOwn 가드
@@ -297,10 +297,10 @@ switch (subcommand) {
       break
     }
 
-    if (!topic) die('read: --topic 필요 (current_topic 제외)')
+    if (!topic) die('read: --topic required (except current_topic)')
 
     const t = ctx.topics[topic]
-    if (!t) die(`read: 토픽 '${topic}' 미존재`)
+    if (!t) die(`read: topic '${topic}' not found`)
 
     const val = t[field]
     process.stdout.write((val === null || val === undefined ? '' : String(val)) + '\n')
@@ -309,24 +309,24 @@ switch (subcommand) {
 
   case 'force-state': {
     const { topic, phase, status } = args
-    if (!topic) die('force-state: --topic 필요')
-    if (!phase) die('force-state: --phase 필요')
-    if (!status) die('force-state: --status 필요')
+    if (!topic) die('force-state: --topic required')
+    if (!phase) die('force-state: --phase required')
+    if (!status) die('force-state: --status required')
 
     // 예약어 토픽 이름 거부 (prototype pollution 방지)
     if (topic === '__proto__' || topic === 'constructor' || topic === 'prototype') {
-      die(`force-state: '${topic}' 토픽 이름은 사용할 수 없습니다`)
+      die(`force-state: topic name '${topic}' is not allowed`)
     }
 
     const KNOWN_STATES = new Set(Object.keys(VALID_TRANSITIONS))
     const to = `${phase}:${status}`
     if (!KNOWN_STATES.has(to)) {
-      die(`force-state: 알 수 없는 상태 '${to}'\n허용: ${[...KNOWN_STATES].join(', ')}`)
+      die(`force-state: unknown state '${to}'\nAllowed: ${[...KNOWN_STATES].join(', ')}`)
     }
 
     const ctx = readContext()
     const t = ctx.topics[topic]
-    if (!t) die(`force-state: 토픽 '${topic}' 미존재`)
+    if (!t) die(`force-state: topic '${topic}' not found`)
 
     const from = `${t.phase}:${t.status}`
     if (from === to) break  // idempotent: 동일 상태는 무시
@@ -343,14 +343,14 @@ switch (subcommand) {
     const isForward = fromIdx !== -1 && toIdx !== -1 && toIdx > fromIdx
     if (isForward && !args['allow-unsafe-force']) {
       die(
-        `force-state: '${from}' → '${to}'는 순방향 점프입니다.\n` +
-        `아티팩트 검증 없이 후기 상태로 이동하면 워크플로우 게이트를 우회합니다.\n` +
-        `의도한 경우 --allow-unsafe-force 플래그를 추가하세요 (역방향 복구에는 불필요).`
+        `force-state: '${from}' → '${to}' is a forward jump.\n` +
+        `Moving to a later state without artifact verification bypasses workflow gates.\n` +
+        `If intended, add the --allow-unsafe-force flag (not needed for backward recovery).`
       )
     }
 
     const forwardNote = isForward ? ' [--allow-unsafe-force]' : ''
-    process.stderr.write(`force-state: VALID_TRANSITIONS를 우회해 ${from} → ${to}로 강제 전환했습니다 (관리자 용도)${forwardNote}.\n`)
+    process.stderr.write(`force-state: bypassed VALID_TRANSITIONS and forced transition ${from} → ${to} (admin use)${forwardNote}.\n`)
 
     t.phase = phase
     t.status = status
@@ -360,5 +360,5 @@ switch (subcommand) {
   }
 
   default:
-    die(`알 수 없는 서브커맨드: ${subcommand}\n사용 가능: register-topic, update-state, set-field, remove-topic, read, force-state`)
+    die(`unknown subcommand: ${subcommand}\nAvailable: register-topic, update-state, set-field, remove-topic, read, force-state`)
 }

@@ -56,7 +56,7 @@ if [ -d "$SRC" ]; then
   SYNCED="1"
   echo "[1] synced back: docs/_local/done/$TOPIC → main"
 else
-  echo "[1] no done archive at $SRC — skip sync-back (토픽이 아직 /flow-done 전이면 정상)"
+  echo "[1] no done archive at $SRC — skip sync-back (normal if the topic has not reached /flow-done yet)"
 fi
 
 # --- 1b. 원본 폐기: sync-back 이 정본 done 아카이브를 main 에 심었으니 stale 원본
@@ -69,11 +69,11 @@ if [ -n "$SYNCED" ] && [ -z "$KEEP_ORIGINAL" ]; then
     fi
   done
 elif [ -n "$KEEP_ORIGINAL" ]; then
-  echo "[1b] --keep-original: main 원본 핸드오프본 보존"
+  echo "[1b] --keep-original: keeping main original handoff copies"
 fi
 
 if [ -n "$KEEP" ]; then
-  echo "[keep] worktree 유지: $WT"
+  echo "[keep] keeping worktree: $WT"
   exit 0
 fi
 
@@ -84,4 +84,4 @@ else
   git -C "$MAIN" worktree remove "$WT"
 fi
 echo "[2] worktree removed: $WT"
-echo "브랜치 feature/$TOPIC 는 남는다 — 필요 시 git branch -D 로 별도 삭제."
+echo "Branch feature/$TOPIC remains — delete it separately with git branch -D if needed."

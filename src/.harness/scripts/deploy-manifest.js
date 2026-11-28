@@ -40,15 +40,15 @@ function parseArgs(argv) {
 
 function cmdListSrc(positional) {
   if (positional.length < 1) {
-    die('list-src: src 디렉토리 인자 필요 (예: list-src src/)')
+    die('list-src: src directory argument required (e.g. list-src src/)')
   }
   const srcDir = positional[0]
   if (!existsSync(srcDir)) {
-    die(`list-src: src 디렉토리가 존재하지 않습니다: ${srcDir}`)
+    die(`list-src: src directory does not exist: ${srcDir}`)
   }
   const st = statSync(srcDir)
   if (!st.isDirectory()) {
-    die(`list-src: src 경로가 디렉토리가 아닙니다: ${srcDir}`)
+    die(`list-src: src path is not a directory: ${srcDir}`)
   }
 
   // 직접 재귀: readdirSync({recursive:true})는 심링크 디렉토리를 descent 해 외부 파일을
@@ -77,29 +77,29 @@ function cmdListSrc(positional) {
 
 function cmdReadFiles(positional) {
   if (positional.length < 1) {
-    die('read-files: 매니페스트 경로 인자 필요')
+    die('read-files: manifest path argument required')
   }
   const manifestPath = positional[0]
   if (!existsSync(manifestPath)) {
-    warn(`read-files: 매니페스트 파일이 없습니다 (첫 deploy 가능성): ${manifestPath}`)
+    warn(`read-files: manifest file not found (possibly the first deploy): ${manifestPath}`)
     return
   }
   let raw
   try {
     raw = readFileSync(manifestPath, 'utf8')
   } catch (e) {
-    warn(`read-files: 매니페스트 읽기 실패: ${e.message}`)
+    warn(`read-files: failed to read manifest: ${e.message}`)
     return
   }
   let data
   try {
     data = JSON.parse(raw)
   } catch (e) {
-    warn(`read-files: 매니페스트 JSON 파싱 실패: ${e.message}`)
+    warn(`read-files: failed to parse manifest JSON: ${e.message}`)
     return
   }
   if (!data || typeof data !== 'object' || !Array.isArray(data.files)) {
-    warn(`read-files: 매니페스트의 files 배열이 없거나 형식이 잘못됨: ${manifestPath}`)
+    warn(`read-files: manifest files array is missing or malformed: ${manifestPath}`)
     return
   }
   // 호출자(deploy 스크립트)가 매니페스트 경로를 rm/rsync/rmdir 의 인자로 사용하므로,
@@ -111,7 +111,7 @@ function cmdReadFiles(positional) {
     // 비교되도록 정규화하고, 정규화 후에 가드를 적용해 '..\' traversal 도 차단한다.
     const entry = rawEntry.replaceAll('\\', '/')
     if (entry.startsWith('/') || /(?:^|\/)\.\.(?:\/|$)/.test(entry) || /[\0\n\r]/.test(entry)) {
-      warn(`read-files: 의심스러운 경로 무시: ${entry}`)
+      warn(`read-files: ignoring suspicious path: ${entry}`)
       continue
     }
     process.stdout.write(entry + '\n')
@@ -120,13 +120,13 @@ function cmdReadFiles(positional) {
 
 function cmdWrite(positional, opts) {
   if (positional.length < 2) {
-    die('write: <target-manifest> 와 <files-list-path> 인자 필요')
+    die('write: <target-manifest> and <files-list-path> arguments required')
   }
   const target = positional[0]
   const filesListPath = positional[1]
 
   if (!existsSync(filesListPath)) {
-    die(`write: files-list 파일이 존재하지 않습니다: ${filesListPath}`)
+    die(`write: files-list file does not exist: ${filesListPath}`)
   }
 
   const raw = readFileSync(filesListPath, 'utf8')
@@ -167,18 +167,18 @@ function cmdWrite(positional, opts) {
 
 function cmdStripGitignoreBlock(positional) {
   if (positional.length < 1) {
-    die('strip-gitignore-block: .gitignore 경로 인자 필요')
+    die('strip-gitignore-block: .gitignore path argument required')
   }
   const gitignorePath = positional[0]
   if (!existsSync(gitignorePath)) {
-    warn(`strip-gitignore-block: .gitignore 파일이 없습니다: ${gitignorePath}`)
+    warn(`strip-gitignore-block: .gitignore file not found: ${gitignorePath}`)
     return
   }
   let raw
   try {
     raw = readFileSync(gitignorePath, 'utf8')
   } catch (e) {
-    die(`strip-gitignore-block: 파일 읽기 실패: ${e.message}`)
+    die(`strip-gitignore-block: failed to read file: ${e.message}`)
   }
   const BEGIN = '# BEGIN harness local ignores'
   const END = '# END harness local ignores'
@@ -225,5 +225,5 @@ switch (subcommand) {
     cmdStripGitignoreBlock(positional)
     break
   default:
-    die(`알 수 없는 서브커맨드: ${subcommand ?? '(없음)'}\n사용 가능: ${SUBCOMMANDS.join(', ')}`)
+    die(`unknown subcommand: ${subcommand ?? '(none)'}\nAvailable: ${SUBCOMMANDS.join(', ')}`)
 }

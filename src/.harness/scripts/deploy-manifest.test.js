@@ -221,7 +221,7 @@ describe('deploy-manifest.js', () => {
       // 안전한 항목만 출력
       assert.deepEqual(lines, ['.claude/agents/safe.md', '.harness/another-safe.md'])
       // 의심스러운 경로 4건이 stderr 로 보고됨
-      assert.ok(result.stderr.includes('의심스러운 경로'), 'stderr 에 경고 필요')
+      assert.ok(result.stderr.includes('suspicious path'), 'stderr 에 경고 필요')
       assert.ok(result.stderr.includes('../../../etc/passwd'), '.. 경고')
       assert.ok(result.stderr.includes('/etc/passwd'), '절대경로 경고')
     })
@@ -248,7 +248,7 @@ describe('deploy-manifest.js', () => {
 
       const result = run('read-files', malicious)
       assert.deepEqual(result.stdout.split('\n').filter(Boolean), ['ok.md'])
-      assert.ok(result.stderr.includes('의심스러운 경로'), 'stderr 에 경고 필요')
+      assert.ok(result.stderr.includes('suspicious path'), 'stderr 에 경고 필요')
     })
 
     test('files 배열에 string 이 아닌 엔트리는 무시 (조용히)', () => {
