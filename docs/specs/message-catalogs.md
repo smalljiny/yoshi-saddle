@@ -114,6 +114,14 @@ spec·plan·리뷰 보고서·PR 본문·`docs/specs/`·커밋 메시지에 넣�
 
 모델이 실행하는 코드 블록 안의 출력 문구는 영어이며, 모델이 결과를 대화 언어로 전달한다.
 
+### 스크립트·훅 출력
+
+`src/`의 Node·셸 스크립트와 훅(`.harness/scripts/`의 `dev-context.js`·`deploy-manifest.js`, `.claude/scripts/hooks/`, `wf-worktree-context/scripts/`)이 실행 중 내는 stdout·stderr·`throw`·훅 출력은 카탈로그 대상이 아니며 언어 설정과 무관하게 영어로 고정한다. 모델에게 전달되는 출력은 모델이 대화 언어로 옮겨 전한다.
+
+- 기존 접두사(`read: …`, `[StrategicCompact]` 등)·종료 코드·출력 채널은 언어와 무관하게 유지한다. 훅 태그는 `[Context restore]`, `[Type check]`, `[console.log audit]`, `[Pre-push checklist]`다.
+- 훅이 안내하는 커맨드는 현행 `/flow-*` 이름이다(`/flow-impl`, `/flow-review`, `/flow-verify`).
+- 주석·테스트 제목·`assert` 설명 인자는 출력이 아니라 이 규칙의 대상이 아니다. 테스트는 영어 출력의 부분 문자열을 단언한다.
+
 ### 에이전트 언어 전달
 
 `.claude/agents/`의 에이전트에 위임하는 모든 호출자(스킬·커맨드·Codex 스킬·메인 세션)는 위임 직전에 `lang.js resolve`를 `conversation`·`docs`·`commit` 세 종류 모두 실행하고, 위임 프롬프트 첫 줄에 다음을 넣는다.
